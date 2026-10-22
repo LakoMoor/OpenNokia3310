@@ -10,8 +10,13 @@
 - The full v6.39 image was written at SPI offset 0x200000 with read-back verification.
   A separate complete read-back matched SHA256
   `5cd18ff08b40f44c9dbe155bc09efbcea15b5037234fa9d54b3e43bac8fcc8a2`.
-- Original SPI contents and the previous v5.79 ROM are backed up locally and
-  excluded from this repository. FPGA configurations have been loaded into SRAM.
+- Original SPI contents, the prior FPGA configuration and the previous v5.79
+  ROM are backed up locally and excluded from this repository.
+- The final FPGA configuration is now installed persistently in SPI flash,
+  starting at 0x000000; the programmed sector range ends at 0x0E0000. The ROM
+  starts separately at 0x200000. openFPGALoader write/read-back verification
+  passed. Automatic reconfiguration from flash reached the original phone UI.
+  A physical unplug/replug cold power cycle has not been performed.
 - ST7735S is physically connected, but its displayed output remains unverified.
 
 Repeated boots are not yet reliable. A previous image sometimes ran without
@@ -39,7 +44,9 @@ UART captures from the separate I/O qualification target confirmed:
 | FF BF | C / Back (0x2000) |
 | FF FF | All released |
 
-Complete phone menu operation with the revised driver is still being checked.
+The user confirmed full phone menu operation on the actual controller after
+the revised full build was installed: Circle opens, Down scrolls and Cross
+returns. HDMI captured the original Settings menu after flash boot.
 Run `python tools/read_pad.py COM6 --seconds 10` only with `nokia_io_top`.
 It decodes controller ID, connection, raw bytes and mapped keys. Full phone
 telemetry uses a different field interpretation (`tools/read_status.py`).
@@ -52,11 +59,12 @@ HDMI: 27 MHz pixel / 135 MHz serializer. ARM/SDRAM: 16.875 MHz.
 The SDRAM init wait is 3500 cycles, refresh interval 125 cycles.
 
 LUT4-only mapping avoids the failed wide-LUT placement at 93% utilization.
-The last completed instrumented full build passed timing: sys Fmax 41.27 MHz,
-pixel Fmax 141.32 MHz, bitstream SHA256
-`3bafc5ea3cd041518227daca844141a266f219f71e650dee2d951473374b954b`.
-The revised DS2 full integration build is in progress; this hash identifies
-the earlier instrumented build, not that pending build.
+The installed full build with revised DS2 timing passed synthesis, placement,
+routing and timing: sys Fmax 40.59 MHz, pixel Fmax 149.88 MHz. Bitstream SHA256:
+`4e434db30be2a36929940f8af2fa346441ed88730e049deb1ce021339a2e8710`.
+The source `.fs` is 7,263,596 bytes of text; its parsed flash payload fits below
+0x0E0000. The original configuration backup SHA256 is
+`b3bfbfa25a69c59d3cf065a6963f555ddf3e461739d936c40ea5c15d9dd1ebc9`.
 
 ## RTL verification
 

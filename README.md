@@ -9,8 +9,8 @@ Board interfaces follow [Open Pocket GBC](https://github.com/LakoMoor/open-pocke
 
 **Work in progress.** Original v5.79 and v6.39 firmware have booted on the board.
 Phonebook, Settings, language selection and applying Russian were verified by
-actual HDMI capture. Repeated boots remain unreliable. Physical DS2 button presses now reach the Nokia matrix in an I/O diagnostic
-build; full phone menu verification is still in progress. A GSM radio, cellular calls
+actual HDMI capture. Repeated boots remain unreliable. Physical DS2 menu navigation now works on the board. Both FPGA configuration
+and the phone ROM are installed in SPI flash. A GSM radio, cellular calls
 and SMS over a mobile network are not implemented.
 
 ## Hardware
@@ -52,8 +52,8 @@ sustained operation have not yet been verified.
 ## Controls
 
 The mapping passes RTL tests. Physical directions, Circle → Menu and Cross → C
-have been captured through UART in the I/O qualification target. Full phone
-menu operation with the revised driver is still being checked.
+were captured through UART. The user also confirmed opening, scrolling and
+returning through the original phone menus using the physical controller.
 
 | DualShock | Nokia | While holding L1 |
 | --- | --- | --- |

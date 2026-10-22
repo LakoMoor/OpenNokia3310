@@ -1,48 +1,64 @@
-# Локальные образы Nokia 3310
+# Nokia 3310 firmware images
 
-Образы в этой папке исключены из Git. Скачан архив
-[Planet Emulation — noki3310](https://www.planetemu.net/en/rom/mame-roms-merged/noki3310)
-21 октября 2026 года. В `mame/` лежат исходные файлы без изменений.
+Proprietary firmware is not included in this repository. Local images and
+downloaded archives are ignored by Git. Use a legally obtained dump.
 
-`nokia3310.bin` — копия полного дампа **v5.79, PPM N**, 2 097 152 байта.
-SHA-1 исходника: `649de05ed88205a080693b918cd1295ac691dff1`.
-SHA-256: `14f5f650de01cccee9e4d12b6c1c132e60df1d24cf97cbb95efe94840d2bfaf1`.
-SHA-1 сверена с [MAME](https://github.com/mamedev/mame/blob/master/src/mame/nokia/nokia_3310.cpp).
-EEPROM внутри полного дампа сохранена; отдельный virgin EEPROM автоматически не подмешивается.
+## Supported input
 
-В архиве также есть полный v6.07 (SHA-1
-`0e80b5f1698909c9850be770c1289566582aa77a`), v5.13, отдельная
-EEPROM/PM на 192 КиБ и сервисные контейнеры обновления v6.39.
-Последние нельзя подавать как линейный образ flash: их сначала нужно распаковать.
-
-Повторная подготовка:
+`tools/prepare_firmware.py` accepts a raw full 2 MiB NHM-5 flash dump. It also
+accepts a raw 0x1D0000-byte MCU+PPM dump with an explicit 0x30000-byte EEPROM/PM
+partition. Service update containers such as `.390` must be unpacked first;
+renaming a service container to `.bin` does not make it a linear flash image.
 
 ```powershell
-python tools/prepare_firmware.py "firmware/mame/3310 nr1 v5.79.fls"
+python tools/prepare_firmware.py path/to/full-dump.fls
+python tools/prepare_firmware.py path/to/mcu-ppm.fls --eeprom path/to/eeprom.bin --output firmware/nokia3310.bin
 ```
 
-`--eeprom <file>` явно заменяет раздел образа `0x1D0000..0x1FFFFF`.
-Образ телефона отображается на `0x200000..0x3FFFFF`, точка входа `0x200040`.
-Смещение образа в SPI flash платы — `0x200000`. Цель `nokia_top` аппаратно
-копирует образ в SDRAM и запускает ARM. FPGA-конфигурация загружается в SRAM.
+The output includes a JSON manifest with source and output hashes, mapping and
+the explicit EEPROM override. A known checksum/model marker is an input check;
+it does not establish that a particular image will boot correctly.
 
-## Русский и английский: v6.39 W
+| Phone address | Contents |
+| --- | --- |
+| 0x200000–0x3FFFFF | Full flash image |
+| 0x200040 | Firmware entry point |
+| 0x3D0000–0x3FFFFF | EEPROM/PM partition |
 
-22 октября скачан `https://nokia-moding.narod.ru/download/3310w639.rar`.
-Внутри линейный `3310w639.fls`, 0x1D0000 байт, MCU+PPM W.
-SHA256: `11f86ac4f350d279a536963f8834ddc5eae064f5e615d396875d85229c58cc96`.
-Все 1 248 256 MCU-байт совпадают с распакованным сервисным `nhm5ny06.390`
-из MAME. Языки: English, Eesti, Русский, Deutsch (и Automatic).
-На реальной Tang подтверждены английское меню и применение русского языка.
+The full image is stored at **board SPI offset 0x200000**. `nokia_top` clears RAM,
+copies the image from SPI flash into SDRAM and starts the CPU. Flash operations
+performed by the emulated phone modify that SDRAM copy only; they are not yet
+persisted to the physical SPI flash.
 
-Полный `nokia3310-v639-w.bin` дополнен явной EEPROM/PM из сохранённого v5.79.
-SHA256: `5cd18ff08b40f44c9dbe155bc09efbcea15b5037234fa9d54b3e43bac8fcc8a2`.
-Записан на плату с `openFPGALoader --verify`. Исходный v5.79 не удалён,
-дополнительная копия — `backups/nokia3310-v579-ppm-n.bin`.
+## Images verified during development
 
-```powershell
-python tools/prepare_firmware.py firmware/3310w639/3310w639.fls --eeprom firmware/donor-v579-eeprom.bin --output firmware/nokia3310-v639-w.bin
-```
+The MAME archive was obtained from [Planet Emulation](https://www.planetemu.net/en/rom/mame-roms-merged/noki3310).
+Source SHA-1 values were checked against
+[MAME's Nokia driver](https://github.com/mamedev/mame/blob/master/src/mame/nokia/nokia_3310.cpp).
 
-Выбор языка: Menu → Settings (6) → Phone settings (2) → Language (1).
-Изменения EEPROM пока живут только в SDRAM и теряются при перезапуске.
+| Image | Source SHA-1 |
+| --- | --- |
+| v5.79 PPM N, full raw flash | `649de05ed88205a080693b918cd1295ac691dff1` |
+| v6.07 PPM C, full raw flash | `0e80b5f1698909c9850be770c1289566582aa77a` |
+| v6.39 PPM W, raw MCU+PPM | `9051623c7864410ce1f68d3b854ce578bd251711` |
+
+v5.79 and v6.39 W reached their original menus on the real FPGA.
+Repeated boot reliability is still under investigation; see [STATUS.md](../docs/STATUS.md).
+
+## English and Russian: v6.39 W
+
+A v6.39 W MCU+PPM image was retrieved from the archival source
+`https://nokia-moding.narod.ru/download/3310w639.rar` on October 22, 2026.
+It contains English, Estonian, Russian and German. Its 1,248,256 populated MCU
+bytes match the unpacked MAME service image `nhm5ny06.390` byte for byte.
+The raw MCU+PPM SHA256 is
+`11f86ac4f350d279a536963f8834ddc5eae064f5e615d396875d85229c58cc96`.
+
+An explicit EEPROM/PM partition from the backed-up v5.79 full dump was appended
+for testing. The resulting 2 MiB development image SHA256 is
+`5cd18ff08b40f44c9dbe155bc09efbcea15b5037234fa9d54b3e43bac8fcc8a2`.
+The physical SPI image matched this hash when read back in full.
+
+Language selection: **Menu → Settings (6) → Phone settings (2) → Language (1)**.
+English menus and applying Russian were captured directly from HDMI. The
+current implementation loses changed language/settings after a restart.
