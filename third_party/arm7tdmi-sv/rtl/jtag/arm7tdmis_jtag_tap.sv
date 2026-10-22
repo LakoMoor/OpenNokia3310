@@ -1,0 +1,312 @@
+// JTAG TAP controller (IEEE 1149.1, ARM7TDMI-S r4p3 TRM §5.13).
+//
+// 16-state TAP machine driven by DBGTMS on rising DBGTCK. The on-chip
+// variant we implement uses DBGTCKEN as an enable on CLK rather than a
+// separate TCK domain. The public FPGA transport is explicitly same-clock;
+// an asynchronous external pod requires a system-owned CDC bridge.
+//
+// IR is 4 bits; valid public opcodes per debug_pkg are SCAN_N, RESTART,
+// INTEST, IDCODE, BYPASS. All other encodings BYPASS per IEEE 1149.1 default.
+//
+// DR mux:
+//   IDCODE  → 32-bit shift register seeded with IDCODE_VALUE at Capture-DR
+//   BYPASS  → 1-bit shift register
+//   SCAN_N  → 4-bit shift register with fixed 1000 Capture-DR value
+//   INTEST  → selected physical scan chain (1 = 33-bit, 2 = 38-bit)
+//   RESTART → BYPASS-shaped 1-bit; entry to Run-Test/Idle restarts (§22)
+//
+// Reset: DBGnTRST forces the TAP to Test-Logic-Reset asynchronously per
+// IEEE 1149.1 §6.1. IR is loaded with IDCODE on reset (the standard
+// "post-reset captures IDCODE" behavior).
+
+module arm7tdmis_jtag_tap
+    import arm7tdmis_debug_pkg::*;
+  #(
+    parameter logic [3:0]  JTAG_VERSION = JTAG_DEFAULT_VERSION,
+    parameter logic [15:0] JTAG_PART_NUMBER = JTAG_DEFAULT_PART_NUMBER,
+    parameter logic [10:0] JTAG_MANUFACTURER_ID =
+        JTAG_DEFAULT_MANUFACTURER_ID
+  )
+(
+    input  logic        CLK,
+    input  logic        DBGTCKEN,        // gates each TAP clock event
+    input  logic        DBGnTRST,        // active-low async reset of TAP
+    input  logic        DBGTMS,
+    input  logic        DBGTDI,
+    output logic        DBGTDO,
+    output logic        DBGnTDOEN,       // HiZ envelope: low while shifting
+
+    // Exposed for §22 EmbeddedICE-RT and scan plumbing
+    output ir_e         current_ir,
+    output logic        in_shift_dr,
+    output logic        in_update_dr,
+    output logic        in_capture_dr,
+    output logic        tap_run_idle,
+
+    // ---- Scan chain 2 (38-bit) — EmbeddedICE-RT register access.
+    // Active when held IR == INTEST AND scan_n_q == 2. The 38-bit data
+    // is [37]=R/W, [36:32]=addr, [31:0]=data per TRM §30.23.5.
+    output logic [4:0]  ice_scan_addr,    // valid every cycle (= dr_shift_q[36:32])
+    output logic [37:0] ice_scan_wdata,
+    output logic        ice_scan_we,      // pulse high on Update-DR when chain 2 active and R/W=1
+    output logic        ice_scan_re,      // pulse on Capture-DR for a pending R/W=0 request
+    input  logic [31:0] ice_scan_rdata,   // captured at Capture-DR
+    input  logic [4:0]  ice_scan_raddr,   // echoed addr; DCC data bit 0 carries W
+
+    // ---- Scan chain 1 (33-bit) — core data and debug control.
+    // Captured when held IR == INTEST AND scan_n_q == 1, then written
+    // back at Update-DR. Layout per TRM §5.14.5:
+    //   [32]    DBGBREAK control cell (debug-speed vs system-speed)
+    //   [31:0]  core data bus / instruction to inject
+    input  logic [31:0] ice_chain1_capture_data,
+    input  logic        ice_chain1_capture_break,
+    output logic        ice_chain1_capture,
+    output logic [31:0] ice_inject_instr,
+    output logic        ice_inject_break,
+    output logic        ice_inject_we,    // pulse high on Update-DR when chain 1 active
+
+    // §22 debug-state exit: pulses HIGH on Update-IR when IR=RESTART
+    output logic        tap_restart_req
+);
+
+    // ---- 16-state TAP state encoding (IEEE 1149.1 §6.1)
+    typedef enum logic [3:0] {
+        TLR    = 4'h0,   // Test-Logic-Reset
+        RTI    = 4'h1,   // Run-Test/Idle
+        SDRS   = 4'h2,   // Select-DR-Scan
+        CDR    = 4'h3,   // Capture-DR
+        SDR    = 4'h4,   // Shift-DR
+        E1DR   = 4'h5,   // Exit1-DR
+        PDR    = 4'h6,   // Pause-DR
+        E2DR   = 4'h7,   // Exit2-DR
+        UDR    = 4'h8,   // Update-DR
+        SIRS   = 4'h9,   // Select-IR-Scan
+        CIR    = 4'hA,   // Capture-IR
+        SIR    = 4'hB,   // Shift-IR
+        E1IR   = 4'hC,   // Exit1-IR
+        PIR    = 4'hD,   // Pause-IR
+        E2IR   = 4'hE,   // Exit2-IR
+        UIR    = 4'hF    // Update-IR
+    } tap_state_e;
+
+    tap_state_e tap_q;
+
+    // ---- State transition (standard JTAG table)
+    function automatic tap_state_e next_state(input tap_state_e s,
+                                              input logic       tms);
+        unique case (s)
+            TLR:    return tms ? TLR  : RTI;
+            RTI:    return tms ? SDRS : RTI;
+            SDRS:   return tms ? SIRS : CDR;
+            CDR:    return tms ? E1DR : SDR;
+            SDR:    return tms ? E1DR : SDR;
+            E1DR:   return tms ? UDR  : PDR;
+            PDR:    return tms ? E2DR : PDR;
+            E2DR:   return tms ? UDR  : SDR;
+            UDR:    return tms ? SDRS : RTI;
+            SIRS:   return tms ? TLR  : CIR;
+            CIR:    return tms ? E1IR : SIR;
+            SIR:    return tms ? E1IR : SIR;
+            E1IR:   return tms ? UIR  : PIR;
+            PIR:    return tms ? E2IR : PIR;
+            E2IR:   return tms ? UIR  : SIR;
+            UIR:    return tms ? SDRS : RTI;
+            default: return TLR;
+        endcase
+    endfunction
+
+    // ---- IR shift register + held value ----
+    logic [IR_WIDTH-1:0] ir_shift_q;
+    logic [IR_WIDTH-1:0] ir_hold_q;       // committed at Update-IR
+
+    // ---- DR shift register (38-bit; sized for scan chain 2). For IDCODE,
+    // BYPASS, and SCAN_N, the conventional low bit is nearest TDO. For
+    // INTEST the indices follow physical position from TDI toward TDO:
+    //
+    // chain 1: [0]=DATA0 ... [31]=DATA31, [32]=DBGBREAK
+    // chain 2: [0]=R/W, [1:5]=ADDR4..ADDR0, [6:37]=DATA0..DATA31
+    //
+    // This is intentionally not a generic packed-vector LSB-first shift.
+    // It matches the cell order in TRM §5.11.1/§5.14.5.
+    logic [37:0] dr_shift_q;
+    localparam logic [31:0] JTAG_IDCODE = {
+        JTAG_VERSION, JTAG_PART_NUMBER, JTAG_MANUFACTURER_ID, 1'b1
+    };
+
+    // ---- Scan chain selector (4-bit, set via IR=SCAN_N). Chain numbers
+    // per TRM §30.23.5: 0 reserved, 1 = 33-bit (instruction/data + break),
+    // 2 = 38-bit (EmbeddedICE-RT register access). Default 0 at reset.
+    logic [3:0]  scan_n_q;
+
+    // ---- TAP sequential. Async DBGnTRST per IEEE 1149.1.
+    always_ff @(posedge CLK or negedge DBGnTRST) begin
+        if (!DBGnTRST) begin
+            tap_q      <= TLR;
+            ir_hold_q  <= 4'(IR_IDCODE);   // post-reset latches IDCODE
+            ir_shift_q <= 4'b0;
+            dr_shift_q <= 38'h0;
+            scan_n_q   <= 4'h0;
+        end else if (DBGTCKEN) begin
+            tap_q <= next_state(tap_q, DBGTMS);
+
+            // Test-Logic-Reset force-loads IR with IDCODE per spec.
+            if (next_state(tap_q, DBGTMS) == TLR) begin
+                ir_hold_q <= 4'(IR_IDCODE);
+            end
+
+            // ---- IR path
+            unique case (tap_q)
+                CIR: ir_shift_q <= 4'(IR_CAPTURE_PATTERN);
+                SIR: ir_shift_q <= {DBGTDI, ir_shift_q[IR_WIDTH-1:1]};
+                UIR: ir_hold_q  <= ir_shift_q;
+                default: ;
+            endcase
+
+            // ---- DR path. Mux on the held IR.
+            unique case (tap_q)
+                CDR: begin
+                    // Seed the shift register with the selected DR.
+                    unique case (ir_hold_q)
+                        4'(IR_IDCODE): dr_shift_q <= {6'h0, JTAG_IDCODE};
+                        4'(IR_BYPASS): dr_shift_q <= 38'h0;
+                        4'(IR_SCAN_N): dr_shift_q <= {34'h0, 4'b1000};
+                        4'(IR_INTEST): begin
+                            // Reserved chains are hard zero. Chain 2 has no
+                            // Capture-DR action (§5.14.5), so a read response
+                            // loaded at Update-DR remains available to shift.
+                            if (scan_n_q == 4'd1)
+                                dr_shift_q <= {
+                                    5'h0,
+                                    ice_chain1_capture_break,
+                                    ice_chain1_capture_data
+                                };
+                            else if (scan_n_q != 4'd2)
+                                dr_shift_q <= 38'h0;
+                        end
+                        default:       dr_shift_q <= 38'h0;
+                    endcase
+                end
+                SDR: begin
+                    // IDCODE/SCAN_N/BYPASS shift LSB-first. INTEST follows
+                    // each chain's physical TDI-to-TDO cell order.
+                    //   IDCODE  : 32-bit width — shift positions [31:1]
+                    //   BYPASS  : 1-bit — single bit through position 0
+                    //   SCAN_N  : 4-bit — shift through bits [3:0]
+                    //   INTEST chain 2: 38-bit — full width
+                    unique case (ir_hold_q)
+                        4'(IR_IDCODE):
+                            dr_shift_q <= {6'h0, DBGTDI, dr_shift_q[31:1]};
+                        4'(IR_BYPASS):
+                            dr_shift_q <= {37'h0, DBGTDI};
+                        4'(IR_SCAN_N):
+                            dr_shift_q <= {34'h0, DBGTDI, dr_shift_q[3:1]};
+                        4'(IR_INTEST): begin
+                            unique case (scan_n_q)
+                                4'd2:    dr_shift_q <= {dr_shift_q[36:0],
+                                                       DBGTDI};
+                                4'd1:    dr_shift_q <= {5'h0,
+                                                       dr_shift_q[31:0],
+                                                       DBGTDI};
+                                default: dr_shift_q <= 38'h0;
+                            endcase
+                        end
+                        default:
+                            dr_shift_q <= {37'h0, DBGTDI};
+                    endcase
+                end
+                UDR: begin
+                    // Update-DR commits the shift register to the target.
+                    // For IR=SCAN_N, the low 4 bits become the new chain
+                    // selector. For IR=INTEST with chain 2 and the R/W bit
+                    // set, an ICE-RT register write fires (handled
+                    // combinationally via ice_scan_we below).
+                    if (ir_hold_q == 4'(IR_SCAN_N))
+                        scan_n_q <= dr_shift_q[3:0];
+                    else if ((ir_hold_q == 4'(IR_INTEST))
+                             && (scan_n_q == 4'd2)
+                             && !dr_shift_q[0]) begin
+                        // A chain-2 read occurs at Update-DR. Repack the
+                        // combinational ICE response into physical scan-cell
+                        // order; the next Capture-DR deliberately preserves it.
+                        dr_shift_q[0]    <= 1'b0;
+                        dr_shift_q[1]    <= ice_scan_raddr[4];
+                        dr_shift_q[2]    <= ice_scan_raddr[3];
+                        dr_shift_q[3]    <= ice_scan_raddr[2];
+                        dr_shift_q[4]    <= ice_scan_raddr[1];
+                        dr_shift_q[5]    <= ice_scan_raddr[0];
+                        dr_shift_q[37:6] <= ice_scan_rdata;
+                    end
+                end
+                default: ;
+            endcase
+        end
+    end
+
+    // ---- TDO drive. Per IEEE 1149.1 the TDO is updated on the falling
+    // edge of TCK; we model it combinationally and the downstream consumer
+    // sees the value during the cycle following the rising edge that
+    // sampled TDI. nTDOEN gates the external pad HiZ when not shifting.
+    //   Shift-IR : TDO = LSB of IR shift register
+    //   Shift-DR : TDO = LSB of DR shift register
+    //   else     : TDO drive is don't-care (DBGnTDOEN HIGH)
+    always_comb begin
+        if (tap_q == SIR) begin
+            DBGTDO = ir_shift_q[0];
+        end else if ((tap_q == SDR)
+                     && (ir_hold_q == 4'(IR_INTEST))) begin
+            unique case (scan_n_q)
+                4'd1:    DBGTDO = dr_shift_q[32];
+                4'd2:    DBGTDO = dr_shift_q[37];
+                default: DBGTDO = 1'b0;
+            endcase
+        end else begin
+            DBGTDO = dr_shift_q[0];
+        end
+    end
+    assign DBGnTDOEN = !((tap_q == SDR) || (tap_q == SIR));
+
+    // ---- Public state observers (for §22 EmbeddedICE-RT etc.)
+    assign current_ir    = ir_e'(ir_hold_q);
+    assign in_shift_dr   = (tap_q == SDR);
+    assign in_update_dr  = (tap_q == UDR);
+    assign in_capture_dr = (tap_q == CDR);
+    assign tap_run_idle  = (tap_q == RTI);
+
+    // ---- Chain 2 outputs to the ICE-RT module.
+    assign ice_scan_addr  = {dr_shift_q[1], dr_shift_q[2],
+                             dr_shift_q[3], dr_shift_q[4],
+                             dr_shift_q[5]};
+    assign ice_scan_wdata = {dr_shift_q[0], ice_scan_addr,
+                             dr_shift_q[37:6]};
+    assign ice_scan_we    = DBGTCKEN
+                         && (tap_q == UDR)
+                         && (ir_hold_q == 4'(IR_INTEST))
+                         && (scan_n_q == 4'd2)
+                         && dr_shift_q[0];       // R/W=1 (write)
+    // Both reads and writes occur at Update-DR (§5.14.5/§5.20.1).
+    assign ice_scan_re    = DBGTCKEN
+                         && (tap_q == UDR)
+                         && (ir_hold_q == 4'(IR_INTEST))
+                         && (scan_n_q == 4'd2)
+                         && !dr_shift_q[0];      // R/W=0 (read)
+
+    // ---- Chain 1 outputs to the debug-state instruction-inject path.
+    assign ice_chain1_capture = DBGTCKEN
+                              && (tap_q == CDR)
+                              && (ir_hold_q == 4'(IR_INTEST))
+                              && (scan_n_q == 4'd1);
+    assign ice_inject_instr = dr_shift_q[31:0];
+    assign ice_inject_break = dr_shift_q[32];
+    assign ice_inject_we    = DBGTCKEN
+                           && (tap_q == UDR)
+                           && (ir_hold_q == 4'(IR_INTEST))
+                           && (scan_n_q == 4'd1);
+
+    // RESTART pulse: when the TAP latches IR=RESTART at Update-IR, signal
+    // the ICE-RT FSM to exit halt. Re-asserts each time the user re-issues
+    // RESTART; ICE-RT FSM takes the rising edge.
+    assign tap_restart_req = DBGTCKEN
+                          && (tap_q == UIR)
+                          && (ir_shift_q == 4'(IR_RESTART));
+
+endmodule

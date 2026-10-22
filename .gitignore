@@ -1,0 +1,7 @@
+/build/
+/reference/
+/firmware/*
+!/firmware/README.md
+__pycache__/
+*.vcd
+/backups/
