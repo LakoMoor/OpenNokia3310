@@ -60,8 +60,8 @@ the earlier instrumented build, not that pending build.
 
 ## RTL verification
 
-The original full suite passed 14/14; the added status test passed separately.
-Expanded keypad, DS2 and flash boot regressions also pass. Tests verify every
+The complete current suite passed **15/15** after the DS2 changes.
+Expanded keypad, DS2 and flash boot regressions pass. Tests verify every
 key/row and both pad mappings, DS2 command ordering, inter-byte recovery,
 physical response to Nokia matrix conversion, invalid-controller release,
 the first ROM word, DMA backpressure, LCD/video data, SIM protocol and FIQ return.

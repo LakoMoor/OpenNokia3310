@@ -117,6 +117,17 @@ openFPGALoader -b tangnano20k -f --verify -o 0x200000 --file-type bin firmware/n
 openFPGALoader -b tangnano20k build/nokia_top_lut4/nokia_top.fs
 ```
 
+For persistent FPGA configuration, back up the first 2 MiB as well, then use
+`-f --verify` on the `.fs` file. The parsed FPGA image occupies less than the
+2 MiB reserved area; the Nokia ROM is stored separately at offset 0x200000.
+Do not use a whole-chip erase.
+
+```powershell
+openFPGALoader -b tangnano20k --dump-flash -o 0 --file-size 2097152 fpga-backup.bin
+openFPGALoader -b tangnano20k -f --verify build/nokia_top_lut4/nokia_top.fs
+openFPGALoader -b tangnano20k --reset
+```
+
 ## Development tools
 
 ```powershell
