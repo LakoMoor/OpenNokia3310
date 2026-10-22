@@ -21,9 +21,12 @@ module nokia_io_top (
     end
     wire reset = por != 255;
     wire [7:0] ds0,ds1;
+    wire [7:0] pad_id;
+    wire pad_connected;
     ds2_pad u_pad (
         .clk(clk_p), .reset(reset), .sck(ds_clk), .cs_n(ds_cs),
-        .mosi(ds_mosi), .miso(ds_miso), .buttons0(ds0), .buttons1(ds1)
+        .mosi(ds_mosi), .miso(ds_miso), .buttons0(ds0), .buttons1(ds1),
+        .controller_id(pad_id),.connected(pad_connected)
     );
     wire [16:0] pad_keys, remote_keys;
     pad_3310 u_keys (.buttons0(ds0), .buttons1(ds1), .keys(pad_keys));
@@ -50,5 +53,5 @@ module nokia_io_top (
     assign led = {~(|(pad_keys | remote_keys)), ~ready};
     // I/O qualification telemetry: raw DS2 bytes, mapped key mask.
     uart_status #(.CLK_HZ(27_000_000)) u_status (.clk(clk_p),.reset(reset),
-        .flags(8'h00),.address({16'b0,ds0,ds1}),.lcd_count(pad_keys[15:0]),.tx(uart_tx));
+        .flags({7'b0,pad_connected}),.address({8'b0,pad_id,ds0,ds1}),.lcd_count(pad_keys[15:0]),.tx(uart_tx));
 endmodule

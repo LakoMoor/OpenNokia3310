@@ -4,7 +4,9 @@
 module ds2_pad #(parameter CLK_HZ=27_000_000) (
     input logic clk, reset, miso,
     output logic sck, cs_n, mosi,
-    output logic [7:0] buttons0, buttons1
+    output logic [7:0] buttons0, buttons1,
+    output logic [7:0] controller_id,
+    output logic connected
 );
     localparam HALF = CLK_HZ/250_000;
     localparam GAP = CLK_HZ/60;
@@ -47,9 +49,11 @@ module ds2_pad #(parameter CLK_HZ=27_000_000) (
                         4: saved1 <= received;
                         8: begin
                             cs_n <= 1; gap <= GAP-1; mosi <= 1;
+                            controller_id<=id;
                             if ((id == 8'h41 || id == 8'h73 || id == 8'h79) && magic == 8'h5a) begin
+                                connected<=1;
                                 buttons0 <= saved0; buttons1 <= saved1;
-                            end else begin buttons0 <= 8'hff; buttons1 <= 8'hff; end
+                            end else begin connected<=0;buttons0 <= 8'hff; buttons1 <= 8'hff; end
                         end
                         default: ;
                     endcase
@@ -62,6 +66,7 @@ module ds2_pad #(parameter CLK_HZ=27_000_000) (
             saved0 <= 8'hff; saved1 <= 8'hff; buttons0 <= 8'hff; buttons1 <= 8'hff;
             sck <= 1; cs_n <= 1; mosi <= 1;
             byte_wait<=0;
+            controller_id<=8'hff;connected<=0;
         end
     end
 endmodule

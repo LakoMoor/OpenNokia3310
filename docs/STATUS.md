@@ -1,92 +1,84 @@
-# Проверка Open Nokia 3310, 22 октября 2026
+# Verification status — October 22, 2026
 
-## Реальная плата
+## Real hardware
 
-- JTAG: Tang Nano 20K, GW2A(R)-18, ID 0x81b, FTDI serial 2023030621.
-- Диагностический `nokia_io_top.fs` загружен в SRAM. USB-UART COM6 принимает
-  кадр 84×48. Пользователь подтвердил светло-зелёную рамку на HDMI.
-- Кадр также получен напрямую через DirectShow `USB3.0 UHD`, 1920×1080:
-  `build/hdmi-capture.png`, инструмент `tools/capture_hdmi.py`.
-- W25Q64 JEDEC EF4017: исходная область [0x200000,0x400000) сохранена в
-  `backups/flash-20261022-offset200000.bin`, SHA256
-  `db2c6fb1488f1b2eddeee4730c98c3323f061f0e30d96361d522874f1ef7e1f7`.
-  Инструкция восстановления и JSON находятся рядом; backups исключён из Git.
-- Nokia v6.39 PPM W записан по 0x200000 и проверен чтением openFPGALoader --verify.
-  Конфигурация FPGA в начале SPI flash не перезаписывалась.
-- На FPGA подтверждены оригинальные меню v5.79 и v6.39: Phonebook, Settings,
-  список языков, русский пункт «Русский» и подтверждение «Есть!» после выбора.
-  Кадры HDMI: build/hdmi-v639-menu.png, hdmi-v639-languages.png,
-  hdmi-v639-russian-choice.png, hdmi-v639-russian.png.
-  Внешняя ST7735S и физический DualShock ещё не подтверждены.
-- v5.79 спустя некоторое время показывает ошибку виртуальной SIM. Стабильность
-  v6.39 проверяется. После повторной SRAM-загрузки наблюдались пустой/чёрный
-  кадры и отсутствие N3-телеметрии; причина пока не установлена.
+- Tang Nano 20K, GW2A(R)-18, JTAG ID 0x81b.
+- HDMI captured directly using the USB3.0 UHD DirectShow capture device.
+- Original v5.79 and v6.39 W firmware reached their original menus on the FPGA.
+- v6.39: Phonebook, Settings, Language, English and Russian selection confirmed.
+  See the actual captures in [img/](img/). The Russian confirmation reads “Есть!”.
+- The full v6.39 image was written at SPI offset 0x200000 with read-back verification.
+  A separate complete read-back matched SHA256
+  `5cd18ff08b40f44c9dbe155bc09efbcea15b5037234fa9d54b3e43bac8fcc8a2`.
+- Original SPI contents and the previous v5.79 ROM are backed up locally and
+  excluded from this repository. FPGA configurations have been loaded into SRAM.
+- ST7735S is physically connected, but its displayed output remains unverified.
 
-Доступ к JTAG/UART/DirectShow требует запуска вне песочницы Codex:
-внутри неё перечисление USB пустое. Это было проверено отдельным запуском.
+Repeated boots are not yet reliable. A previous image sometimes ran without
+producing LCD writes. A subsequent instrumented build booted again, but the
+root cause is not established. There is no basis to call this stable yet.
+v5.79 also eventually displayed a virtual SIM error.
 
-## Полная FPGA-интеграция
+## Controller
 
-`nokia_top` объединяет ARM, MAD2, NOR, ROM6 service, виртуальную SIM,
-SDRAM, SPI loader, LCD CDC FIFO, HDMI, ST7735S и DualShock.
-HDMI: pixel 27 МГц, serializer 135 МГц. ARM/SDRAM: 16,875 МГц,
-SDRAM refresh 125 тактов, init wait 3500 тактов.
+The first driver passed basic simulation but did not control the physical phone.
+Comparison with Open Pocket GBC exposed missing select setup and inter-byte
+recovery delays. The driver now waits 100 us after select and 192 us between
+bytes at 125 kHz, matching the conservative timing of the reference adapter.
 
-Первый вариант на 33,75 МГц не прошёл timing (Fmax 24,01 МГц).
-После добавления SIM вариант с wide LUT не разместился при 93% LUT.
-`python tools/build.py nokia_top --lut4-only` уменьшил загрузку до
-15623/20736 LUT4 (75%), 5013 FF, 18/46 BSRAM. Синтез, размещение, трассировка и упаковка прошли.
-Итоговый timing: clk_sys Fmax 30,73 МГц при 16,875 МГц;
-clk_p Fmax 131,94 МГц при 27 МГц. Логи в build/nokia_top_lut4/.
-Битстрим build/nokia_top_lut4/nokia_top.fs, 7263596 байт, SHA256
-e575f2dea7bf7bf21e6859ebef1395dfa19dc92dcf295a863c4e125430ddd9ff.
-Загружен в SRAM платы; проверка реального запуска продолжается.
+The real pad now responds with ID **0x41** and a valid 0x5A response header.
+UART captures from the separate I/O qualification target confirmed:
 
-Не использовать старый/незавершённый битстрим как доказательство телефона.
-Цель I/O отдельная: 1393 LUT4, 14 BSRAM, итог Fmax 107,42 МГц при 27 МГц.
+| Raw active-low bytes | Mapped Nokia key |
+| --- | --- |
+| EF FF | Up (0x4000) |
+| BF FF | Down (0x8000) |
+| 7F FF | 4 (0x0010) |
+| DF FF | 6 (0x0040) |
+| FF DF | Menu (0x1000) |
+| FF BF | C / Back (0x2000) |
+| FF FF | All released |
 
-## Оригинальный ROM в RTL-симуляции
+Complete phone menu operation with the revised driver is still being checked.
+Run `python tools/read_pad.py COM6 --seconds 10` only with `nokia_io_top`.
+It decodes controller ID, connection, raw bytes and mapped keys. Full phone
+telemetry uses a different field interpretation (`tools/read_status.py`).
 
-Исполняется неизменённый полный v5.79, 2 МиБ, SHA1 совпадает с MAME.
-Reset trampoline переходит на 0x200040. Не заменяются меню, шрифты или игры:
-ARM ROM сам генерирует записи LCD. DSP и SIM являются моделями устройств.
+## FPGA integration
 
-Достигнуты:
+`nokia_top` integrates ARM, MAD2, NOR, DSP transport service, virtual SIM, SDRAM,
+SPI boot DMA, LCD CDC FIFO, HDMI, ST7735S, DS2 and UART.
+HDMI: 27 MHz pixel / 135 MHz serializer. ARM/SDRAM: 16.875 MHz.
+The SDRAM init wait is 3500 cycles, refresh interval 125 cycles.
 
-- распознавание виртуальной SIM и экран установки времени;
-- реакция на цифровые клавиши, Menu и C, проверка введённого времени;
-- выход в standby и главное меню (Agenda telef.), выбор пункта 7 (Deviere apel).
+LUT4-only mapping avoids the failed wide-LUT placement at 93% utilization.
+The last completed instrumented full build passed timing: sys Fmax 41.27 MHz,
+pixel Fmax 141.32 MHz, bitstream SHA256
+`3bafc5ea3cd041518227daca844141a266f219f71e650dee2d951473374b954b`.
+The revised DS2 full integration build is in progress; this hash identifies
+the earlier instrumented build, not that pending build.
 
-Последний прогон: 650 млн тактов, 154980745 чтений внешней памяти,
-27404 LCD-записи, 1181 запись рабочей NOR-копии. Пиксельные кадры в
-`build/boot_trace/frame-*.pgm`, итог `lcd.pgm`; снимки `lcd-250m.png`,
-`lcd-menu-final.png` получены из этого LCD-потока, НЕ с HDMI платы.
-Проверка игры и реального выполнения на FPGA остаётся.
+## RTL verification
 
-Исправлена потеря LR при FIQ на завершении LDR в upstream CPU;
-`third_party/arm7tdmi-sv/LOCAL_CHANGES.md` описывает изменение и reproducer.
-Диагностика PC теперь учитывает исполнение, а не только DE-регистр;
-ранние неподтверждённые сообщения о перезапуске были артефактом трассировки.
+The original full suite passed 14/14; the added status test passed separately.
+Expanded keypad, DS2 and flash boot regressions also pass. Tests verify every
+key/row and both pad mappings, DS2 command ordering, inter-byte recovery,
+physical response to Nokia matrix conversion, invalid-controller release,
+the first ROM word, DMA backpressure, LCD/video data, SIM protocol and FIQ return.
 
-## Регрессии
+The local ARM fix prevents loss of banked LR when an FIQ coincides with completion
+of a memory instruction. See [LOCAL_CHANGES.md](../third_party/arm7tdmi-sv/LOCAL_CHANGES.md).
 
-Полный `python tools/test.py`: 14/14 PASS после интеграции SIM.
-Отдельно PASS status. Расширенные keypad и ds2 PASS 22 октября: проверяются
-все 16 физических кнопок обеих раскладок и цепь DS2→Nokia Menu/Up→матрица,
-включая отпускание при неверном ответе контроллера.
-Набор: pcd8544, keypad, mad2, uart, ds2, video, core_smoke,
-flash_boot, arm_bus, cdc_fifo, nor, dsp, sim, arm_fiq.
+Original v5.79 also reached standby and the main menu in a 650-million-cycle
+RTL simulation, with 27,404 LCD writes. Simulation frames are not HDMI captures.
 
-Проверяются все 4032 LCD-пикселя, 16384 пикселя ST7735-буфера,
-UART/DS2 ошибки и таймауты, клавиатура, BE byte/halfword lanes,
-SPI DMA/backpressure, reset overlay, NOR AND/erase/status, CDC FIFO,
-DSP кольцевой обмен и SIM T=0. SIM-тест включает запись 176-байтной записи
-через несколько TX-чанков, последующее чтение и оборачивание RX FIFO.
-`arm_fiq` воспроизводит сбой исходного ядра и проверяет возврат после исправления.
+## Limits
 
-## Ограничения
+- NOR/settings changes currently live only in SDRAM and are lost on reset.
+- Synthetic SIM; no real subscriber Ki.
+- Partial DSP ROM6 device service, not a full C54x implementation.
+- No GSM RF hardware, network registration, cellular calls or mobile SMS.
+- Games and sustained operation remain unverified.
 
-NOR-изменения остаются в SDRAM до перезапуска; сохранения в SPI flash нет.
-SIM — тестовая, без абонентского Ki. DSP ROM6 service — устройство с
-частичной моделью загрузки/локальных протоколов, не полный C54x.
-RF/GSM радиотракт и подключение к настоящей сотовой сети не реализованы.
+[Earlier Russian development notes](STATUS.ru.md) are retained for context;
+this document is the current English status.
