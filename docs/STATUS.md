@@ -24,6 +24,13 @@ producing LCD writes. A subsequent instrumented build booted again, but the
 root cause is not established. There is no basis to call this stable yet.
 v5.79 also eventually displayed a virtual SIM error.
 
+The home screen containing numeric fields and X placeholders was identified
+as the firmware's **Net Monitor** engineering display (page 02). This is enabled
+by the donor EEPROM. Selecting test 00 in Menu → Net monitor removed it on the
+physical board; HDMI then showed ordinary standby. This does not fix GSM/SIM
+model limitations, and the selection is lost on reset until settings persistence
+is implemented.
+
 ## Controller
 
 The first driver passed basic simulation but did not control the physical phone.

@@ -49,6 +49,12 @@ synthetic test card without a subscriber Ki. NOR writes currently modify only
 the SDRAM copy. Settings and language changes are lost on restart. Games and
 sustained operation have not yet been verified.
 
+The development EEPROM donor starts with **Net Monitor** enabled. Numeric
+fields and X placeholders on the home screen are its engineering pages, not
+LCD corruption. To return to ordinary standby, open **Menu → Net monitor**
+(last item, currently 13), replace the test number with **00**, and press OK.
+This setting is currently lost on reset along with other SDRAM-only changes.
+
 ## Controls
 
 The mapping passes RTL tests. Physical directions, Circle → Menu and Cross → C
