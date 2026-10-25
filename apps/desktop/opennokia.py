@@ -1,5 +1,4 @@
 """Open Nokia 3310 desktop remote. Python 3 + pyserial; no browser or server required."""
-import base64
 import queue
 import sys
 import threading
@@ -12,6 +11,7 @@ sys.path.insert(0,str(Path(__file__).resolve().parents[2]/'tools'))
 from nokia_protocol import Parser, command, keys, status
 import serial
 from serial.tools import list_ports
+from firmware_ui import FirmwarePage
 
 
 class Remote:
@@ -19,6 +19,7 @@ class Remote:
         self.root=root
         self.port=None
         self.mask=0
+        self.pressed_at={};self.key_versions={}
         self.lock=threading.Lock()
         self.events=queue.Queue(maxsize=16)
         self.stopping=False
@@ -31,7 +32,10 @@ class Remote:
         style=ttk.Style();style.theme_use('clam')
         style.configure('.',background='#080908',foreground='#cbdba5',font=('Segoe UI',11))
         style.configure('TButton',padding=10,background='#1c2119')
-        main=ttk.Frame(root,padding=18);main.pack(fill='both',expand=True)
+        notebook=ttk.Notebook(root);notebook.pack(fill='both',expand=True)
+        main=ttk.Frame(notebook,padding=18);notebook.add(main,text='Remote')
+        self.firmware=FirmwarePage(notebook,self);notebook.add(self.firmware,text='Firmware')
+        notebook.bind('<<NotebookTabChanged>>',lambda e:self.release())
         ttk.Label(main,text='Open Nokia 3310',font=('Segoe UI',22)).pack(anchor='w')
         row=ttk.Frame(main);row.pack(fill='x',pady=10)
         choices=[p.device for p in list_ports.comports()]
@@ -67,9 +71,10 @@ class Remote:
         root.bind('<FocusOut>',lambda e:self.release() if e.widget==root else None)
         keymap={'Up':14,'Down':15,'Left':4,'Right':6,'Return':12,'BackSpace':13,'Escape':13,'asterisk':10,'numbersign':11}
         keymap.update({str(i):i for i in range(10)})
-        root.bind('<KeyPress>',lambda e:self.key(keymap[e.keysym],True) if e.keysym in keymap else None)
-        root.bind('<KeyRelease>',lambda e:self.key(keymap[e.keysym],False) if e.keysym in keymap else None)
+        root.bind('<KeyPress>',lambda e:self.key(keymap[e.keysym],True) if notebook.index('current')==0 and e.keysym in keymap else None)
+        root.bind('<KeyRelease>',lambda e:self.key(keymap[e.keysym],False) if notebook.index('current')==0 and e.keysym in keymap else None)
         threading.Thread(target=self.worker,daemon=True).start()
+        self.draw_lcd()
         root.after(40,self.poll)
 
     def send(self,data):
@@ -79,13 +84,25 @@ class Remote:
                 except serial.SerialException:self.disconnect()
 
     def key(self,key,pressed):
-        self.mask=self.mask | (1<<key) if pressed else self.mask & ~(1<<key)
-        self.send(keys(self.mask))
+        if not self.port:return
+        if pressed:
+            if self.mask & (1<<key):return
+            self.key_versions[key]=self.key_versions.get(key,0)+1
+            self.pressed_at[key]=time.monotonic();self.mask|=1<<key;self.send(keys(self.mask))
+        else:
+            version=self.key_versions.get(key,0)
+            delay=max(0,60-int((time.monotonic()-self.pressed_at.get(key,0))*1000))
+            def release_key():
+                if self.key_versions.get(key,0)==version:
+                    self.mask&=~(1<<key);self.send(keys(self.mask))
+            self.root.after(delay,release_key)
 
     def release(self):
+        for k in self.key_versions:self.key_versions[k]+=1
         self.mask=0;self.send(keys(0))
 
     def connect(self):
+        if self.firmware.busy:return
         if self.port:self.release();self.send(command(5,0));self.disconnect();return
         try:
             self.port=serial.Serial(self.device.get(),115200,timeout=.05,write_timeout=.3)
@@ -128,12 +145,24 @@ class Remote:
         rgb=bytearray()
         for y in range(48):
             for x in range(84):rgb.extend(ink if self.lcd[y//8*84+x]&(1<<(y%8)) else paper)
-        self.picture=tk.PhotoImage(data=base64.b64encode(b'P6\n84 48\n255\n'+rgb),format='PPM').zoom(6,6)
+        self.picture=tk.PhotoImage(data=b'P6\n84 48\n255\n'+rgb,format='PPM').zoom(6,6)
         self.display.configure(image=self.picture,width=504,height=288)
 
     def close(self):
+        if self.firmware.busy:
+            messagebox.showinfo('Operation in progress','Wait for the programmer operation to finish before closing.');return
         self.release();self.send(command(5,0));self.stopping=True;self.disconnect();self.root.destroy()
 
 
 if __name__=='__main__':
-    root=tk.Tk();Remote(root);root.mainloop()
+    root=tk.Tk()
+    if '--smoke-test' in sys.argv:
+        import json
+        from flasher import find_loader
+        root.withdraw();app=Remote(root);root.update_idletasks()
+        report={'title':root.title(),'lcd_bytes':len(app.lcd),'lcd_width':app.picture.width(),
+                'firmware_page':app.firmware.winfo_exists(),'programmer':find_loader()}
+        Path(sys.argv[sys.argv.index('--smoke-test')+1]).write_text(json.dumps(report,indent=2))
+        app.close()
+    else:
+        Remote(root);root.mainloop()

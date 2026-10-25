@@ -9,7 +9,14 @@
   remains unverified. Native Android dialer/SMS intents use the Android modem;
   independent FPGA cellular calls still require additional hardware and models.
 - Desktop Python remote: source and transport implemented; Python compilation
-  passes. Its GUI has not yet been verified with the new FPGA bitstream.
+  passes. A portable Windows build now includes openFPGALoader and its DLLs,
+  plus SRAM/flash/ROM installation and mandatory full backup before flash writes.
+  Five flasher tests pass; the packaged EXE constructs both UI pages and its
+  LCD image without errors. The bundled programmer detects the physical Tang
+  without a system OSS CAD Suite installation. Visual window inspection is
+  unavailable because the computer-use runtime failed to initialize.
+  The same flash-manager backend successfully loads the bundled FPGA image
+  into real Tang SRAM using only the bundled programmer/DLLs.
 - The complete 18-case RTL suite passes. Follow-up tests pass for menu bitmap
   capture, synchronized N4 volume/palette state, and green/gray switching on
   HDMI and all 16,384 ST7735 framebuffer pixels. This verifies framebuffer logic,

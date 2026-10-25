@@ -43,6 +43,30 @@ are new GPL-3.0-or-later code. Proprietary Nokia firmware is not bundled.
 
 ## Desktop
 
+Download **OpenNokia3310-Windows-preview.zip** from the
+[Windows preview release](https://github.com/LakoMoor/OpenNokia3310/releases/tag/v0.2.1-preview),
+extract the entire folder, and run **OpenNokia3310.exe**. Python and OSS CAD Suite
+are not required: the Windows build includes the programmer and its DLLs.
+The Tang FTDI USB driver must be installed. The interface is in English.
+The experimental Nokia FPGA image is included and selected by default for
+temporary SRAM testing. Proprietary Nokia ROM is supplied separately by you.
+
+The **Firmware** tab offers board detection, temporary FPGA SRAM testing,
+persistent FPGA installation, Nokia ROM installation and full-flash backup.
+Select a `.fs` for FPGA operations, or a raw `.bin`/`.fls` for Nokia ROM.
+MCU+PPM dumps also need a separate 192 KiB EEPROM/PM partition. ROM validation
+uses the same checks as `prepare_firmware.py`. ROM is written only at 0x200000;
+FPGA configuration stays below it. Flash installation first saves the complete
+8 MiB device and a SHA256 file to the selected backup folder, then programs with
+read-back verification. A failed/incomplete backup blocks writing. SRAM tests
+do not change persistent flash. JTAG operations interrupt the running FPGA.
+
+UART disconnects before programming. Reconnect after loading the FPGA image.
+To set up a board: install your ROM, test the Nokia `.fs` in SRAM, then install
+the FPGA image persistently when satisfied. Original Nokia boot remains
+unreliable in the current experimental integration; a successful upload alone
+does not establish a working phone.
+
 Run `python apps/desktop/opennokia.py` (Python 3 with Tk and `pyserial`), or
 `apps/desktop/run.cmd` on Windows. Select the UART port and connect. The live LCD,
 keyboard, system menu, volume and explicit hardware audio test use the same
@@ -50,3 +74,9 @@ protocol as Android. Keyboard: arrows, digits, Enter=Menu, Backspace/Esc=C.
 
 The desktop app does not implement a cellular modem or local speaker playback;
 FPGA audio is output through HDMI and pins 76/75.
+
+Build Windows portable ZIP with Python 3, PyInstaller, pefile, pyserial and a
+local OSS CAD Suite (`OSS_CAD_SUITE`, default `E:/tools/oss-cad-suite`):
+`python tools/package_desktop.py`. Run flasher tests with
+`python tests/test_desktop_flasher.py`. The executable also supports
+`--smoke-test output.json` to construct/check both UI pages without USB writes.
