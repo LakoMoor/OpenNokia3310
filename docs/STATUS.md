@@ -24,13 +24,27 @@
   register byte lanes, oscillators, 48 kHz clocking, mute and explicit output test.
   Physical HDMI/speaker audio has not yet been captured.
 - The HDMI capture card was not enumerated in this session. New hardware
-  qualification is pending its connection and successful full FPGA timing.
-- The latest synthesis passes with zero reported structural problems and
-  placement succeeds, but routing/timing did not finish before the session was
-  interrupted. No new bitstream is qualified for flashing in this revision.
+  HDMI/audio capture qualification is pending its connection.
+- Full synthesis, placement, routing and bitstream packing now pass. LUT4 use:
+  18,481 / 20,736 (89%). Post-route maximum clocks: pixel 138.33 MHz against
+  27 MHz required; system 37.70 MHz against 16.875 MHz required.
+- The new bitstream was loaded into actual Tang SRAM. USB delivered 12 LCD
+  snapshots in three seconds. Down/Down/OK selected Gray LCD; status reflected
+  the selection and all 504 captured menu bytes matched the expected bitmap,
+  digits and highlighted row. Green LCD was restored and confirmed in status.
+  The explicit sound test reported 1000 Hz followed by silence; this proves
+  device state transport, not audible HDMI/speaker output.
+- FPGA bitstream SHA256:
+  `b8531bf600204770d9c977897a9e05203cdb6fb4c74b6441346606cd3c39a632`.
 - A complete 8 MiB SPI backup was saved locally. Its ROM region differs from
-  the earlier Nokia image, so the board currently contains other flash data.
-  No new FPGA configuration or phone ROM was written during these changes.
+  the earlier Nokia image: another project had replaced the ROM region.
+  Nokia v6.39 W was restored at 0x200000 with write/read-back verification.
+  The FPGA test uses SRAM and does not replace persistent FPGA configuration.
+- Original-phone boot is still failing in this new hardware build: after SRAM
+  loading and a second full reset with Power held, ROM loading completes and
+  no memory/bus fault is reported, but LCD writes remain zero. Working system
+  menu/USB streaming does not establish a working original Nokia UI. Do not
+  treat this preview as a stable phone implementation.
 
 ## October 22, 2026 — previously verified hardware build
 

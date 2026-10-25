@@ -22,6 +22,9 @@ These FPGA settings currently reset with the board.
 
 The new N4 app/menu/audio integration is experimental. See the dated
 [verification log](docs/STATUS.md) for simulation and hardware coverage.
+Download the [Android APK and experimental FPGA image](https://github.com/LakoMoor/OpenNokia3310/releases/tag/v0.2.0-preview).
+The FPGA image passes routing/timing and USB system-menu checks on Tang;
+booting the original phone firmware remains unreliable.
 
 ![Original Phonebook menu captured from the FPGA board](docs/img/menu-en.png)
 
