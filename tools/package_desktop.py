@@ -12,7 +12,8 @@ os.chdir(ROOT)
 subprocess.run([sys.executable,'-m','PyInstaller','--noconfirm','--windowed','--onedir',
     '--name','OpenNokia3310','--distpath','build/desktop-dist','--workpath','build/desktop-work',
     '--specpath','build','--paths','tools','--paths','apps/desktop',
-    '--hidden-import','prepare_firmware','apps/desktop/opennokia.py'],check=True)
+    '--hidden-import','prepare_firmware','--collect-all','sounddevice',
+    '--collect-all','_sounddevice_data','apps/desktop/opennokia.py'],check=True)
 dest=ROOT/'build/desktop-dist/OpenNokia3310'
 programmer=dest/'programmer';programmer.mkdir(exist_ok=True)
 source=Path(os.environ.get('OSS_CAD_SUITE','E:/tools/oss-cad-suite'))

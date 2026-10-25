@@ -17,6 +17,11 @@
   unavailable because the computer-use runtime failed to initialize.
   The same flash-manager backend successfully loads the bundled FPGA image
   into real Tang SRAM using only the bundled programmer/DLLs.
+- Desktop PC audio now reproduces N4 device tone state on the default Windows
+  output. Three PCM tests verify 1000 Hz pitch, buzzer conversion, mute and
+  USB-timeout silence. A live output smoke test opens the Windows stream and
+  supplies over 21,000 PCM frames. End-to-end playback from the user's Tang
+  still needs user confirmation: the old application currently owns COM6.
 - The complete 18-case RTL suite passes. Follow-up tests pass for menu bitmap
   capture, synchronized N4 volume/palette state, and green/gray switching on
   HDMI and all 16,384 ST7735 framebuffer pixels. This verifies framebuffer logic,

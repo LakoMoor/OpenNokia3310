@@ -12,6 +12,7 @@ from nokia_protocol import Parser, command, keys, status
 import serial
 from serial.tools import list_ports
 from firmware_ui import FirmwarePage
+from pc_audio import Audio
 
 
 class Remote:
@@ -26,6 +27,7 @@ class Remote:
         self.picture=None
         self.gray=False
         self.lcd=bytes(504)
+        self.audio=Audio()
         root.title('Open Nokia 3310')
         root.configure(bg='#080908')
         root.protocol('WM_DELETE_WINDOW',self.close)
@@ -59,7 +61,7 @@ class Remote:
         for x in range(3):buttons.columnconfigure(x,weight=1)
         row=ttk.Frame(main);row.pack(fill='x')
         ttk.Button(row,text='System menu',command=lambda:self.send(command(5,3))).pack(side='left')
-        ttk.Button(row,text='Audio test',command=lambda:self.send(command(8,1))).pack(side='left',padx=8)
+        ttk.Button(row,text='Audio test',command=self.audio_test).pack(side='left',padx=8)
         b=ttk.Button(row,text='Power (hold)');b.pack(side='right')
         b.bind('<ButtonPress-1>',lambda e:self.key(16,True));b.bind('<ButtonRelease-1>',lambda e:self.key(16,False))
         self.volume=tk.IntVar(value=5)
@@ -68,6 +70,8 @@ class Remote:
         palette=ttk.Combobox(main,textvariable=self.palette,values=['Green LCD','Gray LCD'],state='readonly')
         palette.pack(fill='x')
         palette.bind('<<ComboboxSelected>>',lambda e:self.send(command(7,int(self.palette.get()=='Gray LCD'))))
+        self.pc_audio=tk.BooleanVar(value=True)
+        ttk.Checkbutton(main,text='Play Tang audio on PC speakers',variable=self.pc_audio,command=self.toggle_audio).pack(anchor='w',pady=6)
         root.bind('<FocusOut>',lambda e:self.release() if e.widget==root else None)
         keymap={'Up':14,'Down':15,'Left':4,'Right':6,'Return':12,'BackSpace':13,'Escape':13,'asterisk':10,'numbersign':11}
         keymap.update({str(i):i for i in range(10)})
@@ -107,9 +111,11 @@ class Remote:
         try:
             self.port=serial.Serial(self.device.get(),115200,timeout=.05,write_timeout=.3)
             self.port.reset_input_buffer();self.send(keys(0)+command(5,1));self.info.set('Connected · requesting live LCD')
+            self.start_audio()
         except (serial.SerialException,OSError) as e:messagebox.showerror('USB connection',str(e))
 
     def disconnect(self):
+        self.audio.stop()
         port=self.port;self.port=None;self.mask=0
         if port:
             try:port.close()
@@ -122,6 +128,8 @@ class Remote:
             if not port:time.sleep(.05);parser=Parser();continue
             try:
                 for packet in parser.feed(port.read(1024)):
+                    self.audio.synth.heartbeat()
+                    if packet[0]==3:self.audio.synth.update(packet[1])
                     try:self.events.put_nowait(packet)
                     except queue.Full:pass
                 if time.monotonic()-last>.1:self.send(keys(self.mask));last=time.monotonic()
@@ -137,8 +145,24 @@ class Remote:
                 s=status(body)
                 if 'gray' in s:
                     self.gray=s['gray'];self.palette.set('Gray LCD' if self.gray else 'Green LCD');self.draw_lcd()
+                    self.volume.set(s['volume'])
                 self.info.set(f"{'Legacy N3 (controls only)' if kind==0 else 'N4 live link'} · ROM {'ready' if s['rom_done'] else 'loading'} · LCD writes {s['lcd_writes']} · {s['address']}")
         self.root.after(40,self.poll)
+
+    def start_audio(self):
+        try:self.audio.start()
+        except Exception as e:messagebox.showerror('PC audio',f'Cannot open the default PC output: {e}')
+
+    def toggle_audio(self):
+        self.audio.enabled=self.pc_audio.get()
+        if self.audio.enabled and self.port:self.start_audio()
+        else:self.audio.stop()
+
+    def audio_test(self):
+        if not self.port:
+            self.info.set('Connect Tang before running the audio test.');return
+        self.pc_audio.set(True);self.audio.enabled=True;self.start_audio()
+        self.send(command(5,1)+command(8,1))
 
     def draw_lcd(self):
         ink,paper=(b'\x25\x25\x25',b'\xde\xde\xd3') if self.gray else (b'\x26\x35\x1c',b'\xc4\xcf\xa1')
@@ -155,6 +179,16 @@ class Remote:
 
 
 if __name__=='__main__':
+    if '--audio-smoke-test' in sys.argv:
+        import json
+        player=Audio()
+        player.synth.update(bytes.fromhex('0fa000000001000000000a'))
+        player.start()
+        for _ in range(10):player.synth.heartbeat();time.sleep(.1)
+        report={'audio_stream_active':bool(player.stream.active),'pcm_frames_written':player.frames_written,'test_hz':1000}
+        player.stop()
+        Path(sys.argv[sys.argv.index('--audio-smoke-test')+1]).write_text(json.dumps(report,indent=2))
+        raise SystemExit(0 if report['pcm_frames_written']>=16000 else 1)
     root=tk.Tk()
     if '--smoke-test' in sys.argv:
         import json

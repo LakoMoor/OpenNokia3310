@@ -44,7 +44,7 @@ are new GPL-3.0-or-later code. Proprietary Nokia firmware is not bundled.
 ## Desktop
 
 Download **OpenNokia3310-Windows-preview.zip** from the
-[Windows preview release](https://github.com/LakoMoor/OpenNokia3310/releases/tag/v0.2.1-preview),
+[Windows preview release](https://github.com/LakoMoor/OpenNokia3310/releases/tag/v0.2.2-preview),
 extract the entire folder, and run **OpenNokia3310.exe**. Python and OSS CAD Suite
 are not required: the Windows build includes the programmer and its DLLs.
 The Tang FTDI USB driver must be installed. The interface is in English.
@@ -67,16 +67,23 @@ the FPGA image persistently when satisfied. Original Nokia boot remains
 unreliable in the current experimental integration; a successful upload alone
 does not establish a working phone.
 
-Run `python apps/desktop/opennokia.py` (Python 3 with Tk and `pyserial`), or
+Run `python apps/desktop/opennokia.py` (Python 3 with Tk, `pyserial` and `sounddevice`), or
 `apps/desktop/run.cmd` on Windows. Select the UART port and connect. The live LCD,
 keyboard, system menu, volume and explicit hardware audio test use the same
 protocol as Android. Keyboard: arrows, digits, Enter=Menu, Backspace/Esc=C.
 
-The desktop app does not implement a cellular modem or local speaker playback;
-FPGA audio is output through HDMI and pins 76/75.
+**Play Tang audio on PC speakers** is enabled by default. Audio test requests
+the actual Tang test tone; N4 audio-state packets drive local oscillator playback
+on the default Windows audio output. Firmware buzzer/DSP tones use the same path.
+Playback silences on USB data timeout or disconnect and can be disabled with
+the checkbox. This reproduces reported oscillator state, rather than streaming
+PCM from the FPGA. HDMI and pins 76/75 remain separate audio outputs.
+The desktop app does not implement a cellular modem.
 
-Build Windows portable ZIP with Python 3, PyInstaller, pefile, pyserial and a
+Build Windows portable ZIP with Python 3, PyInstaller, pefile, pyserial, sounddevice and a
 local OSS CAD Suite (`OSS_CAD_SUITE`, default `E:/tools/oss-cad-suite`):
 `python tools/package_desktop.py`. Run flasher tests with
 `python tests/test_desktop_flasher.py`. The executable also supports
 `--smoke-test output.json` to construct/check both UI pages without USB writes.
+`--audio-smoke-test output.json` plays a one-second local diagnostic tone and
+reports actual audio callback frames. Audio tests: `python tests/test_pc_audio.py`.
