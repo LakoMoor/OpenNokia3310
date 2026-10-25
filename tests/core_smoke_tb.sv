@@ -7,6 +7,7 @@ module core_smoke_tb;
     reg [31:0] mem_rdata;
     wire [3:0] mem_be;
     wire [7:0] lcd_data;
+    wire [72:0] audio_control;
     reg [3:0] cycle=0;
     wire mem_ready=cycle[2:0]==5;
     integer writes=0;

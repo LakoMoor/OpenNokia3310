@@ -19,13 +19,16 @@ def main():
     os.environ["PATH"] = os.pathsep.join([str(Path(a.tools)/"bin"), str(Path(a.tools)/"lib"), os.environ["PATH"]])
     Path("build/tests").mkdir(parents=True, exist_ok=True)
     cases = {
+        "sound": ["rtl/nokia/nokia_sound.sv"],
+        "controls": ["rtl/nokia/nokia_controls.sv"],
+        "link": ["rtl/nokia/nokia_overlay.sv", "rtl/nokia/nokia_link.sv"],
         "pcd8544": ["rtl/nokia/pcd8544.sv"],
         "keypad": ["rtl/nokia/keypad_3310.sv", "rtl/nokia/pad_3310.sv"],
         "mad2": ["rtl/nokia/keypad_3310.sv", "rtl/nokia/sim_card.sv", "rtl/nokia/mad2_mmio.sv"],
         "uart": ["rtl/nokia/uart_lcd.sv"],
         "ds2": ["rtl/nokia/ds2_pad.sv", "rtl/nokia/pad_3310.sv", "rtl/nokia/keypad_3310.sv"],
-        "video": ["rtl/nokia/pcd8544.sv", "rtl/nokia/nokia_video.sv", "third_party/open-pocket-gbc/rtl/video/gb_color.sv", "third_party/open-pocket-gbc/rtl/video/lcd_st7735.sv"],
-        "core_smoke": cpu_sources() + ["rtl/nokia/keypad_3310.sv", "rtl/nokia/sim_card.sv", "rtl/nokia/mad2_mmio.sv", "rtl/nokia/nor_bus.sv", "rtl/nokia/dsp_service.sv", "rtl/nokia/nokia_core.sv"],
+        "video": ["rtl/nokia/nokia_overlay.sv", "rtl/nokia/pcd8544.sv", "rtl/nokia/nokia_video.sv", "third_party/open-pocket-gbc/rtl/video/gb_color.sv", "third_party/open-pocket-gbc/rtl/video/lcd_st7735.sv"],
+        "core_smoke": cpu_sources() + ["rtl/nokia/keypad_3310.sv", "rtl/nokia/sim_card.sv", "rtl/nokia/mad2_mmio.sv", "rtl/nokia/nor_bus.sv", "rtl/nokia/dsp_service.sv", "rtl/nokia/nokia_sound.sv", "rtl/nokia/nokia_core.sv"],
         "flash_boot": ["rtl/nokia/flash_boot.sv"],
         "arm_bus": ["rtl/nokia/arm_sdram_bus.sv"],
         "cdc_fifo": ["rtl/nokia/async_lcd_fifo.sv"],

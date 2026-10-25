@@ -4,6 +4,9 @@ module nokia_video (
     input logic clk, reset,
     input logic lcd_wr, lcd_dc,
     input logic [7:0] lcd_data,
+    input logic menu_open,gray,
+    input logic [2:0] menu_row,
+    input logic [3:0] volume,
     output logic ready,
     input logic [9:0] hdmi_x, hdmi_y,
     output logic [23:0] rgb,
@@ -25,6 +28,12 @@ module nokia_video (
     wire [7:0] lx = sx - 8'd38;
     wire [7:0] ly = sy - 8'd48;
     logic valid_q, first_q, in_lcd_q;
+    wire overlay_hdmi,overlay_lcd;
+    wire overlay_hdmi_q=overlay_hdmi,overlay_lcd_q=overlay_lcd;
+    nokia_overlay u_osd_hdmi (.clk(clk),.x(in_hdmi ? hx[9:3] : 7'd127),.y(in_hdmi ? hy[8:3] : 6'd63),
+        .row(menu_row),.volume(volume),.gray(gray),.pixel(overlay_hdmi));
+    nokia_overlay u_osd_lcd (.clk(clk),.x(in_lcd ? lx[6:0] : 7'd127),.y(in_lcd ? ly[5:0] : 6'd63),
+        .row(menu_row),.volume(volume),.gray(gray),.pixel(overlay_lcd));
     pcd8544 u_lcd (
         .clk(clk), .reset(reset), .wr(lcd_wr), .dc(lcd_dc), .data(lcd_data), .ready(ready),
         .x0(in_hdmi ? hx[9:3] : 7'd127), .y0(in_hdmi ? hy[8:3] : 6'd63),
@@ -53,14 +62,14 @@ module nokia_video (
     end
     // No extra register: RAM pixel and valid/first flags already have equal latency.
     always_comb begin
-        rgb = in_hdmi_q ? (pixel_hdmi ? 24'h26351c : 24'hc4cfa1) : 24'h101810;
+        rgb = in_hdmi_q ? ((menu_open ? overlay_hdmi_q : pixel_hdmi) ? (gray ? 24'h252525 : 24'h26351c) : (gray ? 24'hdeded3 : 24'hc4cfa1)) : 24'h101810;
         stream_valid = valid_q;
         stream_first = first_q;
-        stream_data = in_lcd_q && pixel_lcd ? 15'd3 : 15'd0;
+        stream_data = in_lcd_q && (menu_open ? overlay_lcd_q : pixel_lcd) ? 15'd3 : 15'd0;
     end
     lcd_st7735 #(.CLK_HZ(27_000_000)) u_panel (
         .clk(clk), .reset(reset), .px_we(stream_valid), .px_first(stream_first), .px_data(stream_data),
-        .isGBC(1'b0), .dmg_pal(3'd2), .gbc_raw(1'b0), .crop(1'b1),
+        .isGBC(1'b0), .dmg_pal(gray ? 3'd0 : 3'd2), .gbc_raw(1'b0), .crop(1'b1),
         .menu_open(1'b0), .dbg_on(1'b0), .slow(1'b0), .txt_addr(), .txt_q(16'b0),
         .lcd_scl(lcd_scl), .lcd_sda(lcd_sda), .lcd_cs(lcd_cs), .lcd_dc(lcd_dc_out),
         .lcd_rst(lcd_rst), .lcd_bl(lcd_bl)

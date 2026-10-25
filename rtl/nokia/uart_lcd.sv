@@ -7,7 +7,9 @@ module uart_lcd #(
     input logic clk, reset, rx,
     output logic wr, dc,
     output logic [7:0] data,
-    output logic [16:0] keys
+    output logic [16:0] keys,
+    output logic control_wr,
+    output logic [7:0] control_opcode,control_data
 );
     localparam DIV = (CLK_HZ + BAUD/2)/BAUD;
     logic rx_meta, rx_sync;
@@ -20,6 +22,7 @@ module uart_lcd #(
     always_ff @(posedge clk) begin
         rx_meta <= rx; rx_sync <= rx_meta;
         wr <= 0;
+        control_wr<=0;
         if (idle_count < CLK_HZ) idle_count <= idle_count + 1'b1;
         else begin keys <= 0; state <= 0; end
         if (!busy) begin
@@ -43,6 +46,7 @@ module uart_lcd #(
                                 2: keys[7:0] <= shift;
                                 3: keys[15:8] <= shift;
                                 4: keys[16] <= shift[0];
+                                5,6,7,8:begin control_wr<=1;control_opcode<=opcode;control_data<=shift;end
                                 default: ;
                             endcase
                         end
@@ -55,6 +59,7 @@ module uart_lcd #(
             rx_meta <= 1; rx_sync <= 1; timer <= 0; bit_number <= 0;
             shift <= 0; opcode <= 0; busy <= 0; state <= 0;
             wr <= 0; dc <= 0; data <= 0; keys <= 0; idle_count <= 0;
+            control_wr<=0;control_opcode<=0;control_data<=0;
         end
     end
 endmodule

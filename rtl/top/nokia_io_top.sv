@@ -36,6 +36,7 @@ module nokia_io_top (
     wire [9:0] cx,cy;
     wire [23:0] rgb;
     nokia_video u_video (
+        .menu_open(1'b0),.gray(1'b0),.menu_row(3'd0),.volume(4'd5),
         .clk(clk_p), .reset(reset), .lcd_wr(wr), .lcd_dc(dc), .lcd_data(data), .ready(ready),
         .hdmi_x(cx), .hdmi_y(cy), .rgb(rgb),
         .lcd_scl(lcd_scl), .lcd_sda(lcd_sda), .lcd_cs(lcd_cs), .lcd_dc_out(lcd_dc), .lcd_rst(lcd_rst), .lcd_bl(lcd_bl)

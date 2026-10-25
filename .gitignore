@@ -5,3 +5,7 @@
 __pycache__/
 *.vcd
 /backups/
+/apps/android/.gradle/
+/apps/android/**/build/
+/apps/android/local.properties
+*.keystore

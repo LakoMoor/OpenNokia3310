@@ -28,6 +28,10 @@ module sim_card #(parameter CLK_HZ=27_000_000) (
     logic [8:0] index,length;
     logic [7:0] status1,status2,ins;
     logic [15:0] offset;
+    logic [7:0] current_record;
+    logic [8:0] requested_length;
+    logic [15:0] requested_offset;
+    logic [7:0] requested_record;
     logic [1:0] data_kind;
     wire [8:0] visible_count=9'(visible_ptr-read_ptr);
     wire active=control[7];
@@ -36,6 +40,15 @@ module sim_card #(parameter CLK_HZ=27_000_000) (
     wire has_input=ins==8'ha4 || ins==8'h20 || ins==8'h24 || ins==8'h26 ||
         ins==8'h28 || ins==8'h2c || ins==8'hdc || ins==8'hd6 || ins==8'h10 ||
         ins==8'h14 || ins==8'hc2 || ins==8'h88 || ins==8'ha2 || ins==8'h32;
+    always_comb begin
+        requested_length=header[4]==0 && (ins==8'hb0 || ins==8'hb2) ? 9'd256 : {1'b0,header[4]};
+        requested_record=header[2];
+        if(header[3][2:0]==2)requested_record=current_record+1'b1;
+        else if(header[3][2:0]==3)requested_record=current_record>1 ? current_record-1'b1 : 8'd0;
+        else if(header[2]==0)requested_record=current_record;
+        requested_offset=(ins==8'hb0 || ins==8'hd6) ? {header[2],header[3]} :
+            (requested_record==0 ? 16'd0 : {8'b0,requested_record}-1'b1)*{8'b0,ef_record(selected)};
+    end
     function automatic [7:0] fcp_byte(input [15:0] fid,input bit directory,input [8:0] i);
         reg [11:0] size;
         begin
@@ -104,7 +117,7 @@ module sim_card #(parameter CLK_HZ=27_000_000) (
             if(visible_count==1) interrupts[6]<=0;
         end
         if(valid && write) case(address)
-            8'h36:if(count<260) begin
+            8'h36:if(count<261) begin
                 if(count<5) header[count[2:0]]<=wdata;
                 else payload[count[7:0]-8'd5]<=wdata;
                 if(count==5) fid_hi<=wdata;
@@ -149,6 +162,7 @@ module sim_card #(parameter CLK_HZ=27_000_000) (
                             8'ha4:begin
                                 if(select_dir || ef_size(select_fid)!=0) begin
                                     selected<=select_fid;fcp_fid<=select_fid;fcp_directory<=select_dir;
+                                    current_record<=0;
                                     if(select_dir) selected_df<=select_fid;
                                     status1<=8'h9f;status2<=select_dir ? 34 : 15;
                                 end else begin status1<=8'h94;status2<=4;end
@@ -160,14 +174,17 @@ module sim_card #(parameter CLK_HZ=27_000_000) (
                                     {1'b0,header[4]} : (ins==8'hf2 || fcp_directory ? 34 : 15);
                             end
                             8'hb0,8'hb2:begin
-                                data_kind<=1;state<=header[4]==0 ? SW1 : OUT_ACK;length<={1'b0,header[4]};
-                                offset<=ins==8'hb0 ? {header[2],header[3]} :
-                                    (header[2]==0 ? 16'd0 : {8'b0,header[2]}-1'b1)*{8'b0,ef_record(selected)};
+                                data_kind<=1;state<=OUT_ACK;length<=requested_length;offset<=requested_offset;
+                                if(ins==8'hb2)current_record<=requested_record;
+                                if(ef_size(selected)==0 || (ins==8'hb2 && (ef_record(selected)==0 || requested_record==0)))begin state<=SW1;status1<=8'h94;status2<=8'h08;end
+                                else if({1'b0,requested_offset}+{8'b0,requested_length}>{5'b0,ef_size(selected)})begin state<=SW1;status1<=8'h94;status2<=2;end
                             end
                             8'hd6,8'hdc:begin
                                 state<=header[4]==0 ? SW1 : UPDATE_PREP;length<={1'b0,header[4]};
-                                offset<=ins==8'hd6 ? {header[2],header[3]} :
-                                    (header[2]==0 ? 16'd0 : {8'b0,header[2]}-1'b1)*{8'b0,ef_record(selected)};
+                                offset<=requested_offset;
+                                if(ins==8'hdc)current_record<=requested_record;
+                                if(ef_size(selected)==0 || (ins==8'hdc && (ef_record(selected)==0 || requested_record==0)))begin state<=SW1;status1<=8'h94;status2<=8'h08;end
+                                else if({1'b0,requested_offset}+{8'b0,requested_length}>{5'b0,ef_size(selected)})begin state<=SW1;status1<=8'h94;status2<=2;end
                             end
                             8'h88:begin status1<=8'h98;status2<=4;end // no GSM secret
                             8'h20,8'h24,8'h26,8'h28,8'h2c,8'h10,8'h14,8'hc2,8'ha2,8'h32,8'h04,8'h44,8'hfa: ;
@@ -189,6 +206,13 @@ module sim_card #(parameter CLK_HZ=27_000_000) (
             SW2:begin state<=IDLE;end
             default:state<=IDLE;
         endcase
+        // Card power/reset has priority over an in-flight APDU state. Discard
+        // stale procedure/data bytes before sending a new ATR on reactivation.
+        if(valid && write && address==8'h39 && (!wdata[7] || !control[7]))begin
+            count<=0;dirty<=0;acked<=0;wr_ptr<=0;read_ptr<=0;visible_ptr<=0;interrupts<=0;
+            pace<=CLK_HZ/960;index<=0;state<=wdata[7] ? ATR : IDLE;
+            selected<=16'h3f00;selected_df<=16'h3f00;current_record<=0;
+        end
         if(reset) begin
             state<=IDLE;count<=0;dirty<=0;acked<=0;control<=0;clock_control<=0;
             low_water<=0;rx_flush<=0;tx_flush<=0;interrupts<=0;
@@ -196,6 +220,7 @@ module sim_card #(parameter CLK_HZ=27_000_000) (
             selected_df<=16'h3f00;fcp_fid<=16'h3f00;fcp_directory<=1;
             index<=0;length<=0;status1<=0;status2<=0;ins<=0;offset<=0;data_kind<=0;
             commands<=0;last_ins<=0;fid_hi<=0;fid_lo<=0;
+            current_record<=0;
         end
     end
 endmodule

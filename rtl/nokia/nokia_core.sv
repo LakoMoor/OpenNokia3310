@@ -11,7 +11,8 @@ module nokia_core #(parameter CLK_HZ=27_000_000) (
     input logic [31:0] mem_rdata,
     output logic lcd_wr, lcd_dc,
     output logic [7:0] lcd_data,
-    output logic unsupported_mmio
+    output logic unsupported_mmio,
+    output wire [72:0] audio_control
 `ifdef NOKIA_TRACE
     ,output wire [31:0] trace_pc, trace_cpsr,
     output wire [31:0] trace_regs [0:30]
@@ -28,6 +29,8 @@ module nokia_core #(parameter CLK_HZ=27_000_000) (
 `endif
 );
     wire valid,write,ready,irq,fiq,code;
+    nokia_audio_regs u_audio_regs (.clk(clk),.reset(!resetn),.write(valid && ready && write),
+        .address(address),.wdata(wdata),.be(be),.control(audio_control));
     wire [31:0] address,wdata,rdata,io_rdata;
     wire [3:0] be;
     wire io_ready;

@@ -5,6 +5,24 @@ Board interfaces follow [Open Pocket GBC](https://github.com/LakoMoor/open-pocke
 
 [Website](https://lakomoor.github.io/OpenNokia3310/) · [Verification log](docs/STATUS.md) · [Credits](docs/PROVENANCE.md) · [Русская документация](README.ru.md)
 
+## Companion apps and FPGA menu
+
+The [Android USB-C OTG companion and desktop remote](apps/README.md) provide
+the full Nokia keypad, a live 84 × 48 LCD stream, volume and display controls.
+Android can play device-reported buzzer/DSP tones through its speaker. Its
+Calls page opens Android's own dialer or SMS app using the Android phone's SIM;
+it does not connect the FPGA's virtual SIM to a mobile network.
+
+Open the FPGA system menu with **S1**, **Select + Start** on the DS2, or
+**System menu** in either app. Use Up/Down, Menu/OK and C/Back. The LCD row
+switches **green LCD / gray LCD** for HDMI, ST7735S and both companion apps.
+The other rows resume the phone, adjust/mute volume, play a one-second output
+test and restart the phone. Left/Right adjust the volume row. S2 resets.
+These FPGA settings currently reset with the board.
+
+The new N4 app/menu/audio integration is experimental. See the dated
+[verification log](docs/STATUS.md) for simulation and hardware coverage.
+
 ![Original Phonebook menu captured from the FPGA board](docs/img/menu-en.png)
 
 **Work in progress.** Original v5.79 and v6.39 firmware have booted on the board.

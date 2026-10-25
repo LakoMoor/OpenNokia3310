@@ -62,6 +62,10 @@ IO_LOC  "lcd_bl" 52;
 IO_PORT "lcd_bl" IO_TYPE=LVCMOS33 PULL_MODE=NONE DRIVE=8;
 
 // On-board SPI flash (bitstream + ROM storage)
+IO_LOC "speaker_p" 76;
+IO_PORT "speaker_p" IO_TYPE=LVCMOS33 PULL_MODE=NONE DRIVE=4;
+IO_LOC "speaker_n" 75;
+IO_PORT "speaker_n" IO_TYPE=LVCMOS33 PULL_MODE=NONE DRIVE=4;
 IO_LOC  "flash_cs_n" 60;
 IO_PORT "flash_cs_n" IO_TYPE=LVCMOS33 PULL_MODE=UP;
 IO_LOC  "flash_clk" 59;

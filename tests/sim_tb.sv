@@ -46,7 +46,7 @@ module sim_tb;
         header('ha4,0,0,2);get('ha4);
         put('h3e,4);put('h36,'h6f);put('h36,'h3c);put('h3e,0);get('h9f);get(15);
         header('hb2,2,4,176);get('hb2);
-        repeat(176) get('hff);get('h90);get(0);
+        get(0);repeat(175) get('hff);get('h90);get(0);
         header('hdc,2,4,176);get('hdc);
         for(integer start=0;start<176;start=start+15) begin
             put('h3e,4);
@@ -58,7 +58,21 @@ module sim_tb;
         for(integer j=0;j<176;j=j+1) get(8'(j)^8'ha5);
         get('h90);get(0);
         if(commands!=10) $fatal(1,"APDU completion count %0d",commands);
+        // A free SMS record must have status 00. Relative record addressing
+        // must advance to the next record, rather than repeatedly reading #1.
+        header('hb2,0,2,176);get('hb2);get(0);repeat(175)get('hff);get('h90);get(0);
+        header('hb2,0,3,176);get('hb2);
+        for(integer j=0;j<176;j=j+1)get(8'(j)^8'ha5);
+        get('h90);get(0);
+        header('hb2,11,4,176);get('h94);get(2);
+        // Le=00 on READ BINARY means 256, including a complete paced FIFO wrap.
+        header('hb0,0,0,0);get('hb0);get(0);repeat(175)get('hff);
+        for(integer j=0;j<80;j=j+1)get(8'(j)^8'ha5);
+        get('h90);get(0);
+        // Power loss while response data is queued must discard all stale RX.
+        header('hb0,0,0,0);get('hb0);put('h39,0);put('h39,'hb2);
+        get('h3b);get('h60);get(0);get(0);
         $display("PASS SIM: ATR, T=0 ACK, FCP, IMSI, binary update, 176-byte record chunks/readback, FIFO wrap");$finish;
     end
-    initial begin #1000000;$fatal(1,"SIM timeout");end
+    initial begin #2500000;$fatal(1,"SIM timeout");end
 endmodule

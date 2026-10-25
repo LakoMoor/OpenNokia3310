@@ -1,4 +1,38 @@
-# Verification status — October 22, 2026
+# Verification status
+
+## October 25, 2026 — companion apps, LCD palettes and audio
+
+- Re-studied Open Pocket GBC revision `46fea7708ca76c988ad74b646d18184403c031b1`,
+  including its Android FTDI channel-B transport and FPGA menu/audio interfaces.
+- Android USB-C OTG app: release APK builds; three protocol tests pass. The APK
+  installs and launches in an Android 34 emulator. A physical Android OTG session
+  remains unverified. Native Android dialer/SMS intents use the Android modem;
+  independent FPGA cellular calls still require additional hardware and models.
+- Desktop Python remote: source and transport implemented; Python compilation
+  passes. Its GUI has not yet been verified with the new FPGA bitstream.
+- The complete 18-case RTL suite passes. Follow-up tests pass for menu bitmap
+  capture, synchronized N4 volume/palette state, and green/gray switching on
+  HDMI and all 16,384 ST7735 framebuffer pixels. This verifies framebuffer logic,
+  not the physical panel's appearance.
+- Python decodes the actual RTL-generated UART stream identically at seven
+  chunk sizes, including checksum/oversize recovery and 17-key encoding.
+- SIM fixture now advertises only implemented services and marks empty SMS
+  records correctly. Extended tests cover record updates, relative selection,
+  bounds, 256-byte transfers and power cycling. A one-billion-cycle original
+  v6.39 trace completes; this alone does not establish complete SIM/GSM support.
+- Buzzer and DSP tone registers drive the new audio path; RTL tests verify
+  register byte lanes, oscillators, 48 kHz clocking, mute and explicit output test.
+  Physical HDMI/speaker audio has not yet been captured.
+- The HDMI capture card was not enumerated in this session. New hardware
+  qualification is pending its connection and successful full FPGA timing.
+- The latest synthesis passes with zero reported structural problems and
+  placement succeeds, but routing/timing did not finish before the session was
+  interrupted. No new bitstream is qualified for flashing in this revision.
+- A complete 8 MiB SPI backup was saved locally. Its ROM region differs from
+  the earlier Nokia image, so the board currently contains other flash data.
+  No new FPGA configuration or phone ROM was written during these changes.
+
+## October 22, 2026 — previously verified hardware build
 
 ## Real hardware
 

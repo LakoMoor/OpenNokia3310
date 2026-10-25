@@ -10,7 +10,9 @@ files=[
  (0x6f07,0,bytes.fromhex('080910103254769810')),
  (0x6f20,0,b'\xff'*8+b'\x07'),
  (0x6f30,0,b'\xff'*48),
- (0x6f38,0,bytes.fromhex('cf30cf0f0300dc03000c00c0000000')),
+ # Advertise only implemented services: CHV1 disable, ADN, SMS, PLMN selector,
+ # MSISDN, SMS parameters and SPN. Do not advertise SIM Toolkit/FDN/AoC files.
+ (0x6f38,0,bytes.fromhex('cf30c30003000000000000000000')),
  (0x6f46,0,b'\x00FPGA SIM'+b'\xff'*8),
  (0x6f7b,0,b'\xff'*12),
  (0x6f7e,0,bytes.fromhex('ffffffff00f110fffe0001')),
@@ -21,7 +23,8 @@ files=[
  (0x6fb7,0,bytes.fromhex('11f2ffffffffff')),
  (0x6f31,0,b'\x05'),
  (0x6f3a,32,b'\xff'*1600),
- (0x6f3c,176,b'\xff'*1760),
+ # GSM 11.11: a free SMS record has status 00, not reserved status FF.
+ (0x6f3c,176,(b'\x00'+b'\xff'*175)*10),
  (0x6f42,46,b'\xff'*46),
  (0x6f43,0,b'\x01\xff'),
  (0x6f40,38,b'\xff'*114),

@@ -3,6 +3,7 @@
 | Component | Source / pinned revision | Use |
 | --- | --- | --- |
 | Board, HDMI, ST7735S | [LakoMoor/open-pocket-gbc](https://github.com/LakoMoor/open-pocket-gbc), `5e743424a308fb06b7de0923c02e6d0d1434b30b` | HDMI RTL, LCD driver, color buffer, font8x8, PLL/primitive wrappers, placement helper and selected pin constraints |
+| Companion app bootstrap / interface study | Open Pocket GBC, `46fea7708ca76c988ad74b646d18184403c031b1` | Android Gradle bootstrap, FTDI UART port-B approach, menu/audio reference; Nokia UI and N4 protocol are new |
 | ARM7TDMI-S | [birdybro/arm7tdmi-sv](https://github.com/birdybro/arm7tdmi-sv), `2b350d9c3902062329d9fdc55432fd4080bd88c9` | RTL CPU, canonical arm7tdmi_mister wrapper, BIG_ENDIAN=1; debug/coprocessor disabled |
 | Nokia device behavior | [djr-747/nokia-dct3-emulator](https://github.com/djr-747/nokia-dct3-emulator), `2b4c10ffd6b22a2d021c7f515f27ceb2fb6c78cd` | Model 3310, key matrix, MAD2, LCD and CCONT behavior studied as device specifications |
 | Firmware checksums | [MAME nokia_3310.cpp](https://github.com/mamedev/mame/blob/master/src/mame/nokia/nokia_3310.cpp) | v5.79/v6.07 dump verification and v6.39 MCU comparison |

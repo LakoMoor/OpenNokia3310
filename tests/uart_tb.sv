@@ -4,6 +4,8 @@ module uart_tb;
     wire wr,dc;
     wire [7:0] data;
     wire [16:0] keys;
+    wire control_wr;
+    wire [7:0] control_opcode,control_data;
     integer writes=0;
     always #5 clk=~clk;
     uart_lcd #(.CLK_HZ(1_152_000)) dut(.*);
