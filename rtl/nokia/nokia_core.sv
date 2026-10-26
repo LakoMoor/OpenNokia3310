@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // ARM + implemented MAD2 peripherals. External memory must supply boot vectors,
 // RAM and flash at the phone byte addresses. No boot-ROM/SDRAM loader is implied.
-module nokia_core #(parameter CLK_HZ=27_000_000) (
+module nokia_core #(parameter CLK_HZ=27_000_000,VIRTUAL_NETWORK=0) (
     input logic clk, resetn,
     input logic [16:0] keys,
     output logic mem_valid, mem_write, mem_code,
@@ -27,6 +27,7 @@ module nokia_core #(parameter CLK_HZ=27_000_000) (
     output wire [31:0] trace_rdata,trace_sim_commands,
     output wire [7:0] trace_sim_ins,
     output wire [31:0] trace_rf_data
+    ,output wire [31:0] trace_network_packets
 `endif
 );
     wire valid,write,ready,irq,fiq,code;
@@ -91,7 +92,7 @@ module nokia_core #(parameter CLK_HZ=27_000_000) (
         .address(address),.wdata(wdata),.be(be),.ready(nor_ready),.error(nor_error),.rdata(nor_rdata),
         .m_valid(n_valid),.m_write(n_write),.m_code(n_code),.m_address(n_address),.m_wdata(n_wdata),.m_be(n_be),
         .m_ready(n_ready),.m_error(mem_error),.m_rdata(mem_rdata));
-    dsp_service #(.CLK_HZ(CLK_HZ)) u_dsp (.clk(clk),.reset(!resetn),
+    dsp_network #(.CLK_HZ(CLK_HZ),.ENABLE_NETWORK(VIRTUAL_NETWORK)) u_dsp (.clk(clk),.reset(!resetn),
         .event_valid(valid && ready && event_target),.event_address(address),.event_value(dsp_value),
         .busy(service_busy),.fiq0(dsp_fiq0),.irq4(dsp_irq4),.m_valid(d_valid),.m_write(d_write),.m_address(d_address),
         .m_wdata(d_wdata),.m_be(d_be),.m_ready(d_ready),.m_rdata(mem_rdata),
@@ -114,6 +115,7 @@ module nokia_core #(parameter CLK_HZ=27_000_000) (
     assign ready=io_select ? io_ready : dsp_select ? 1'b1 : !event_stall && nor_ready;
     assign rdata=io_select ? io_rdata : dsp_select ? dsp_rdata : nor_rdata;
 `ifdef NOKIA_TRACE
+    assign trace_network_packets=u_dsp.network_packets;
     assign trace_rdata=rdata;
     assign trace_exec=u_cpu.u_core.u_core.executing && u_cpu.u_core.u_core.CLKEN && u_cpu.u_core.u_core.condition_pass;
     assign trace_sim_commands=u_mmio.u_sim.commands;

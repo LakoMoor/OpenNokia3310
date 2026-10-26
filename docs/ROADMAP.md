@@ -61,3 +61,14 @@ the SI3 generator through this injector to a stalled shared-memory model and
 checks the resulting MDI header, PLMN/LAC/identity, padding and producer cursor.
 Before use in `nokia_core`, it still needs a DSP-master arbiter and observed
 firmware radio-request triggers; it is not active in the phone build yet.
+
+An experimental `dsp_network` wrapper now arbitrates existing DSP service
+transactions and packet injection, blocking new doorbell events while a
+network record owns the bus. The core's `VIRTUAL_NETWORK` parameter enables it
+for simulation; the physical top remains disabled until qualified. A v6.39
+trace actually emits opcode 56 at cycle 110,942,900, so the prototype uses
+that device request (rather than writing firmware FSM state) to send SCH,
+then periodic SI3. This is a search-response experiment, not registration.
+`trace_firmware.py --virtual-network` enables the experiment; baseline runs
+remain off. The wrapper test verifies existing local DSP commands and actual
+search→SCH→SI3 ring delivery with memory stalls and producer/consumer checks.

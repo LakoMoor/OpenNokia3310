@@ -36,6 +36,7 @@ int main(int argc,char **argv) {
     uint32_t scripted_keys=0;
     unsigned aborts=0,sim_accesses=0,timer_accesses=0;
     unsigned dsp_messages=0,sim_commands=0;
+    unsigned network_packets=0;
     unsigned returns=0;
     const unsigned memory_wait=std::getenv("NOKIA_MEM_WAIT")?std::stoul(std::getenv("NOKIA_MEM_WAIT")):0;
     unsigned wait_left=0;
@@ -129,6 +130,10 @@ int main(int argc,char **argv) {
         if(cpu->trace_dsp_messages!=dsp_messages) {
             dsp_messages=cpu->trace_dsp_messages;
             std::cout<<"DSP message="<<dsp_messages<<" opcode="<<std::hex<<unsigned(cpu->trace_dsp_op)<<" sub="<<unsigned(cpu->trace_dsp_sub)<<std::dec<<" cycle="<<cycle<<"\n";
+        }
+        if(cpu->trace_network_packets!=network_packets) {
+            network_packets=cpu->trace_network_packets;
+            std::cout<<"VIRTUAL CELL packet="<<network_packets<<" cycle="<<cycle<<" pc="<<std::hex<<cpu->trace_pc<<std::dec<<"\n"<<std::flush;
         }
         if(cpu->unsupported_mmio && cpu->trace_valid && cpu->trace_ready) {
             unsigned slot=(cpu->trace_address&255)+(cpu->trace_write?256:0);

@@ -19,6 +19,7 @@ def main():
     os.environ["PATH"] = os.pathsep.join([str(Path(a.tools)/"bin"), str(Path(a.tools)/"lib"), os.environ["PATH"]])
     Path("build/tests").mkdir(parents=True, exist_ok=True)
     cases = {
+        "dsp_network": ["rtl/nokia/dsp_service.sv","rtl/nokia/dsp_network.sv","rtl/nokia/virtual_cell.sv","rtl/nokia/mdi_injector.sv"],
         "sim_chv": ["rtl/nokia/sim_chv.sv"],
         "virtual_cell": ["rtl/nokia/virtual_cell.sv"],
         "mdi_injector": ["rtl/nokia/virtual_cell.sv","rtl/nokia/mdi_injector.sv"],
@@ -48,6 +49,8 @@ def main():
     os.environ["VERILATOR_ROOT"] = str(vroot.parent)
     for name, sources in cases.items():
         if "rtl/nokia/sim_card.sv" in sources:sources=["rtl/nokia/sim_chv.sv",*sources]
+        if "rtl/nokia/nokia_core.sv" in sources:
+            sources=["rtl/nokia/dsp_network.sv","rtl/nokia/virtual_cell.sv","rtl/nokia/mdi_injector.sv",*sources]
         if a.case and name not in a.case:
             continue
         output = Path("build/tests") / name

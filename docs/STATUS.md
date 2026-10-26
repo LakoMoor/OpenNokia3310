@@ -11,6 +11,13 @@
   pass, including retained retry counts across card reset and protected IMSI
   reads after session reset. See [test credentials and limits](virtual-sim.md).
 - The extended 22-case RTL regression passes after CHV integration.
+- Initial CHV full synthesis reached 93% LUT4 and failed legal placement.
+  Sequential CHV payload reads restore RAM inference and reduce synthesis
+  usage to 19,013 / 20,736 LUT4 (91%); placement/timing are still pending.
+- The optional DSP network wrapper passes existing local-command transport and
+  observed opcode-56→SCH→SI3 delivery tests. It is enabled only in an explicit
+  original-ROM simulation experiment; the hardware top remains off pending
+  firmware response analysis. Virtual registration/calls/SMS remain incomplete.
 - Continuing original v6.39 simulation with eight-cycle external-memory stalls
   and scripted keypad input reached the original **Messages** menu and
   **Write messages** submenu. Captures below are rendered from simulated LCD
