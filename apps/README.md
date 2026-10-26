@@ -90,7 +90,14 @@ The desktop app does not implement a cellular modem.
 
 Build Windows portable ZIP with Python 3, PyInstaller, pefile, pyserial, sounddevice and a
 local OSS CAD Suite (`OSS_CAD_SUITE`, default `E:/tools/oss-cad-suite`):
-`python tools/package_desktop.py`. Run flasher tests with
+```powershell
+python tools/package_desktop.py --fpga path/to/qualified.fs --fpga-sha256 EXPECTED_SHA256
+```
+
+The image must be selected explicitly and match its expected SHA256 before
+packaging starts. `images/manifest.json` records the bundled image hash and
+qualification limits. A recent failed build must not silently replace a
+qualified image. Run flasher tests with
 `python tests/test_desktop_flasher.py`. The executable also supports
 `--smoke-test output.json` to construct/check both UI pages without USB writes.
 `--audio-smoke-test output.json` plays a one-second local diagnostic tone and
