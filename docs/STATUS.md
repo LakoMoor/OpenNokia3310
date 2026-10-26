@@ -2,6 +2,20 @@
 
 ## October 26, 2026 — original boot investigation
 
+- Actual v6.39 request payload logging confirms search ARFCN 586 (`024a`) and
+  the following 20-byte channel configuration prefix
+  `04120200000000505000024a`. Blind search emits four payload bytes `03050000`.
+  In the new ALL_RSSI experiment, its report is committed at cycle 160,635,698
+  and firmware subsequently emits opcode `03` with zero payload at 160,825,557.
+  This proves a new request after the scan response, not registration. The
+  zero-length request's legacy `sub` field is stale and must be ignored.
+- The new PIN-format synthesis packs to 18,883 LUTs versus 18,947 before it;
+  placement is still running, so no new hardware image is qualified.
+- Build failures can no longer leave an older `.fs` under the current output
+  name. The old image is preserved with a timestamp and a JSON build receipt
+  records synthesis-only, failed or built status. A failure-injection regression
+  verifies preservation, absence of a stale output and an explicit failed receipt.
+
 - The corrected one-byte-confirm v6.39 experiment finished 400M clocks with
   17,846 LCD writes, 70 virtual packets and 145 MCU consumer changes. Firmware
   still requested blind search; neither short confirmation nor consumer movement

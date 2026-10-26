@@ -4,6 +4,9 @@ import os
 from pathlib import Path
 import subprocess
 import sys
+import hashlib
+import json
+import time
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -28,6 +31,15 @@ def main():
     os.environ["PATH"] = os.pathsep.join([str(tools / "bin"), str(tools / "lib"), os.environ["PATH"]])
     out = Path("build") / (args.target+("_lut4" if args.lut4_only else ""))
     out.mkdir(parents=True, exist_ok=True)
+    # A failed synthesis/placement must never leave an older image under the
+    # expected output name. Preserve it separately before starting this build.
+    bitstream=out/(args.target+'.fs')
+    if bitstream.exists():
+        previous=out/(args.target+'-previous-'+str(time.time_ns())+'.fs')
+        bitstream.rename(previous)
+        print('Previous image preserved:',previous,flush=True)
+    receipt=out/'build-result.json'
+    receipt.write_text(json.dumps({'target':args.target,'status':'in_progress'},indent=2)+'\n')
     if args.target in ("nokia_memtest","nokia_romtest"):
         sources=["rtl/board/gowin_prims.v","rtl/board/pll_nokia.v",
                  "third_party/open-pocket-gbc/rtl/sdram_ctrl.sv","rtl/nokia/uart_status.sv","rtl/nokia/uart_lcd.sv","rtl/nokia/flash_boot.sv",f"rtl/top/{args.target}.sv"]
@@ -59,6 +71,8 @@ def main():
             try:
                 subprocess.run(argv, check=True, stdout=log, stderr=subprocess.STDOUT)
             except subprocess.CalledProcessError:
+                receipt.write_text(json.dumps({'target':args.target,'status':'failed',
+                    'stage':argv[0],'bitstream':None},indent=2)+'\n')
                 log.flush()
                 print("\n".join((out/logfile).read_text(errors="replace").splitlines()[-35:]), file=sys.stderr)
                 print("Full log:", ROOT/out/logfile, file=sys.stderr)
@@ -66,6 +80,7 @@ def main():
     run(["yosys", "-Q", "-T", "-m", "slang", "-s", str(out / "synth.ys")], "yosys.log")
     print((out / "stat.txt").read_text(), flush=True)
     if args.synth_only:
+        receipt.write_text(json.dumps({'target':args.target,'status':'synthesis_only','bitstream':None},indent=2)+'\n')
         return
     if args.target not in ("nokia_io_top","nokia_top","nokia_memtest","nokia_romtest"):
         p.error("This target has external buses, not board pins; use --synth-only")
@@ -83,6 +98,9 @@ def main():
     run(["gowin_pack", "-d", "GW2A-18C", *(["--mspi_as_gpio"] if args.target in ("nokia_top","nokia_romtest") else []), "-o", str(out / (args.target + ".fs")),
          str(out / "pnr.json")], "pack.log")
     print("Bitstream:", (ROOT / out / (args.target + ".fs")), flush=True)
+    receipt.write_text(json.dumps({'target':args.target,'status':'built',
+        'bitstream':str(bitstream),'sha256':hashlib.sha256(bitstream.read_bytes()).hexdigest(),
+        'hardware_qualified':False},indent=2)+'\n')
 
 
 if __name__ == "__main__":
