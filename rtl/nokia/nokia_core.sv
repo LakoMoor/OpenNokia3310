@@ -21,6 +21,8 @@ module nokia_core #(parameter CLK_HZ=27_000_000,VIRTUAL_NETWORK=0) (
     output wire [3:0] trace_be,
     output wire trace_write,trace_valid,trace_ready,
     output wire [7:0] trace_dsp_op,trace_dsp_sub,
+    output wire [7:0] trace_dsp_length,
+    output wire [95:0] trace_dsp_payload,
     output wire trace_exec,trace_exception,trace_rf_we,trace_user_bank,
     output wire [4:0] trace_rf_mode,
     output wire [3:0] trace_rf_addr,
@@ -131,6 +133,9 @@ module nokia_core #(parameter CLK_HZ=27_000_000,VIRTUAL_NETWORK=0) (
     assign trace_address=address;assign trace_wdata=wdata;assign trace_be=be;
     assign trace_write=write;assign trace_valid=valid;assign trace_ready=ready;
     assign trace_dsp_messages=dsp_messages;assign trace_dsp_op=dsp_last_op;assign trace_dsp_sub=dsp_last_sub;
+    assign trace_dsp_length=u_dsp.service.tx_length;
+    for(genvar b=0;b<12;b=b+1)
+        assign trace_dsp_payload[95-b*8-:8]=u_dsp.service.payload[b];
     for(genvar i=0;i<31;i=i+1) assign trace_regs[i]=u_cpu.u_core.u_core.u_regfile.regs[i];
 `endif
 endmodule

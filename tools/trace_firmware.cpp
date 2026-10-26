@@ -131,7 +131,15 @@ int main(int argc,char **argv) {
         }
         if(cpu->trace_dsp_messages!=dsp_messages) {
             dsp_messages=cpu->trace_dsp_messages;
-            std::cout<<"DSP message="<<dsp_messages<<" opcode="<<std::hex<<unsigned(cpu->trace_dsp_op)<<" sub="<<unsigned(cpu->trace_dsp_sub)<<std::dec<<" cycle="<<cycle<<"\n";
+            std::cout<<"DSP message="<<dsp_messages<<" opcode="<<std::hex<<unsigned(cpu->trace_dsp_op)<<" sub="<<unsigned(cpu->trace_dsp_sub)
+                     <<std::dec<<" length="<<unsigned(cpu->trace_dsp_length)<<" payload=";
+            for(unsigned i=0;i<12 && i<cpu->trace_dsp_length;i++) {
+                unsigned octet=(cpu->trace_dsp_payload[2-i/4]>>((3-i%4)*8))&255;
+                const char* digits="0123456789abcdef";
+                std::cout<<digits[octet>>4]<<digits[octet&15];
+            }
+            if(cpu->trace_dsp_length>12)std::cout<<"...";
+            std::cout<<" cycle="<<cycle<<"\n";
         }
         if(cpu->trace_network_packets!=network_packets) {
             network_packets=cpu->trace_network_packets;

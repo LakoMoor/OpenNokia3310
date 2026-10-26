@@ -2,6 +2,16 @@
 
 ## October 26, 2026 — original boot investigation
 
+- The corrected one-byte-confirm v6.39 experiment finished 400M clocks with
+  17,846 LCD writes, 70 virtual packets and 145 MCU consumer changes. Firmware
+  still requested blind search; neither short confirmation nor consumer movement
+  establishes registration. Archived locally before starting a separate 300M
+  experiment with ALL_RSSI responses enabled.
+- Simulation-only trace ports now expose DSP request length and the first twelve
+  payload bytes. The harness logs these in byte order, truncating explicitly for
+  larger requests, so channel tokens, logical channel and ARFCN can be checked
+  against actual firmware output. These trace ports do not enter the FPGA build.
+
 - Added the missing experimental blind-band-search response: DSP opcode `55`
   now requests an MDI `8B` ALL_RSSI report containing the fixture's ARFCN 586
   at level D0 and 39 empty carrier slots. The generator emits 162 payload bytes.
