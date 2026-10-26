@@ -25,6 +25,10 @@
   All 18 existing RTL regressions pass with the registered-CS change.
 - Installer paths now persist locally between application launches. A separate
   preferences test verifies round-trip paths and malformed-file recovery.
+- A standalone virtual-cell MDI SCH/SI3 record builder now passes directed
+  envelope, identity, ready/valid backpressure and reset tests. It is not yet
+  connected to the original firmware's receive path; no virtual network
+  registration, calls or SMS are claimed from this test.
 - See [compatibility goal and reference review](ROADMAP.md) for the remaining
   original-phone and virtual-network acceptance criteria.
 

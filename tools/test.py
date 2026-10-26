@@ -19,6 +19,7 @@ def main():
     os.environ["PATH"] = os.pathsep.join([str(Path(a.tools)/"bin"), str(Path(a.tools)/"lib"), os.environ["PATH"]])
     Path("build/tests").mkdir(parents=True, exist_ok=True)
     cases = {
+        "virtual_cell": ["rtl/nokia/virtual_cell.sv"],
         "sound": ["rtl/nokia/nokia_sound.sv"],
         "controls": ["rtl/nokia/nokia_controls.sv"],
         "link": ["rtl/nokia/nokia_overlay.sv", "rtl/nokia/nokia_link.sv"],

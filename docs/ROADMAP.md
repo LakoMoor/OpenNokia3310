@@ -32,3 +32,22 @@ different payloads despite sharing the physical 0x200000 flash region.
 The immediate priority is verified ROM loading, then original firmware boot.
 Virtual RF/DSP behavior must be driven by observed original-firmware messages;
 no generated UI should be presented as proof of cellular emulation.
+
+## Virtual-cell transport work
+
+`rtl/nokia/virtual_cell.sv` builds device-side SCH and BCCH/SI3 MDI
+RECEIVED_BLOCK records. Cell identity, PLMN, LAC, ARFCN, BSIC and frame number
+are explicit inputs, latched per record. A ready/valid byte interface preserves
+the packet under stalls. Tests cover envelope lengths, identity, backpressure
+and reset. The module is deliberately not yet wired into `dsp_service`:
+registration, calls and SMS are not implemented by this building block.
+
+SI3 field order and pseudo-length follow
+[ETSI TS 144 018, section 9.1.35](https://www.etsi.org/deliver/etsi_ts/144000_144099/144018/10.06.00_60/ts_144018v100600p.pdf).
+The DCT3 envelope is studied from `src/mad2/mdi_gsm.c` in the pinned Nokia
+reference emulator. Its firmware addresses and receive-state analysis describe
+v5.79 and must not be assumed valid for the active v6.39 ROM. Before integration,
+trace firmware-owned queue initialization and radio requests for each ROM,
+then qualify ring ownership, queue wrapping and FIQ delivery. Continue with
+SI2/SI4, channel assignment, MM registration and CC/SMS transactions; merely
+transmitting SI3 does not prove successful camping or subscriber service.
