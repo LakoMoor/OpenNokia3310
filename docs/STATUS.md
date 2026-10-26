@@ -2,6 +2,18 @@
 
 ## October 26, 2026 — original boot investigation
 
+- The new channel-confirm v6.39 experiment shows actual MCU receive-consumer
+  movement after virtual packet commits. It also emits a new DSP opcode `55`/
+  sub `03` at cycle 160,633,848, whereas the previous 400M-cycle SI-only run
+  stopped its DSP requests at opcode `02`. This is evidence of changed firmware
+  behavior after the response, not proof of camping, registration or a call.
+  The experiment is still running; the meaning of opcode `55` needs tracing.
+- PIN format validation now uses local adjacent-padding checks instead of a
+  prefix-padding chain. A directed equivalence check covers all 65,536 patterns
+  made from digits, FF padding and two invalid byte classes; PIN/PUK and SIMI
+  tests pass, including eight-digit PIN replacement and digits after padding.
+  Full-top resource impact is being synthesized and is not yet established.
+
 - In the SI3/SI2/SI4 v6.39 experiment, firmware emits DSP opcode `02`/sub `04`
   at cycle 111,049,877 immediately after search opcode `56`. The experimental
   wrapper now answers observed opcode `02` with an MDI `89` channel-change

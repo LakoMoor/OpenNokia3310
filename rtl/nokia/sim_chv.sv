@@ -19,14 +19,20 @@ module sim_chv (
         for(integer i=0;i<8;i++)packed_pin[31-i*4-:4]=value[59-i*8-:4];
     endfunction
     function automatic bit pin_format(input [63:0] value);
-        reg padding;
         reg [7:0] octet;
         begin
-            pin_format=1;padding=0;
+            pin_format=1;
             for(integer i=0;i<8;i++)begin
                 octet=value[63-i*8-:8];
-                if(octet==8'hff)begin padding=1;if(i<4)pin_format=0;end
-                else if(padding || octet<8'h30 || octet>8'h39)pin_format=0;
+                // Local checks avoid a prefix-padding chain across eight
+                // replicated byte comparators. Once FF begins, each following
+                // byte must also be FF. The first four bytes must be digits.
+                if(i<4)begin
+                    if(octet[7:4]!=4'h3 || octet[3:0]>9)pin_format=0;
+                end else begin
+                    if(octet!=8'hff && (octet[7:4]!=4'h3 || octet[3:0]>9))pin_format=0;
+                    if(value[71-i*8-:8]==8'hff && octet!=8'hff)pin_format=0;
+                end
             end
         end
     endfunction
