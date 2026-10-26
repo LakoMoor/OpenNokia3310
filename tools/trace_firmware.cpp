@@ -37,6 +37,8 @@ int main(int argc,char **argv) {
     unsigned aborts=0,sim_accesses=0,timer_accesses=0;
     unsigned dsp_messages=0,sim_commands=0;
     unsigned network_packets=0;
+    uint16_t network_consumer=0;
+    unsigned network_drains=0;
     unsigned returns=0;
     const unsigned memory_wait=std::getenv("NOKIA_MEM_WAIT")?std::stoul(std::getenv("NOKIA_MEM_WAIT")):0;
     unsigned wait_left=0;
@@ -133,7 +135,19 @@ int main(int argc,char **argv) {
         }
         if(cpu->trace_network_packets!=network_packets) {
             network_packets=cpu->trace_network_packets;
-            std::cout<<"VIRTUAL CELL packet="<<network_packets<<" cycle="<<cycle<<" pc="<<std::hex<<cpu->trace_pc<<std::dec<<"\n"<<std::flush;
+            const unsigned producer=(unsigned(memory[0x101c8])<<8)|memory[0x101c9];
+            const unsigned consumer=(unsigned(memory[0x101ca])<<8)|memory[0x101cb];
+            std::cout<<"VIRTUAL CELL packet="<<network_packets<<" cycle="<<cycle<<" pc="<<std::hex<<cpu->trace_pc
+                     <<" producer="<<producer<<" consumer="<<consumer<<std::dec<<"\n"<<std::flush;
+        }
+        if(network_packets) {
+            const uint16_t consumer=(uint16_t(memory[0x101ca])<<8)|memory[0x101cb];
+            if(consumer!=network_consumer) {
+                network_consumer=consumer;
+                ++network_drains;
+                std::cout<<"MDI CONSUMER change="<<network_drains<<" cursor="<<std::hex<<consumer
+                         <<" pc="<<cpu->trace_pc<<std::dec<<" cycle="<<cycle<<"\n"<<std::flush;
+            }
         }
         if(cpu->unsupported_mmio && cpu->trace_valid && cpu->trace_ready) {
             unsigned slot=(cpu->trace_address&255)+(cpu->trace_write?256:0);
@@ -164,6 +178,7 @@ int main(int argc,char **argv) {
     }
     std::cout<<"TRACE ONLY: "<<limit<<" clocks; memory reads="<<fetches<<" LCD writes="<<lcd
         <<" distinct unsupported accesses="<<unknown<<" NOR writes="<<flash_writes
+        <<" virtual packets="<<network_packets<<" MDI consumer changes="<<network_drains
         <<" last bus address=0x"<<std::hex<<last_addr<<"\n";
     std::cout<<"This does not assert a successful Nokia firmware boot.\n";
     std::ofstream ram("build/boot_trace/ram.bin",std::ios::binary);

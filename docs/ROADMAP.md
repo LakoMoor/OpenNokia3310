@@ -72,3 +72,12 @@ then periodic SI3. This is a search-response experiment, not registration.
 `trace_firmware.py --virtual-network` enables the experiment; baseline runs
 remain off. The wrapper test verifies existing local DSP commands and actual
 search→SCH→SI3 ring delivery with memory stalls and producer/consumer checks.
+
+
+Virtual-network trace qualification now distinguishes packet commits from MCU
+consumer-cursor movement. `trace_firmware.cpp` logs producer/consumer positions
+at each virtual packet and later consumer changes. A consumer change is queue
+activity, not proof of RR acceptance or registration. Correlate it with actual
+v6.39 radio requests, decoded protocol responses and original UI before advancing
+network acceptance. Trace runs already executing use their previously compiled
+harness; the new counters apply only after recompilation.
