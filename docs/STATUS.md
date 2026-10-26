@@ -2,6 +2,15 @@
 
 ## October 26, 2026 — original boot investigation
 
+- Desktop installer now terminates a stalled programmer after 30 seconds for
+  board detection or 10 minutes for backup/programming. It reports failure and
+  does not continue the installation. Nine backend tests pass, including a
+  real silent child process killed by the watchdog and nonzero-exit log capture.
+  Serial diagnostic tools also bound writes to one second after USB loss.
+  These changes do not resolve the physical USB disappearance.
+- The full installer success message now distinguishes verified flash writes
+  and SRAM loading from actual phone boot and subsequent power-cycle testing.
+
 - Tang became available again. Direct programmer read-back of the 2 MiB ROM
   matches SHA256 `5cd18ff08b40f44c9dbe155bc09efbcea15b5037234fa9d54b3e43bac8fcc8a2`.
 - Registered-CS ROM probe initially returned all FF, but after the programmer

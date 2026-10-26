@@ -18,7 +18,7 @@ parser=Parser()
 frames=0
 audio=0
 a.output.parent.mkdir(parents=True,exist_ok=True)
-with serial.Serial(a.port,115200,timeout=.1) as port:
+with serial.Serial(a.port,115200,timeout=.1,write_timeout=1) as port:
     port.reset_input_buffer()
     port.write(command(5,3 if a.menu else 1))
     if a.volume is not None:port.write(command(6,a.volume))

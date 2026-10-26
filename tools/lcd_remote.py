@@ -21,7 +21,7 @@ if __name__ == "__main__":
         frame=bytes(255 if x in (0,83) else 1 if bank==0 else 128 if bank==5 else 0
                     for bank in range(6) for x in range(84))
     import serial
-    with serial.Serial(a.port,115200,timeout=1) as port:
+    with serial.Serial(a.port,115200,timeout=1,write_timeout=1) as port:
         time.sleep(0.2)
         port.write(packets(0,bytes((0x20,0x0c,0x80,0x40))))
         port.write(packets(1,frame))

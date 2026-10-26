@@ -12,7 +12,7 @@ a = p.parse_args()
 parser = Parser()
 previous = None
 received = 0
-with serial.Serial(a.port, 115200, timeout=.1) as port:
+with serial.Serial(a.port, 115200, timeout=.1,write_timeout=1) as port:
     port.reset_input_buffer()
     end = time.monotonic() + a.seconds
     while time.monotonic() < end:

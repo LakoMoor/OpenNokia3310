@@ -10,7 +10,7 @@ p=argparse.ArgumentParser(description=__doc__)
 p.add_argument('port');p.add_argument('--seconds',type=float,default=8)
 p.add_argument('--output',type=Path,default=Path('build/boot-diagnostics.json'))
 a=p.parse_args();packets=[];parser=Parser()
-with serial.Serial(a.port,115200,timeout=.1) as device:
+with serial.Serial(a.port,115200,timeout=.1,write_timeout=1) as device:
     device.reset_input_buffer()
     try:
         for name,value in [('bus',0),('pc',128)]:

@@ -11,7 +11,7 @@ p=argparse.ArgumentParser(description=__doc__)
 p.add_argument('port');p.add_argument('firmware',type=Path)
 a=p.parse_args();rom=a.firmware.read_bytes();parser=Parser();results=[]
 expected_crc=zlib.crc32(rom)
-with serial.Serial(a.port,115200,timeout=.05) as dev:
+with serial.Serial(a.port,115200,timeout=.05,write_timeout=1) as dev:
     dev.reset_input_buffer()
     try:
         dev.write(keys(0));end=time.monotonic()+12;actual_crc=None

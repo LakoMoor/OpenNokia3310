@@ -10,7 +10,7 @@ p.add_argument('--seconds',type=float,default=10)
 a=p.parse_args()
 buffer=bytearray()
 previous=None
-with serial.Serial(a.port,115200,timeout=.1) as port:
+with serial.Serial(a.port,115200,timeout=.1,write_timeout=1) as port:
     port.reset_input_buffer()
     end=time.monotonic()+a.seconds
     while time.monotonic()<end:

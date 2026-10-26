@@ -1,6 +1,7 @@
 import sys
 import tempfile
 import unittest
+import subprocess
 from pathlib import Path
 from unittest.mock import patch
 
@@ -64,5 +65,27 @@ class FlashTests(unittest.TestCase):
             with self.assertRaises(RuntimeError):
                 flasher.program(self.loader,'Install complete Nokia',self.fs,'',self.home,lambda s:None,rom=rom)
             self.assertEqual(run.call_count,1)
+
+    def test_silent_programmer_timeout_terminates_child(self):
+        popen=subprocess.Popen
+        children=[]
+        def launch(*args,**kwargs):
+            child=popen([sys.executable,'-c','import time; time.sleep(30)'],**kwargs)
+            children.append(child)
+            return child
+        with patch.object(flasher.subprocess,'Popen',side_effect=launch):
+            with self.assertRaisesRegex(RuntimeError,'timed out'):
+                flasher.run(self.loader,['--detect'],lambda s:None,timeout=.2)
+        self.assertIsNotNone(children[0].poll())
+
+    def test_programmer_output_and_nonzero_exit(self):
+        popen=subprocess.Popen
+        logs=[]
+        def launch(*args,**kwargs):
+            return popen([sys.executable,'-c',"print('USB lost',flush=True); raise SystemExit(2)"],**kwargs)
+        with patch.object(flasher.subprocess,'Popen',side_effect=launch):
+            with self.assertRaisesRegex(RuntimeError,'Programmer failed'):
+                flasher.run(self.loader,['--detect'],logs.append,timeout=5)
+        self.assertIn('USB lost',logs)
 
 if __name__=='__main__':unittest.main()

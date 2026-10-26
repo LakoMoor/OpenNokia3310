@@ -17,7 +17,7 @@ if __name__=='__main__':
     p.add_argument('--hold',type=float,default=0.2)
     a=p.parse_args()
     if not 0<a.hold<=10: p.error('--hold must be in (0, 10] seconds')
-    with serial.Serial(a.port,115200,timeout=1) as port:
+    with serial.Serial(a.port,115200,timeout=1,write_timeout=1) as port:
         try:
             end=time.monotonic()+a.hold
             while time.monotonic()<end:

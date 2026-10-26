@@ -5,6 +5,7 @@ from pathlib import Path
 import shutil
 import subprocess
 import sys
+import threading
 import time
 
 FLASH_SIZE=8*1024*1024
@@ -27,7 +28,10 @@ def validate_fpga(path):
     if bits//8>0x200000:raise ValueError('FPGA configuration overlaps the Nokia ROM region.')
     return path
 
-def run(loader,args,log):
+def run(loader,args,log,timeout=None):
+    # USB driver calls can hang without producing another output line.
+    # Bound the child lifetime independently of the stdout reader.
+    if timeout is None:timeout=30 if '--detect' in args else 600
     env=os.environ.copy()
     base=Path(loader).parent
     env['PATH']=str(base)+os.pathsep+str(base.parent/'lib')+os.pathsep+env.get('PATH','')
@@ -35,9 +39,24 @@ def run(loader,args,log):
     with subprocess.Popen([str(loader),'-b','tangnano20k',*map(str,args)],stdout=subprocess.PIPE,
                           stderr=subprocess.STDOUT,text=True,errors='replace',env=env,
                           creationflags=getattr(subprocess,'CREATE_NO_WINDOW',0)) as proc:
-        for line in proc.stdout:
-            if line.strip():log(line.rstrip())
-        if proc.wait():raise RuntimeError('Programmer failed. See the log; do not assume the write succeeded.')
+        expired=threading.Event()
+        def stop_stalled():
+            if proc.poll() is None:
+                expired.set()
+                try:proc.kill()
+                except ProcessLookupError:pass
+        watchdog=threading.Timer(timeout,stop_stalled)
+        watchdog.daemon=True
+        watchdog.start()
+        try:
+            for line in proc.stdout:
+                if line.strip():log(line.rstrip())
+            result=proc.wait()
+        finally:
+            watchdog.cancel()
+        if expired.is_set():
+            raise RuntimeError('Programmer timed out. USB may have disconnected. No later installation steps were run; flash contents may be incomplete. Reconnect Tang and check the backup before retrying.')
+        if result:raise RuntimeError('Programmer failed. See the log; do not assume the write succeeded.')
 
 def backup(loader,folder,log):
     folder=Path(folder);folder.mkdir(parents=True,exist_ok=True)
@@ -65,7 +84,7 @@ def program(loader,action,image,eeprom,folder,log,rom=''):
         run(loader,['-f','--verify','-o','0x200000','--file-type','bin',prepared],log)
         run(loader,['-f','--verify',image],log)
         run(loader,[image],log)
-        log('Complete installation verified. FPGA started; reconnect the remote.');return
+        log('Flash writes verified and FPGA loaded into SRAM. Reconnect the remote to check phone boot; power-cycle separately to check flash boot.');return
     if action in ('Test FPGA in SRAM','Install FPGA in flash'):
         image=validate_fpga(image)
         if action=='Test FPGA in SRAM':run(loader,[image],log);return
