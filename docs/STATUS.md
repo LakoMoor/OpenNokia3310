@@ -13,11 +13,17 @@
 - The extended 22-case RTL regression passes after CHV integration.
 - Initial CHV full synthesis reached 93% LUT4 and failed legal placement.
   Sequential CHV payload reads restore RAM inference and reduce synthesis
-  usage to 19,013 / 20,736 LUT4 (91%); placement/timing are still pending.
+  usage to 19,013 / 20,736 LUT4 (91%), but this also fails legal placement.
+  Further CHV storage/logic optimization is in progress; no new CHV bitstream
+  is qualified for the board yet.
 - The optional DSP network wrapper passes existing local-command transport and
   observed opcode-56→SCH→SI3 delivery tests. It is enabled only in an explicit
   original-ROM simulation experiment; the hardware top remains off pending
   firmware response analysis. Virtual registration/calls/SMS remain incomplete.
+- In the actual v6.39 ROM experiment, opcode 56 causes the first virtual-cell
+  record at cycle 110,943,074. Subsequent SI3 records are delivered while the
+  firmware continues executing and updating LCD (3,752 writes by 250M cycles).
+  This confirms transport integration, not a registered serving cell.
 - Continuing original v6.39 simulation with eight-cycle external-memory stalls
   and scripted keypad input reached the original **Messages** menu and
   **Write messages** submenu. Captures below are rendered from simulated LCD

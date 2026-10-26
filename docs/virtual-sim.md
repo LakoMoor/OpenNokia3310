@@ -12,7 +12,10 @@ Original firmware accesses it through the modeled SIMI UART and T=0 APDUs.
 | PIN2 | 5678 | 3 |
 | PUK1 / PUK2 | 12345678 | 10 each |
 
-Codes are stored as eight ASCII bytes padded with FF. The implemented CHV
+The CHV protocol represents codes as eight ASCII bytes padded with FF; internal PIN
+storage packs validated decimal digits to reduce FPGA use. Invalid ASCII
+cannot alias a valid digit, and replacement PINs must contain 4–8 digits with
+trailing FF padding only. The implemented CHV
 operations are VERIFY (20), CHANGE (24), DISABLE (26), ENABLE (28) and UNBLOCK
 (2C). Directory responses report current enabled status and remaining retries.
 Incorrect attempts return 9804 until exhausted, then 9840. Operations in

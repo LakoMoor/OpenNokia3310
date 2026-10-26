@@ -36,6 +36,11 @@ module sim_chv_tb;
         p2=2;issue('h20,64'h35363738ffffffff,'h9000);
         if(!verified[1] || pin2_status!='h83)$fatal(1,"independent PIN2");
         issue('h26,64'h35363738ffffffff,'h6b00);
+        issue('h20,64'hf5363738ffffffff,'h9804); // invalid ASCII must not alias digit 5
+        issue('h20,64'h35363738ffffffff,'h9000);
+        replacement=64'h313233ffffffffff; // new PIN shorter than four digits
+        issue('h24,64'h35363738ffffffff,'h6b00);
+        issue('h20,64'h35363738ffffffff,'h9000);
         $display("PASS SIM CHV: enable/verify/change/disable, retry blocking across reset, PUK and PIN2");$finish;
     end
     initial begin #20000;$fatal(1,"timeout");end
