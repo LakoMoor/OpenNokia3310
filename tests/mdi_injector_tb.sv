@@ -21,7 +21,7 @@ module mdi_injector_tb;
         .in_data(cell_mode ? cell_data : in_data),.in_last(cell_mode ? cell_last : in_last),
         .in_ready(in_ready),.busy(busy),.done(done),.error(error),.fiq0(fiq0),
         .m_valid(m_valid),.m_write(m_write),.m_address(m_address),.m_wdata(m_wdata),.m_be(m_be),.m_ready(m_ready),.m_rdata(m_rdata));
-    virtual_cell cell_source(.clk(clk),.reset(reset),.start(cell_start),.bcch(1'b1),.plmn(24'h00f110),
+    virtual_cell cell_source(.clk(clk),.reset(reset),.start(cell_start),.bcch(1'b1),.si_kind(2'd0),.plmn(24'h00f110),
         .lac(16'h1234),.cell_id(16'h5678),.arfcn(10'd586),.bsic(6'd27),.frame_number(22'h234567),
         .ready(cell_mode && in_ready),.valid(cell_valid),.last(cell_last),.data(cell_data),.busy(cell_busy),.done(cell_done));
     always @(posedge clk)begin

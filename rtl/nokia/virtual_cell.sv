@@ -1,11 +1,12 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-// Device-side MDI record builder for a virtual GSM cell. Not yet attached to
-// dsp_service: transport/profile qualification must precede phone injection.
+// Device-side MDI record builder for an experimental virtual GSM cell.
+// Enabled only in the optional DSP network wrapper; not yet qualified on Tang.
 // DCT3 envelope studied in djr-747/nokia-dct3-emulator mdi_gsm.c; SI3 layout
 // follows ETSI TS 144 018 9.1.35. No firmware RAM state or UI is patched.
 module virtual_cell (
     input logic clk,reset,start,
     input logic bcch,
+    input logic [1:0] si_kind, // 0=SI3, 1=SI2, 2=SI4
     input logic [23:0] plmn,
     input logic [15:0] lac,cell_id,
     input logic [9:0] arfcn,
@@ -17,6 +18,7 @@ module virtual_cell (
     output logic last
 );
     logic bcch_q;
+    logic [1:0] si_q;
     logic [23:0] plmn_q;
     logic [15:0] lac_q,cell_q;
     logic [9:0] arfcn_q;
@@ -45,17 +47,39 @@ module virtual_cell (
             31,32,33,34:data=8'h2b;        // four SI3 rest octets
             default:data=0;
         endcase
+        if(bcch_q && index>=12 && si_q==1)begin
+            data=0;
+            case(index)
+                12:data=8'h59; // 22 mandatory octets
+                13:data=8'h06;
+                14:data=8'h1a;
+                31:data=8'hff; // all NCCs permitted; empty neighbour bitmap
+                default:;
+            endcase
+        end
+        if(bcch_q && index>=12 && si_q==2)begin
+            // No optional CBCH IEs: 12 mandatory octets, ten rest octets.
+            data=index>=25 ? 8'h2b : 0;
+            case(index)
+                12:data=8'h31;
+                13:data=8'h06;
+                14:data=8'h1c;
+                15:data=plmn_q[23:16];16:data=plmn_q[15:8];17:data=plmn_q[7:0];
+                18:data=lac_q[15:8];19:data=lac_q[7:0];
+                default:;
+            endcase
+        end
     end
     always_ff @(posedge clk)begin
         done<=0;
         if(start && !busy)begin
-            busy<=1;index<=0;bcch_q<=bcch;plmn_q<=plmn;lac_q<=lac;
+            busy<=1;index<=0;bcch_q<=bcch;si_q<=si_kind;plmn_q<=plmn;lac_q<=lac;
             cell_q<=cell_id;arfcn_q<=arfcn;bsic_q<=bsic;frame_q<=frame_number;
         end else if(busy && ready)begin
             if(last)begin busy<=0;done<=1;end
             else index<=index+1'b1;
         end
-        if(reset)begin busy<=0;done<=0;index<=0;bcch_q<=0;plmn_q<=0;lac_q<=0;cell_q<=0;
+        if(reset)begin busy<=0;done<=0;index<=0;bcch_q<=0;si_q<=0;plmn_q<=0;lac_q<=0;cell_q<=0;
             arfcn_q<=0;bsic_q<=0;frame_q<=0;end
     end
 endmodule

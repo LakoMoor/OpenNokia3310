@@ -1,6 +1,7 @@
 `timescale 1ns/1ps
 module virtual_cell_tb;
     reg clk=0,reset=1,start=0,bcch=0,ready=0;
+    reg [1:0] si_kind=0;
     reg [23:0] plmn=24'h00f110;
     reg [15:0] lac=16'h1234,cell_id=16'h5678;
     reg [9:0] arfcn=586;
@@ -40,8 +41,18 @@ module virtual_cell_tb;
            {captured[15],captured[16]}!==16'h5678 || {captured[17],captured[18],captured[19]}!==24'h00f110 ||
            {captured[20],captured[21]}!==16'h1234)$fatal(1,"SI3 identity/LAI");
         for(integer i=31;i<35;i++)if(captured[i]!='h2b)$fatal(1,"SI3 rest octets");
+        si_kind=1;launch();si_kind=2;receive(35);
+        if(captured[12]!='h59 || captured[14]!='h1a || captured[31]!='hff)$fatal(1,"SI2 header/NCC");
+        for(integer i=15;i<31;i++)if(captured[i]!=0)$fatal(1,"SI2 neighbour bitmap");
+        for(integer i=32;i<35;i++)if(captured[i]!=0)$fatal(1,"SI2 RACH");
+        plmn=24'h00f110;lac=16'h1234;si_kind=2;launch();receive(35);
+        if(captured[12]!='h31 || captured[14]!='h1c ||
+           {captured[15],captured[16],captured[17]}!==24'h00f110 ||
+           {captured[18],captured[19]}!==16'h1234)$fatal(1,"SI4 length/LAI");
+        for(integer i=20;i<25;i++)if(captured[i]!=0)$fatal(1,"SI4 selection/RACH");
+        for(integer i=25;i<35;i++)if(captured[i]!='h2b)$fatal(1,"SI4 rest octets");
         launch();@(negedge clk);reset=1;@(negedge clk);if(busy || valid || done)$fatal(1,"reset cancels pending packet");
-        $display("PASS virtual cell: SCH/SI3 MDI envelopes, configured identity, backpressure, reset");$finish;
+        $display("PASS virtual cell: SCH/SI3/SI2/SI4 MDI envelopes, configured identity, backpressure, reset");$finish;
     end
     initial begin #20000;$fatal(1,"timeout");end
 endmodule

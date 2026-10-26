@@ -64,7 +64,19 @@ module dsp_network_tb;
         wait(memory['h1c8/4][31:16]==16'ha2);repeat(4)@(negedge clk);
         if(memory['h120/4][31:16]!==16'h2180 || memory['h12c/4]!==32'h49061b00 || interrupts!=4)
             $fatal(1,"BCCH/SI3 follow-up");
-        $display("PASS DSP network: original local transport, observed search opcode, SCH/SI3 queue delivery and FIQ");$finish;
+        memory['h1c8/4]=32'h00a200a2;
+        wait(memory['h1c8/4][31:16]==16'hb4);repeat(4)@(negedge clk);
+        if(memory['h150/4]!==32'h59061a00 || interrupts!=5)
+            $fatal(1,"BCCH/SI2 follow-up");
+        memory['h1c8/4]=32'h00b400b4;
+        wait(memory['h1c8/4][31:16]==16'hc6);repeat(4)@(negedge clk);
+        if(memory['h174/4]!==32'h31061c00 || memory['h178/4]!==32'hf1100001 || interrupts!=6)
+            $fatal(1,"BCCH/SI4 follow-up and LAI");
+        memory['h1c8/4]=32'h00c600c6;
+        wait(memory['h1c8/4][31:16]==16'hd8);repeat(4)@(negedge clk);
+        if(memory['h198/4]!==32'h49061b00 || interrupts!=7 || network_packets!=5)
+            $fatal(1,"BCCH cycle must return to SI3");
+        $display("PASS DSP network: original local transport, observed search opcode, SCH/SI3/SI2/SI4 queue delivery and FIQ");$finish;
     end
     initial begin #100000;$fatal(1,"DSP timeout");end
 endmodule

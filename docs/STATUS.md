@@ -2,6 +2,15 @@
 
 ## October 26, 2026 — original boot investigation
 
+- The optimized full CHV build still fails legal placement at 18,947 LUTs;
+  the 163-LUT reduction is insufficient. The installed qualified image is unchanged.
+- Experimental virtual-cell broadcasts now cycle SI3, SI2 and SI4 after SCH.
+  Directed tests verify SI2 neighbour/NCC/RACH fields, SI4 identity and its
+  12-octet mandatory pseudo-length, matching LAI and selection/RACH fields,
+  stalled output stability and SI3 return after a full cycle. Queue integration
+  verifies all four records and interrupt counts. These tests pass; original-ROM
+  response is under investigation, with no registration/call/SMS claim.
+
 - MAD2 shadow-register storage now uses one shared read port and one combined
   initialization/CPU write port; the independently consumed MBUS IRQ bit has a
   dedicated mirror. The full 23-case RTL regression passes, including shadow

@@ -33,6 +33,7 @@ module dsp_network #(parameter CLK_HZ=27000000,ENABLE_NETWORK=0) (
     assign m_be=net_lock ? net_be : service_be;
     generate if(ENABLE_NETWORK)begin: network
         logic lock,start,pending,bcch;
+        logic [1:0] si_kind;
         logic [31:0] seen_messages;
         logic [31:0] packets;
         assign network_packets=packets;
@@ -42,7 +43,7 @@ module dsp_network #(parameter CLK_HZ=27000000,ENABLE_NETWORK=0) (
         wire byte_valid,byte_last,byte_ready,packet_done,packet_error;
         wire [7:0] byte_data;
         assign net_lock=lock;
-        virtual_cell cell_source(.clk(clk),.reset(reset),.start(start),.bcch(bcch),.plmn(24'h00f110),
+        virtual_cell cell_source(.clk(clk),.reset(reset),.start(start),.bcch(bcch),.si_kind(si_kind),.plmn(24'h00f110),
             .lac(16'h0001),.cell_id(16'h0001),.arfcn(10'd586),.bsic(6'd0),.frame_number(frame_number),
             .ready(byte_ready),.valid(byte_valid),.last(byte_last),.data(byte_data),.busy(),.done());
         mdi_injector injector(.clk(clk),.reset(reset),.in_valid(byte_valid),.in_last(byte_last),.in_data(byte_data),
@@ -58,7 +59,7 @@ module dsp_network #(parameter CLK_HZ=27000000,ENABLE_NETWORK=0) (
             end else frame_phase<=frame_phase+13000;
             if(messages!=seen_messages)begin
                 seen_messages<=messages;
-                if(last_opcode==8'h56)begin pending<=1;bcch<=0;delay_count<=0;end
+                if(last_opcode==8'h56)begin pending<=1;bcch<=0;si_kind<=0;delay_count<=0;end
             end
             if(delay_count!=0)begin
                 delay_count<=delay_count-1'b1;
@@ -67,9 +68,9 @@ module dsp_network #(parameter CLK_HZ=27000000,ENABLE_NETWORK=0) (
             if(pending && !lock && !service_busy && !event_valid)begin lock<=1;pending<=0;start<=1;end
             if(packet_done || packet_error)begin
                 lock<=0;
-                if(!packet_error)begin bcch<=1;delay_count<=CLK_HZ/4;packets<=packets+1'b1;end
+                if(!packet_error)begin bcch<=1;if(bcch)si_kind<=si_kind==2 ? 2'd0 : si_kind+1'b1;delay_count<=CLK_HZ/4;packets<=packets+1'b1;end
             end
-            if(reset)begin lock<=0;start<=0;pending<=0;bcch<=0;seen_messages<=0;delay_count<=0;frame_phase<=0;frame_number<=0;packets<=0;end
+            if(reset)begin lock<=0;start<=0;pending<=0;bcch<=0;si_kind<=0;seen_messages<=0;delay_count<=0;frame_phase<=0;frame_number<=0;packets<=0;end
         end
     end else begin: disabled
         assign net_lock=0;assign net_valid=0;assign net_write=0;assign net_fiq=0;
