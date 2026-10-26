@@ -20,6 +20,7 @@ def main():
     Path("build/tests").mkdir(parents=True, exist_ok=True)
     cases = {
         "virtual_cell": ["rtl/nokia/virtual_cell.sv"],
+        "mdi_injector": ["rtl/nokia/virtual_cell.sv","rtl/nokia/mdi_injector.sv"],
         "sound": ["rtl/nokia/nokia_sound.sv"],
         "controls": ["rtl/nokia/nokia_controls.sv"],
         "link": ["rtl/nokia/nokia_overlay.sv", "rtl/nokia/nokia_link.sv"],

@@ -51,3 +51,13 @@ trace firmware-owned queue initialization and radio requests for each ROM,
 then qualify ring ownership, queue wrapping and FIQ delivery. Continue with
 SI2/SI4, channel assignment, MM registration and CC/SMS transactions; merely
 transmitting SI3 does not prove successful camping or subscriber service.
+
+`mdi_injector.sv` now buffers complete records, rejects malformed lengths,
+waits for an initialized empty receive ring and commits only the DSP producer
+halfword. It preserves MCU ownership of the consumer and raises FIQ after
+commit. Directed tests include arbitrary memory wait states, e3→80 wrapping,
+odd-length padding, malformed records and reset. An integration test connects
+the SI3 generator through this injector to a stalled shared-memory model and
+checks the resulting MDI header, PLMN/LAC/identity, padding and producer cursor.
+Before use in `nokia_core`, it still needs a DSP-master arbiter and observed
+firmware radio-request triggers; it is not active in the phone build yet.

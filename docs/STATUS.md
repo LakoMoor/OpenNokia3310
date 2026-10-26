@@ -29,6 +29,10 @@
   envelope, identity, ready/valid backpressure and reset tests. It is not yet
   connected to the original firmware's receive path; no virtual network
   registration, calls or SMS are claimed from this test.
+- MDI record injection and generator-to-ring integration tests now pass:
+  nonempty-ring protection, preserved MCU consumer, bus stalls, e3→80 wrap,
+  odd-byte padding, producer commit before FIQ, invalid lengths and reset.
+  This transport is not yet instantiated/arbitrated in the full phone core.
 - See [compatibility goal and reference review](ROADMAP.md) for the remaining
   original-phone and virtual-network acceptance criteria.
 
