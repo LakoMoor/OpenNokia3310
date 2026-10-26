@@ -37,6 +37,9 @@ int main(int argc,char **argv) {
     unsigned aborts=0,sim_accesses=0,timer_accesses=0;
     unsigned dsp_messages=0,sim_commands=0;
     unsigned returns=0;
+    const unsigned memory_wait=std::getenv("NOKIA_MEM_WAIT")?std::stoul(std::getenv("NOKIA_MEM_WAIT")):0;
+    unsigned wait_left=0;
+    bool memory_pending=false;
     const bool cpu_trace=std::getenv("NOKIA_CPU_TRACE")!=nullptr;
     const bool queue_trace=std::getenv("NOKIA_QUEUE_TRACE")!=nullptr;
     const bool io_trace=std::getenv("NOKIA_IO_TRACE")!=nullptr;
@@ -60,7 +63,10 @@ int main(int argc,char **argv) {
                 scripted_keys=mask & 0x1ffffu;
             }
         }
-        if(cycle && cycle%25000000==0) save_frame("build/boot_trace/frame-"+std::to_string(cycle)+".pgm");
+        if(cycle && cycle%25000000==0) {
+            save_frame("build/boot_trace/frame-"+std::to_string(cycle)+".pgm");
+            std::cout<<"PROGRESS cycle="<<cycle<<" pc="<<std::hex<<cpu->trace_pc<<" addr="<<cpu->mem_addr<<std::dec<<" LCD="<<lcd<<" reads="<<fetches<<"\n"<<std::flush;
+        }
         cpu->clk=0;cpu->resetn=cycle>=8;cpu->keys=scripted_keys | (cycle<hold_power ? 1u<<16 : 0);
         cpu->mem_ready=0;cpu->mem_error=0;cpu->mem_rdata=0;
         cpu->eval();
@@ -80,7 +86,11 @@ int main(int argc,char **argv) {
         }
         prev_pc=cpu->trace_pc;
         last_addr=addr;
-        if(cpu->mem_valid) {
+        if(!cpu->mem_valid)memory_pending=false;
+        if(cpu->mem_valid && !memory_pending) {memory_pending=true;wait_left=memory_wait;}
+        const bool memory_accept=cpu->mem_valid && wait_left==0;
+        if(wait_left) --wait_left;
+        if(memory_accept) {
             cpu->mem_ready=1;
             if(base+3<memory.size()) {
                 cpu->mem_rdata=(uint32_t(memory[base])<<24)|(uint32_t(memory[base+1])<<16)|
@@ -131,6 +141,7 @@ int main(int argc,char **argv) {
         if(cpu_trace && cpu->trace_exception) std::cout<<"EXCEPTION pc="<<std::hex<<cpu->trace_pc<<" cpsr="<<cpu->trace_cpsr<<" mode="<<unsigned(cpu->trace_rf_mode)<<" user="<<unsigned(cpu->trace_user_bank)<<" we="<<unsigned(cpu->trace_rf_we)<<" reg="<<unsigned(cpu->trace_rf_addr)<<" value="<<cpu->trace_rf_data<<std::dec<<" cycle="<<cycle<<"\n";
         cpu->clk=1;cpu->eval();context->timeInc(1);
         if(cpu->lcd_wr) {
+            if(lcd==0)std::cout<<"FIRST LCD cycle="<<cycle<<" pc="<<std::hex<<cpu->trace_pc<<std::dec<<"\n";
             if(lcd<16 || !cpu->lcd_dc) std::cout<<"LCD "<<(cpu->lcd_dc?"data":"command")<<" 0x"<<std::hex<<unsigned(cpu->lcd_data)<<std::dec<<"\n";
             ++lcd;
             const unsigned b=cpu->lcd_data;

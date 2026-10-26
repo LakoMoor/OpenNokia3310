@@ -61,6 +61,12 @@ FPGA configuration stays below it. Flash installation first saves the complete
 read-back verification. A failed/incomplete backup blocks writing. SRAM tests
 do not change persistent flash. JTAG operations interrupt the running FPGA.
 
+The source version adds **Install complete Nokia (FPGA + ROM)**: choose the
+FPGA image and a local Nokia ROM once, then run this action. It validates both,
+backs up flash once, writes/verifies ROM, writes/verifies FPGA and starts it.
+If ROM programming fails, FPGA replacement is not attempted. This new combined
+flow passes backend tests but still needs full hardware qualification.
+
 UART disconnects before programming. Reconnect after loading the FPGA image.
 To set up a board: install your ROM, test the Nokia `.fs` in SRAM, then install
 the FPGA image persistently when satisfied. Original Nokia boot remains

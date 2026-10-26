@@ -26,7 +26,9 @@ module flash_boot #(
         req=state==CLEAR || state==HOLD;
         addr=state==CLEAR ? index : DEST_BASE+index;
         wdata=state==CLEAR ? 32'd0 : word_data;
-        flash_cs_n=!(state==CMD || state==READ || state==HOLD);
+        // Chip select is registered below. Decoding multiple FSM states here
+        // can produce a short physical CS pulse at READ/HOLD boundaries and
+        // terminate the flash transaction after its first word.
         flash_mosi=state==CMD ? shift[31] : 1'b0;
     end
     always_ff @(posedge clk) begin
@@ -34,6 +36,7 @@ module flash_boot #(
             WAIT_MEM: if(mem_ready) begin state<=CLEAR;index<=0;end
             CLEAR: if(ack) begin
                 if(index==CLEAR_WORDS-1) begin
+                    flash_cs_n<=0;
                     index<=0;shift<={8'h03,FLASH_BASE};bit_index<=31;state<=CMD;
                 end else index<=index+1'b1;
             end
@@ -59,12 +62,12 @@ module flash_boot #(
             HOLD: begin
                 flash_clk<=0;
                 if(ack) begin
-                    if(index==WORDS-1) state<=DONE;
+                    if(index==WORDS-1) begin state<=DONE;flash_cs_n<=1;end
                     else begin index<=index+1'b1;bit_index<=31;shift<=0;state<=READ;end
                 end
             end
             default: flash_clk<=0;
         endcase
-        if(reset) begin state<=WAIT_MEM;index<=0;shift<=0;word_data<=0;first_word<=0;bit_index<=31;flash_clk<=0;end
+        if(reset) begin state<=WAIT_MEM;index<=0;shift<=0;word_data<=0;first_word<=0;bit_index<=31;flash_clk<=0;flash_cs_n<=1;end
     end
 endmodule

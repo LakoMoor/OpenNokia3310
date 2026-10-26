@@ -8,6 +8,12 @@ module flash_boot_tb;
     reg [3:0] clocks=0;
     wire ack=req && clocks[2:0]==3;
     integer count=0,bits=0;
+    integer selections=0,deselections=0;
+    always @(negedge flash_cs_n)if(!reset)selections++;
+    always @(posedge flash_cs_n)if(!reset)begin
+        deselections++;
+        if(count!=8)$fatal(1,"CS must stay asserted through every inter-word DMA stall");
+    end
     reg [31:0] command=0,payload;
     always #5 clk=~clk;
     flash_boot #(.WORDS(5),.CLEAR_WORDS(3),.DEST_BASE(21'd16)) dut(.*);
@@ -38,6 +44,7 @@ module flash_boot_tb;
         mem_ready=1;wait(done);@(negedge clk);
         if(count!=8 || !flash_cs_n || req || flash_clk) $fatal(1,"completion");
         if(first_word!==32'h10203040) $fatal(1,"first ROM word diagnostic");
+        if(selections!=1 || deselections!=1)$fatal(1,"one continuous SPI transaction required");
         $display("PASS flash DMA: clear, SPI 03/address, big-endian words, backpressure, completion");$finish;
     end
     initial begin #20000;$fatal(1,"timeout");end

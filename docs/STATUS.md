@@ -1,5 +1,28 @@
 # Verification status
 
+## October 26, 2026 — original boot investigation
+
+- A standalone address-dependent write/read test of all 8 MiB SDRAM passed on
+  real Tang with zero errors. A separate SPI→SDRAM ROM CRC test failed: expected
+  `539dcc62`; different builds produced `6b29a6b9` and `a1e799fa`.
+- Direct SDRAM probes matched ROM word 0 but read `ffffffff` at entry 0x200040
+  and subsequent instructions. This establishes corrupted loading before CPU
+  execution; a correct SPI first word is insufficient boot evidence.
+- The SPI chip-select output was combinatorially decoded from multiple FSM
+  states. It is now registered and held continuously across all word/DMA
+  boundaries. The extended flash test passes. A corrected ROM probe bitstream
+  builds, but its hardware check is pending: Tang is currently unavailable.
+  The physical cause remains a hypothesis until the full ROM CRC matches.
+- The diagnostic build now exposes actual bus address and selectable instruction
+  PC instead of replacing zero-LCD telemetry with the first ROM word.
+- Original ROM simulation with eight-cycle memory stalls at the board's actual
+  16.875 MHz model clock reaches its first LCD write at cycle 23,498,920 and
+  completes 200 million cycles with 3,176 LCD writes. This is not a hardware boot.
+- Full-system one-action Windows installation passes seven backend tests.
+  FPGA and ROM preparation precede backup/writes; ROM failure blocks FPGA write.
+- See [compatibility goal and reference review](ROADMAP.md) for the remaining
+  original-phone and virtual-network acceptance criteria.
+
 ## October 25, 2026 — companion apps, LCD palettes and audio
 
 - Re-studied Open Pocket GBC revision `46fea7708ca76c988ad74b646d18184403c031b1`,

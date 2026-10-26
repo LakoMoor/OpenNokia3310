@@ -48,4 +48,21 @@ class FlashTests(unittest.TestCase):
         self.fs.write_bytes(b'x'*2000)
         with self.assertRaises(ValueError):flasher.validate_fpga(self.fs)
 
+    def test_complete_install_order_and_single_backup(self):
+        rom=self.home/'phone.bin';rom.write_bytes(b'NHM-5'+bytes(0x200000-5))
+        with patch.object(flasher,'run') as run,patch.object(flasher,'backup') as backup:
+            flasher.program(self.loader,'Install complete Nokia',self.fs,'',self.home,lambda s:None,rom=rom)
+            backup.assert_called_once()
+            calls=[call.args[1] for call in run.call_args_list]
+            self.assertEqual(calls[0][:6],['-f','--verify','-o','0x200000','--file-type','bin'])
+            self.assertEqual(calls[1],['-f','--verify',self.fs])
+            self.assertEqual(calls[2],[self.fs])
+
+    def test_complete_install_stops_when_rom_write_fails(self):
+        rom=self.home/'phone.bin';rom.write_bytes(b'NHM-5'+bytes(0x200000-5))
+        with patch.object(flasher,'run',side_effect=RuntimeError('write failed')) as run,patch.object(flasher,'backup'):
+            with self.assertRaises(RuntimeError):
+                flasher.program(self.loader,'Install complete Nokia',self.fs,'',self.home,lambda s:None,rom=rom)
+            self.assertEqual(run.call_count,1)
+
 if __name__=='__main__':unittest.main()

@@ -49,10 +49,23 @@ def backup(loader,folder,log):
     target.with_suffix('.sha256').write_text(digest+'  '+target.name+'\n')
     log('Full flash backup saved: '+str(target));return target
 
-def program(loader,action,image,eeprom,folder,log):
+def program(loader,action,image,eeprom,folder,log,rom=''):
     if not Path(loader).is_file():raise ValueError('Select openFPGALoader.exe first.')
     if action=='Detect board':run(loader,['--detect'],log);return
     if action=='Back up full flash':backup(loader,folder,log);return
+    if action=='Install complete Nokia':
+        from prepare_firmware import prepare
+        image=validate_fpga(image)
+        if not rom:raise ValueError('Choose your Nokia ROM before installing the complete system.')
+        prepared=Path(folder)/('prepared-'+str(time.time_ns())+'.bin')
+        manifest=prepare(Path(rom),prepared,Path(eeprom) if eeprom else None)
+        log('Validated ROM SHA256: '+manifest['sha256'])
+        backup(loader,folder,log)
+        # ROM first: if preparation/backup/ROM programming fails, do not replace FPGA.
+        run(loader,['-f','--verify','-o','0x200000','--file-type','bin',prepared],log)
+        run(loader,['-f','--verify',image],log)
+        run(loader,[image],log)
+        log('Complete installation verified. FPGA started; reconnect the remote.');return
     if action in ('Test FPGA in SRAM','Install FPGA in flash'):
         image=validate_fpga(image)
         if action=='Test FPGA in SRAM':run(loader,[image],log);return
