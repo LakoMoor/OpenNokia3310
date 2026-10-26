@@ -94,6 +94,13 @@ module dsp_network_tb;
         wait(memory['h1c8/4][31:16]==16'h8a);repeat(4)@(negedge clk);
         if(memory['h110/4]!==32'h01890000 || interrupts!=10)
             $fatal(1,"traffic confirm token must correlate with channel parity");
+        memory['h1c8/4]=32'h008a008a;
+        memory[13][15:0]=16'h0255;memory[14]=32'h03050000;
+        doorbell('h100a4,29);
+        wait(memory['h1c8/4][31:16]==16'hdc);repeat(4)@(negedge clk);
+        if(memory['h114/4]!==32'ha28b0000 || memory['h118/4]!==32'h024a00d0 ||
+           memory['h1b4/4][15:0]!==16'h0080 || interrupts!=11)
+            $fatal(1,"blind band search ALL_RSSI response");
         $display("PASS DSP network: original local transport, observed search opcode, SCH/SI3/SI2/SI4 queue delivery and FIQ");$finish;
     end
     initial begin #100000;$fatal(1,"DSP timeout");end

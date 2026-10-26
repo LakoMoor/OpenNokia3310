@@ -2,6 +2,17 @@
 
 ## October 26, 2026 — original boot investigation
 
+- Added the missing experimental blind-band-search response: DSP opcode `55`
+  now requests an MDI `8B` ALL_RSSI report containing the fixture's ARFCN 586
+  at level D0 and 39 empty carrier slots. The generator emits 162 payload bytes.
+  The injector now buffers up to 196 total bytes (98 words, below the 100-word
+  ring capacity) instead of truncating at 64 bytes. Directed tests cover all
+  164 bytes through stalled queue writes and wrap, preserved consumer ownership,
+  oversized-frame rejection, and actual `55` request-to-response integration.
+  All 23 RTL cases pass. The current original-ROM experiment predates this
+  change; firmware acceptance of ALL_RSSI is still unverified. Hardware remains
+  on its qualified pre-CHV image with virtual networking disabled.
+
 - Review of the reference DSP ROM6 dispatcher exposed an incorrect prototype
   `89` format: channel confirmation is a one-byte correlation token, not the
   ten-byte radio prefix used by RECEIVED_BLOCK. The wrapper now snapshots the

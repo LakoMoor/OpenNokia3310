@@ -2,7 +2,7 @@
 module virtual_cell_tb;
     reg clk=0,reset=1,start=0,bcch=0,ready=0;
     reg [1:0] si_kind=0;
-    reg channel_confirm=0;
+    reg channel_confirm=0,all_rssi=0;
     reg [7:0] confirm_token=1;
     reg [23:0] plmn=24'h00f110;
     reg [15:0] lac=16'h1234,cell_id=16'h5678;
@@ -11,7 +11,7 @@ module virtual_cell_tb;
     reg [21:0] frame_number=22'h234567;
     wire valid,busy,done,last;
     wire [7:0] data;
-    reg [7:0] captured[0:34];
+    reg [7:0] captured[0:163];
     integer count;
     always #5 clk=~clk;
     virtual_cell dut(.*);
@@ -55,8 +55,12 @@ module virtual_cell_tb;
         for(integer i=25;i<35;i++)if(captured[i]!='h2b)$fatal(1,"SI4 rest octets");
         channel_confirm=1;launch();channel_confirm=0;confirm_token=0;receive(3);
         if(captured[0]!=1 || captured[1]!='h89 || captured[2]!=1)$fatal(1,"channel confirm envelope/token");
+        all_rssi=1;launch();all_rssi=0;receive(164);
+        if(captured[0]!=162 || captured[1]!='h8b || {captured[4],captured[5]}!==16'd586 || captured[7]!='hd0)
+            $fatal(1,"ALL_RSSI serving carrier");
+        for(integer i=8;i<164;i++)if(captured[i]!==((i%4==3) ? 8'h80 : 8'd0))$fatal(1,"ALL_RSSI empty carrier %0d",i);
         launch();@(negedge clk);reset=1;@(negedge clk);if(busy || valid || done)$fatal(1,"reset cancels pending packet");
         $display("PASS virtual cell: SCH/SI3/SI2/SI4 MDI envelopes, configured identity, backpressure, reset");$finish;
     end
-    initial begin #20000;$fatal(1,"timeout");end
+    initial begin #50000;$fatal(1,"timeout");end
 endmodule

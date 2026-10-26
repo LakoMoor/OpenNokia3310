@@ -14,13 +14,15 @@ module mdi_injector (
 );
     typedef enum logic [3:0] {COLLECT,DROP,CHECK,RING,WAIT_RING,WORD,WAIT_WORD,COMMIT,WAIT_COMMIT,FINISH} state_t;
     state_t state;
-    logic [7:0] buffer[0:63];
-    logic [6:0] count,bytes_count;
-    logic [5:0] word_index;
+    // The 100-word ring must retain a free slot. 196 bytes fit in 98 words
+    // and include the 164-byte ALL_RSSI record used by blind band search.
+    logic [7:0] buffer[0:195];
+    logic [7:0] count,bytes_count;
+    logic [6:0] word_index;
     logic [15:0] cursor;
     wire [15:0] following=cursor==16'he3 ? 16'h80 : cursor+1'b1;
-    wire [6:0] byte_index={word_index,1'b0};
-    wire [15:0] word_data={buffer[byte_index[5:0]],byte_index+1<bytes_count ? buffer[(byte_index+1)&63] : 8'd0};
+    wire [7:0] byte_index={word_index,1'b0};
+    wire [15:0] word_data={buffer[byte_index],byte_index+1<bytes_count ? buffer[byte_index+8'd1] : 8'd0};
     assign in_ready=state==COLLECT || state==DROP;
     assign busy=state!=COLLECT || count!=0;
     task automatic request(input bit wr,input [31:0] address,data,input [3:0] lanes,input state_t next);
@@ -30,14 +32,14 @@ module mdi_injector (
         done<=0;error<=0;fiq0<=0;
         case(state)
             COLLECT:if(in_valid)begin
-                buffer[count[5:0]]<=in_data;
+                buffer[count]<=in_data;
                 if(in_last)begin bytes_count<=count+1'b1;count<=0;state<=CHECK;end
-                else if(count==63)begin count<=0;state<=DROP;end
+                else if(count==195)begin count<=0;state<=DROP;end
                 else count<=count+1'b1;
             end
             DROP:if(in_valid && in_last)begin state<=COLLECT;error<=1;end
             CHECK:begin
-                if(bytes_count<2 || bytes_count!={1'b0,buffer[0]}+2 || buffer[0]>62)begin error<=1;state<=COLLECT;end
+                if(bytes_count<2 || {1'b0,bytes_count}!={1'b0,buffer[0]}+9'd2 || buffer[0]>194)begin error<=1;state<=COLLECT;end
                 else state<=RING;
             end
             RING:request(0,32'h101c8,0,15,WAIT_RING);
