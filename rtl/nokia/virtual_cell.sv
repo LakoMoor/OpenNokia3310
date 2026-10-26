@@ -6,6 +6,7 @@
 module virtual_cell (
     input logic clk,reset,start,
     input logic bcch,
+    input logic channel_confirm,
     input logic [1:0] si_kind, // 0=SI3, 1=SI2, 2=SI4
     input logic [23:0] plmn,
     input logic [15:0] lac,cell_id,
@@ -18,6 +19,7 @@ module virtual_cell (
     output logic last
 );
     logic bcch_q;
+    logic confirm_q;
     logic [1:0] si_q;
     logic [23:0] plmn_q;
     logic [15:0] lac_q,cell_q;
@@ -30,10 +32,10 @@ module virtual_cell (
         data=0;
         case(index)
             0:data=bcch_q ? 8'd33 : 8'd10; // MDI body length
-            1:data=8'h80;                 // RECEIVED_BLOCK
-            2:data=bcch_q ? 8'h50 : 8'h40;
+            1:data=confirm_q ? 8'h89 : 8'h80; // CHANNEL_CHANGED_CNF / RECEIVED_BLOCK
+            2:data=(bcch_q || confirm_q) ? 8'h50 : 8'h40;
             3:data={2'b0,bsic_q};
-            4:data=0;                     // successfully decoded block
+            4:data=confirm_q ? 8'd1 : 8'd0;
             5:data={2'b0,frame_q[21:16]};
             6:data=frame_q[15:8];7:data=frame_q[7:0];
             8:data={6'b0,arfcn_q[9:8]};9:data=arfcn_q[7:0];
@@ -73,13 +75,13 @@ module virtual_cell (
     always_ff @(posedge clk)begin
         done<=0;
         if(start && !busy)begin
-            busy<=1;index<=0;bcch_q<=bcch;si_q<=si_kind;plmn_q<=plmn;lac_q<=lac;
+            busy<=1;index<=0;bcch_q<=bcch && !channel_confirm;confirm_q<=channel_confirm;si_q<=si_kind;plmn_q<=plmn;lac_q<=lac;
             cell_q<=cell_id;arfcn_q<=arfcn;bsic_q<=bsic;frame_q<=frame_number;
         end else if(busy && ready)begin
             if(last)begin busy<=0;done<=1;end
             else index<=index+1'b1;
         end
-        if(reset)begin busy<=0;done<=0;index<=0;bcch_q<=0;si_q<=0;plmn_q<=0;lac_q<=0;cell_q<=0;
+        if(reset)begin busy<=0;done<=0;index<=0;bcch_q<=0;confirm_q<=0;si_q<=0;plmn_q<=0;lac_q<=0;cell_q<=0;
             arfcn_q<=0;bsic_q<=0;frame_q<=0;end
     end
 endmodule

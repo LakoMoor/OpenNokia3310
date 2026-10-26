@@ -2,6 +2,16 @@
 
 ## October 26, 2026 — original boot investigation
 
+- In the SI3/SI2/SI4 v6.39 experiment, firmware emits DSP opcode `02`/sub `04`
+  at cycle 111,049,877 immediately after search opcode `56`. The experimental
+  wrapper now answers observed opcode `02` with an MDI `89` channel-change
+  confirmation for the configured fixture's BCCH/ARFCN, without editing MCU RAM.
+  Tests verify its ten-byte envelope, status, queue commit/FIQ and preservation
+  of the periodic SI schedule. The full 23-case RTL suite passes. Firmware
+  acceptance of this response is not yet established; it is disabled on Tang.
+  This fixed-cell prototype does not yet decode arbitrary channel parameters
+  from the request payload and must not be treated as a complete radio model.
+
 - The optimized full CHV build still fails legal placement at 18,947 LUTs;
   the 163-LUT reduction is insufficient. The installed qualified image is unchanged.
 - Experimental virtual-cell broadcasts now cycle SI3, SI2 and SI4 after SCH.

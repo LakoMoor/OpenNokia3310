@@ -76,6 +76,16 @@ module dsp_network_tb;
         wait(memory['h1c8/4][31:16]==16'hd8);repeat(4)@(negedge clk);
         if(memory['h198/4]!==32'h49061b00 || interrupts!=7 || network_packets!=5)
             $fatal(1,"BCCH cycle must return to SI3");
+        memory['h1c8/4]=32'h00d800d8;
+        memory[6][15:0]=16'h0202;memory[7]=32'h04000000;
+        doorbell('h100a4,15);
+        wait(memory['h1c8/4][31:16]==16'hde);repeat(4)@(negedge clk);
+        if(memory['h1b0/4]!==32'h0a895000 || memory['h1b4/4][31:24]!==8'd1 || interrupts!=8)
+            $fatal(1,"observed channel configure must receive confirmed-channel record");
+        memory['h1c8/4]=32'h00de00de;
+        wait(memory['h1c8/4][31:16]==16'h8c);repeat(4)@(negedge clk);
+        if(memory['h1bc/4][31:16]!==16'h2180 || memory['h100/4]!==32'h59061a00 || interrupts!=9)
+            $fatal(1,"channel confirmation must preserve periodic SI2 and wrap");
         $display("PASS DSP network: original local transport, observed search opcode, SCH/SI3/SI2/SI4 queue delivery and FIQ");$finish;
     end
     initial begin #100000;$fatal(1,"DSP timeout");end
