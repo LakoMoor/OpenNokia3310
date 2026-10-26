@@ -23,6 +23,13 @@ module mad2_tb;
     endtask
     initial begin
         repeat(3) @(negedge clk);reset=0;wait(ready);
+        rb(1,1);rb(2,0);rb(3,0);rb(8'h80,0);
+        // Exercise the shared shadow RAM port and its special read masks.
+        for(integer a=128;a<160;a++)wb(8'(a),8'(a^8'h5a));
+        for(integer a=128;a<160;a++)rb(8'(a),8'(a^8'h5a));
+        wb(1,8'h93);rb(1,8'h93);wb(3,8'h62);rb(3,8'h62);
+        wb(2,8'h10);rb(2,0);wb(2,1);rb(2,8'h53);
+        wb(8'h18,8'h80);rb(8'h18,0);
         rb(0,8'ha1);rb(8'h6d,7);
         wb(8'h6e,8'h20);
         if(!lcd_wr || lcd_dc || lcd_data!==8'h20) $fatal(1,"LCD command byte lane");

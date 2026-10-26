@@ -2,6 +2,14 @@
 
 ## October 26, 2026 — original boot investigation
 
+- MAD2 shadow-register storage now uses one shared read port and one combined
+  initialization/CPU write port; the independently consumed MBUS IRQ bit has a
+  dedicated mirror. The full 23-case RTL regression passes, including shadow
+  reset values, readback across 32 distinct addresses and special read masks.
+  Full-top synthesis reduces packed LUT usage from 19,110 to 18,947 (163 LUTs),
+  retaining all registers and the new CHV model. Placement is being evaluated;
+  this is not a qualified replacement for the installed pre-CHV image.
+
 - Windows [preview 0.2.3](https://github.com/LakoMoor/OpenNokia3310/releases/tag/v0.2.3-preview)
   now ships the combined installer, saved paths, programmer watchdog and the
   explicitly hash-checked qualified pre-CHV FPGA image. ZIP integrity, FPGA
