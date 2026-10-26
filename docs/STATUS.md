@@ -2,10 +2,38 @@
 
 ## October 26, 2026 — original boot investigation
 
+- Tang became available again. Direct programmer read-back of the 2 MiB ROM
+  matches SHA256 `5cd18ff08b40f44c9dbe155bc09efbcea15b5037234fa9d54b3e43bac8fcc8a2`.
+- Registered-CS ROM probe initially returned all FF, but after the programmer
+  initialized/read flash, the same FPGA probe passed full CRC32 `539dcc62` and
+  all sampled entry instructions. Initial flash state/wakeup remains a separate
+  issue to qualify; registered CS is not yet proof of reliable cold boot.
+- The complete registered-CS pre-CHV bitstream then ran original v6.39 on real
+  Tang. LCD writes progressed beyond 3,000; C/C/Menu opened the original
+  **Phonebook**. The image below comes from actual Tang N4 LCD bytes, not the
+  simulator and not an HDMI capture. HDMI/ST7735 appearance still needs checking.
+  This successful bitstream does not contain the newer CHV or virtual-network
+  changes that have not yet fitted/been qualified in the full device.
+
+- The same qualified bitstream was written to configuration flash with programmer
+  verification, after saving a 2 MiB configuration backup. The user then
+  disconnected/reconnected USB power. Without a subsequent JTAG load, UART
+  confirmed ROM completion and 3,188 original-firmware LCD writes, with no
+  memory errors, FIFO overflow or bus fault. This proves one power-cycle boot;
+  repeated cold-start reliability remains to be qualified. Both USB interfaces
+  had disappeared before reconnecting; a stalled JTAG reset did not prove boot.
+  A subsequent menu/capture attempt again lost both USB interfaces, so menu
+  response after this particular cold start was not captured. USB stability
+  remains unresolved; the successful SRAM Phonebook capture is separate evidence.
+  Installed bitstream SHA256:
+  `685910747c1699abae97c5ef5ccfe7359f5f4da49178371f2d21956ac5fdf073`.
+
+![Original Phonebook restored — actual Tang USB LCD](img/hardware-phonebook-restored.png)
+
 - The registered-CS full phone build now completes synthesis, placement,
   routing and packing. Post-route Fmax: pixel 141.46 MHz / system 32.80 MHz,
   passing 27 MHz / 16.875 MHz. This build predates the new CHV integration;
-  its ROM CRC and original phone boot still need hardware verification.
+  the ROM probe and original phone boot have now passed on real Tang.
 - Virtual SIM CHV1/CHV2 now implements verification, change, enable/disable,
   unblock, attempt counters and access protection. Unit and SIMI/APDU tests
   pass, including retained retry counts across card reset and protected IMSI
@@ -43,8 +71,8 @@
 - The SPI chip-select output was combinatorially decoded from multiple FSM
   states. It is now registered and held continuously across all word/DMA
   boundaries. The extended flash test passes. A corrected ROM probe bitstream
-  builds, but its hardware check is pending: Tang is currently unavailable.
-  The physical cause remains a hypothesis until the full ROM CRC matches.
+  builds and subsequently passed full ROM CRC on Tang after programmer flash
+  initialization. The earlier failure is retained here as investigation history.
 - The diagnostic build now exposes actual bus address and selectable instruction
   PC instead of replacing zero-LCD telemetry with the first ROM word.
 - Original ROM simulation with eight-cycle memory stalls at the board's actual
@@ -59,12 +87,13 @@
   preferences test verifies round-trip paths and malformed-file recovery.
 - A standalone virtual-cell MDI SCH/SI3 record builder now passes directed
   envelope, identity, ready/valid backpressure and reset tests. It is not yet
-  connected to the original firmware's receive path; no virtual network
-  registration, calls or SMS are claimed from this test.
+  sufficient to establish network registration; later integration is described
+  above. No virtual registration, calls or SMS are claimed from this test.
 - MDI record injection and generator-to-ring integration tests now pass:
   nonempty-ring protection, preserved MCU consumer, bus stalls, e3→80 wrap,
   odd-byte padding, producer commit before FIQ, invalid lengths and reset.
-  This transport is not yet instantiated/arbitrated in the full phone core.
+  It is now arbitrated by the optional DSP network wrapper; hardware remains
+  disabled while actual firmware registration is investigated.
 - See [compatibility goal and reference review](ROADMAP.md) for the remaining
   original-phone and virtual-network acceptance criteria.
 
