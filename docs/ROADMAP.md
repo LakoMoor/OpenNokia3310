@@ -7,11 +7,11 @@ target. A recreated menu is not a substitute for original firmware behavior.
 | Area | Acceptance evidence | Current state |
 | --- | --- | --- |
 | Boot | Full ROM CRC after SPI→SDRAM; repeated cold/warm boots; original standby | Blocked by corrupted ROM transfer; registered SPI CS fix awaits hardware |
-| Original UI | Original Phonebook, Settings, languages, clock and games exercised | Older build reached original menus; current regression under diagnosis |
+| Original UI | Original Phonebook, Settings, languages, clock and games exercised | Older hardware build reached menus; current stalled-memory simulation responds in Messages/Write messages; board regression under diagnosis |
 | Input | DS2, Windows and Android press/hold/release in original menus | DS2 previously confirmed; N4 system menu checked on Tang |
 | Display | Matching original 84×48 framebuffer on HDMI, ST7735S and apps | Framebuffer logic passes; physical ST7735 appearance not yet confirmed |
 | Audio | Original keypad, alerts, ringtone and game tones; HDMI and app playback | Register synthesis and PC playback tests pass; original ringtone not verified |
-| SIM | ATR/APDU, phonebook/SMS records, PIN lifecycle and no SIM errors | Synthetic card with file/record tests; phone integration incomplete |
+| SIM | ATR/APDU, phonebook/SMS records, PIN lifecycle and no SIM errors | File/record and CHV/PIN lifecycle tests pass; original phone settings integration incomplete |
 | Virtual network | Original firmware registers, displays operator/signal, handles simulated outgoing/incoming calls/SMS | Not implemented; requires DCT3 DSP/baseband message modeling |
 | Persistence | Contacts, language/settings and virtual messages survive power cycle | NOR writes are SDRAM-only |
 | Installation | One action validates FPGA+ROM, backs up 8 MiB, verifies both writes, starts FPGA | Windows backend and seven tests implemented; full hardware flow pending |

@@ -23,7 +23,7 @@ module sim_card #(parameter CLK_HZ=27_000_000) (
     logic [25:0] pace;
     logic [15:0] selected,selected_df,fcp_fid;
     logic fcp_directory;
-    typedef enum logic [3:0] {IDLE,PARSE,ATR,ACK,OUT_ACK,DATA_PREP,DATA,SW1,SW2,UPDATE_PREP,UPDATE} state_t;
+    typedef enum logic [3:0] {IDLE,PARSE,ATR,ACK,OUT_ACK,DATA_PREP,DATA,SW1,SW2,UPDATE_PREP,UPDATE,CHV_WAIT} state_t;
     state_t state;
     logic [8:0] index,length;
     logic [7:0] status1,status2,ins;
@@ -33,6 +33,19 @@ module sim_card #(parameter CLK_HZ=27_000_000) (
     logic [15:0] requested_offset;
     logic [7:0] requested_record;
     logic [1:0] data_kind;
+    logic chv_start;
+    wire chv_done,pin1_enabled;
+    wire [1:0] pin_verified;
+    wire [15:0] chv_status;
+    wire [7:0] pin1_status,pin2_status,puk1_status,puk2_status;
+    wire card_reset=valid && write && address==8'h39 && (!wdata[7] || !control[7]);
+    wire protected_file=selected==16'h6f07 || selected==16'h6f3a || selected==16'h6f3c;
+    sim_chv u_chv(.clk(clk),.reset(reset || card_reset),.start(chv_start),.instruction(ins),
+        .p1(header[2]),.p2(header[3]),.length(header[4]),
+        .presented({payload[0],payload[1],payload[2],payload[3],payload[4],payload[5],payload[6],payload[7]}),
+        .replacement({payload[8],payload[9],payload[10],payload[11],payload[12],payload[13],payload[14],payload[15]}),
+        .done(chv_done),.status_word(chv_status),.pin1_enabled(pin1_enabled),.verified(pin_verified),
+        .pin1_status(pin1_status),.pin2_status(pin2_status),.puk1_status(puk1_status),.puk2_status(puk2_status));
     wire [8:0] visible_count=9'(visible_ptr-read_ptr);
     wire active=control[7];
     wire [15:0] select_fid={fid_hi,fid_lo};
@@ -58,17 +71,19 @@ module sim_card #(parameter CLK_HZ=27_000_000) (
                 3:fcp_byte=directory ? 0 : size[7:0];
                 4:fcp_byte=fid[15:8];5:fcp_byte=fid[7:0];
                 6:fcp_byte=directory ? (fid==16'h3f00 ? 1 : 2) : 4;
-                8:fcp_byte=directory ? 0 : 8'h00; // ALW read/update, PIN disabled
+                8:fcp_byte=directory ? 0 : ((fid==16'h6f07 || fid==16'h6f3a || fid==16'h6f3c) ? 8'h11 : 8'h00);
                 9:fcp_byte=directory ? 0 : 8'hff;
                 10:fcp_byte=directory ? 0 : 8'h55;
                 11:fcp_byte=directory ? 0 : 1;
                 12:fcp_byte=directory ? 8'h15 : 2;
-                13:fcp_byte=directory ? 8'h81 : (ef_record(fid)!=0 ? 1 : 0);
+                13:fcp_byte=directory ? (pin1_enabled ? 8'h01 : 8'h81) : (ef_record(fid)!=0 ? 1 : 0);
                 14:fcp_byte=directory ? 0 : ef_record(fid);
                 15:if(directory) fcp_byte=8'h16;
                 16:if(directory) fcp_byte=3;
-                18,20:if(directory) fcp_byte=8'h83;
-                19,21:if(directory) fcp_byte=8'h8a;
+                18:if(directory)fcp_byte=pin1_status;
+                19:if(directory)fcp_byte=puk1_status;
+                20:if(directory)fcp_byte=pin2_status;
+                21:if(directory)fcp_byte=puk2_status;
                 default: ;
             endcase
         end
@@ -107,6 +122,7 @@ module sim_card #(parameter CLK_HZ=27_000_000) (
     endcase
     always_ff @(posedge clk) if(rx_emit && !reset) rx[wr_ptr[8:0]]<=rx_in;
     always_ff @(posedge clk) begin
+        chv_start<=0;
         if(rx_emit) wr_ptr<=wr_ptr+1'b1;
         if(pace!=0) pace<=pace-1'b1;
         else if(visible_ptr!=wr_ptr && visible_ptr==read_ptr) begin
@@ -178,6 +194,7 @@ module sim_card #(parameter CLK_HZ=27_000_000) (
                                 if(ins==8'hb2)current_record<=requested_record;
                                 if(ef_size(selected)==0 || (ins==8'hb2 && (ef_record(selected)==0 || requested_record==0)))begin state<=SW1;status1<=8'h94;status2<=8'h08;end
                                 else if({1'b0,requested_offset}+{8'b0,requested_length}>{5'b0,ef_size(selected)})begin state<=SW1;status1<=8'h94;status2<=2;end
+                                else if(protected_file && pin1_enabled && !pin_verified[0])begin state<=SW1;status1<=8'h98;status2<=4;end
                             end
                             8'hd6,8'hdc:begin
                                 state<=header[4]==0 ? SW1 : UPDATE_PREP;length<={1'b0,header[4]};
@@ -185,15 +202,18 @@ module sim_card #(parameter CLK_HZ=27_000_000) (
                                 if(ins==8'hdc)current_record<=requested_record;
                                 if(ef_size(selected)==0 || (ins==8'hdc && (ef_record(selected)==0 || requested_record==0)))begin state<=SW1;status1<=8'h94;status2<=8'h08;end
                                 else if({1'b0,requested_offset}+{8'b0,requested_length}>{5'b0,ef_size(selected)})begin state<=SW1;status1<=8'h94;status2<=2;end
+                                else if(protected_file && pin1_enabled && !pin_verified[0])begin state<=SW1;status1<=8'h98;status2<=4;end
                             end
                             8'h88:begin status1<=8'h98;status2<=4;end // no GSM secret
-                            8'h20,8'h24,8'h26,8'h28,8'h2c,8'h10,8'h14,8'hc2,8'ha2,8'h32,8'h04,8'h44,8'hfa: ;
+                            8'h20,8'h24,8'h26,8'h28,8'h2c:begin chv_start<=1;state<=CHV_WAIT;end
+                            8'h10,8'h14,8'hc2,8'ha2,8'h32,8'h04,8'h44,8'hfa: ;
                             default:begin status1<=8'h6d;status2<=0;end
                         endcase
                     end
                 end
             end
             ACK:begin state<=IDLE;end
+            CHV_WAIT:if(chv_done)begin status1<=chv_status[15:8];status2<=chv_status[7:0];state<=SW1;end
             OUT_ACK:state<=DATA_PREP;
             DATA_PREP:state<=DATA;
             DATA:begin index<=index+1'b1;state<=index+1'b1==length ? SW1 : DATA_PREP;end
@@ -220,7 +240,7 @@ module sim_card #(parameter CLK_HZ=27_000_000) (
             selected_df<=16'h3f00;fcp_fid<=16'h3f00;fcp_directory<=1;
             index<=0;length<=0;status1<=0;status2<=0;ins<=0;offset<=0;data_kind<=0;
             commands<=0;last_ins<=0;fid_hi<=0;fid_lo<=0;
-            current_record<=0;
+            current_record<=0;chv_start<=0;
         end
     end
 endmodule

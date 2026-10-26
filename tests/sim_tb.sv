@@ -20,6 +20,12 @@ module sim_tb;
     task header(input [7:0] ins,input [7:0] p1,input [7:0] p2,input [7:0] p3);
         put('h3e,4);put('h36,'ha0);put('h36,ins);put('h36,p1);put('h36,p2);put('h36,p3);put('h3e,0);
     endtask
+    task pin_command(input [7:0] opcode,input [63:0] pin,input [7:0] sw1,sw2);
+        header(opcode,0,1,8);get(opcode);
+        put('h3e,4);
+        for(integer i=0;i<8;i++)put('h36,pin[63-i*8-:8]);
+        put('h3e,0);get(sw1);get(sw2);
+    endtask
     initial begin
         repeat(4) @(negedge clk);reset=0;
         put('h39,'hb2);address='h39;#1;if(rdata!=='hf2) $fatal(1,"SIM activation status");
@@ -72,6 +78,18 @@ module sim_tb;
         // Power loss while response data is queued must discard all stale RX.
         header('hb0,0,0,0);get('hb0);put('h39,0);put('h39,'hb2);
         get('h3b);get('h60);get(0);get(0);
+        // End-to-end CHV APDUs, access protection, reset and status must agree.
+        pin_command('h28,64'h31323334ffffffff,'h90,0);
+        put('h39,0);put('h39,'hb2);get('h3b);get('h60);get(0);get(0);
+        header('ha4,0,0,2);get('ha4);
+        put('h3e,4);put('h36,'h6f);put('h36,7);put('h3e,0);get('h9f);get(15);
+        header('hb0,0,0,9);get('h98);get(4);
+        pin_command('h20,64'h30303030ffffffff,'h98,4);
+        pin_command('h20,64'h31323334ffffffff,'h90,0);
+        header('hb0,0,0,9);get('hb0);
+        get(8);get(9);get('h10);get('h10);get('h32);get('h54);get('h76);get('h98);get('h55);get('h90);get(0);
+        pin_command('h26,64'h31323334ffffffff,'h90,0);
+        pin_command('h26,64'h31323334ffffffff,'h98,8);
         $display("PASS SIM: ATR, T=0 ACK, FCP, IMSI, binary update, 176-byte record chunks/readback, FIFO wrap");$finish;
     end
     initial begin #2500000;$fatal(1,"SIM timeout");end

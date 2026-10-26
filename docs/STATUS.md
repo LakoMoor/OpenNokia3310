@@ -2,6 +2,25 @@
 
 ## October 26, 2026 — original boot investigation
 
+- The registered-CS full phone build now completes synthesis, placement,
+  routing and packing. Post-route Fmax: pixel 141.46 MHz / system 32.80 MHz,
+  passing 27 MHz / 16.875 MHz. This build predates the new CHV integration;
+  its ROM CRC and original phone boot still need hardware verification.
+- Virtual SIM CHV1/CHV2 now implements verification, change, enable/disable,
+  unblock, attempt counters and access protection. Unit and SIMI/APDU tests
+  pass, including retained retry counts across card reset and protected IMSI
+  reads after session reset. See [test credentials and limits](virtual-sim.md).
+- The extended 22-case RTL regression passes after CHV integration.
+- Continuing original v6.39 simulation with eight-cycle external-memory stalls
+  and scripted keypad input reached the original **Messages** menu and
+  **Write messages** submenu. Captures below are rendered from simulated LCD
+  RAM, not HDMI hardware. This verifies menu response in this model; it does
+  not verify SMS transmission or the physical board's corrected ROM load.
+
+![Original Messages menu — RTL simulation](img/simulation-messages.png)
+
+![Original Write messages submenu — RTL simulation](img/simulation-write-message.png)
+
 - A standalone address-dependent write/read test of all 8 MiB SDRAM passed on
   real Tang with zero errors. A separate SPI→SDRAM ROM CRC test failed: expected
   `539dcc62`; different builds produced `6b29a6b9` and `a1e799fa`.

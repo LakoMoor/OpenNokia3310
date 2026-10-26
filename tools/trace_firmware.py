@@ -25,7 +25,7 @@ prepare(a.firmware,out/"flash.bin")
 os.environ["PATH"]=os.pathsep.join([str(Path(a.tools)/"bin"),str(Path(a.tools)/"lib"),os.environ["PATH"]])
 vroot=Path(a.tools)/"share/verilator/include"
 os.environ["VERILATOR_ROOT"]=str(vroot.parent)
-sources=cpu_sources()+["rtl/nokia/keypad_3310.sv","rtl/nokia/sim_card.sv", "rtl/nokia/mad2_mmio.sv","rtl/nokia/nor_bus.sv","rtl/nokia/dsp_service.sv","rtl/nokia/nokia_sound.sv", "rtl/nokia/nokia_core.sv"]
+sources=cpu_sources()+["rtl/nokia/keypad_3310.sv","rtl/nokia/sim_chv.sv","rtl/nokia/sim_card.sv", "rtl/nokia/mad2_mmio.sv","rtl/nokia/nor_bus.sv","rtl/nokia/dsp_service.sv","rtl/nokia/nokia_sound.sv", "rtl/nokia/nokia_core.sv"]
 if not a.reuse and not a.cpp_only:
   with (out/"lint.log").open("w") as log:
     subprocess.run([shutil.which("verilator_bin") or "verilator","--cc","-DNOKIA_TRACE","-Wno-fatal",f"-GCLK_HZ={a.clock_hz}",
