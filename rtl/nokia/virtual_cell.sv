@@ -9,6 +9,7 @@ module virtual_cell (
     input logic channel_confirm,
     input logic [7:0] confirm_token,
     input logic all_rssi,
+    input logic no_psw,
     input logic [1:0] si_kind, // 0=SI3, 1=SI2, 2=SI4
     input logic [23:0] plmn,
     input logic [15:0] lac,cell_id,
@@ -23,6 +24,7 @@ module virtual_cell (
     logic bcch_q;
     logic confirm_q;
     logic rssi_q;
+    logic no_psw_q;
     logic [7:0] token_q;
     logic [1:0] si_q;
     logic [23:0] plmn_q;
@@ -32,7 +34,7 @@ module virtual_cell (
     logic [7:0] index;
     logic [21:0] frame_q;
     assign valid=busy;
-    assign last=busy && index==(rssi_q ? 163 : confirm_q ? 2 : bcch_q ? 34 : 11);
+    assign last=busy && index==(rssi_q ? 163 : (confirm_q || no_psw_q) ? 2 : bcch_q ? 34 : 11);
     always_comb begin
         data=0;
         case(index)
@@ -95,17 +97,24 @@ module virtual_cell (
                 default:if(index>=8 && index[1:0]==3)data=8'h80;
             endcase
         end
+        if(no_psw_q)begin
+            case(index)
+                0:data=1;
+                1:data=8'h8f;
+                default:data=0;
+            endcase
+        end
     end
     always_ff @(posedge clk)begin
         done<=0;
         if(start && !busy)begin
-            busy<=1;index<=0;bcch_q<=bcch && !channel_confirm;confirm_q<=channel_confirm;rssi_q<=all_rssi;token_q<=confirm_token;si_q<=si_kind;plmn_q<=plmn;lac_q<=lac;
+            busy<=1;index<=0;bcch_q<=bcch && !channel_confirm;confirm_q<=channel_confirm;rssi_q<=all_rssi;no_psw_q<=no_psw;token_q<=confirm_token;si_q<=si_kind;plmn_q<=plmn;lac_q<=lac;
             cell_q<=cell_id;arfcn_q<=arfcn;bsic_q<=bsic;frame_q<=frame_number;
         end else if(busy && ready)begin
             if(last)begin busy<=0;done<=1;end
             else index<=index+1'b1;
         end
-        if(reset)begin busy<=0;done<=0;index<=0;bcch_q<=0;confirm_q<=0;rssi_q<=0;token_q<=0;si_q<=0;plmn_q<=0;lac_q<=0;cell_q<=0;
+        if(reset)begin busy<=0;done<=0;index<=0;bcch_q<=0;confirm_q<=0;rssi_q<=0;no_psw_q<=0;token_q<=0;si_q<=0;plmn_q<=0;lac_q<=0;cell_q<=0;
             arfcn_q<=0;bsic_q<=0;frame_q<=0;end
     end
 endmodule

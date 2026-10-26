@@ -2,7 +2,7 @@
 module virtual_cell_tb;
     reg clk=0,reset=1,start=0,bcch=0,ready=0;
     reg [1:0] si_kind=0;
-    reg channel_confirm=0,all_rssi=0;
+    reg channel_confirm=0,all_rssi=0,no_psw=0;
     reg [7:0] confirm_token=1;
     reg [23:0] plmn=24'h00f110;
     reg [15:0] lac=16'h1234,cell_id=16'h5678;
@@ -59,6 +59,8 @@ module virtual_cell_tb;
         if(captured[0]!=162 || captured[1]!='h8b || {captured[4],captured[5]}!==16'd586 || captured[7]!='hd0)
             $fatal(1,"ALL_RSSI serving carrier");
         for(integer i=8;i<164;i++)if(captured[i]!==((i%4==3) ? 8'h80 : 8'd0))$fatal(1,"ALL_RSSI empty carrier %0d",i);
+        no_psw=1;launch();no_psw=0;receive(3);
+        if(captured[0]!=1 || captured[1]!='h8f || captured[2]!=0)$fatal(1,"NO_PSW envelope");
         launch();@(negedge clk);reset=1;@(negedge clk);if(busy || valid || done)$fatal(1,"reset cancels pending packet");
         $display("PASS virtual cell: SCH/SI3/SI2/SI4 MDI envelopes, configured identity, backpressure, reset");$finish;
     end

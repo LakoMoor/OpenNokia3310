@@ -16,7 +16,7 @@ module dsp_service #(parameter CLK_HZ=27_000_000) (
     output logic [7:0] last_opcode,last_sub,
     output logic [31:0] messages,
     output logic channel_valid,
-    output logic [7:0] channel_token
+    output logic [7:0] channel_token,channel_logch
 );
     typedef enum logic [4:0] {IDLE,TX_ISSUE,TX_WAIT,CONSUME,CONSUME_WAIT,
         RING_ISSUE,RING_WAIT,REPLY_ISSUE,REPLY_WAIT,COMMIT,COMMIT_WAIT,
@@ -120,6 +120,7 @@ module dsp_service #(parameter CLK_HZ=27_000_000) (
                 last_opcode<=tx_opcode;last_sub<=payload[0];
                 channel_valid<=tx_opcode==8'h02 && tx_length>=9;
                 channel_token<=payload[8]>=8'hc0 ? {7'd0,!payload[8][0]} : {7'd0,payload[6][0]};
+                channel_logch<=payload[8];
                 kind<=0;state<=IDLE;
                 if(tx_opcode==8'h70) begin
                     case(payload[0])
@@ -175,6 +176,7 @@ module dsp_service #(parameter CLK_HZ=27_000_000) (
             cb_value<=0;cb_block<=8'h14;cb_delay<=0;running<=0;selftest_done<=0;heartbeat<=0;
             fiq0<=0;irq4<=0;last_opcode<=0;last_sub<=0;messages<=0;
             channel_valid<=0;channel_token<=0;
+            channel_logch<=0;
             for(int i=0;i<32;i=i+1) payload[i]<=0;
         end
     end

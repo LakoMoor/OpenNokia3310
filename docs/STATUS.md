@@ -2,6 +2,20 @@
 
 ## October 26, 2026 — original boot investigation
 
+- The 300M-clock ALL_RSSI experiment completed with 7,406 LCD writes, 51 virtual
+  records and 106 consumer changes. At cycle 228,450,273 firmware asks for a
+  second blind scan, then emits targeted search `56` at 228,650,894 and BCCH
+  configuration `02` at 228,757,230. The scan response supplies a candidate,
+  but firmware still loops rather than establishing verified service.
+- Added the reference ROM6 search-termination sequence: after an actual BCCH
+  channel request, send one-byte MDI `8F` NO_PSW_LEFT before `89` confirmation,
+  once per targeted search. The request decoder now exposes logical channel;
+  arbitrary non-BCCH configuration does not trigger search termination. Tests
+  verify ordering, subsequent SI scheduling/wrap, traffic confirmation, long
+  ALL_RSSI delivery and no replay on repeated BCCH configuration. All 23 RTL
+  cases pass. A new original-ROM experiment is running; no registration or
+  hardware qualification is claimed for this experimental sequence.
+
 - Actual v6.39 request payload logging confirms search ARFCN 586 (`024a`) and
   the following 20-byte channel configuration prefix
   `04120200000000505000024a`. Blind search emits four payload bytes `03050000`.

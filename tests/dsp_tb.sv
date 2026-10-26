@@ -8,7 +8,7 @@ module dsp_tb;
     wire [3:0] m_be;
     wire [7:0] last_opcode,last_sub;
     wire channel_valid;
-    wire [7:0] channel_token;
+    wire [7:0] channel_token,channel_logch;
     reg [31:0] memory[0:127];
     reg [3:0] ticks=0;
     wire m_ready=ticks[1:0]==2;

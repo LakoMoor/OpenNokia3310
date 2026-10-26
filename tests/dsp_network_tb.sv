@@ -81,26 +81,40 @@ module dsp_network_tb;
         memory[8]=32'h00000100;memory[9]=32'h5000024a;
         doorbell('h100a4,20);
         wait(memory['h1c8/4][31:16]==16'hda);repeat(4)@(negedge clk);
-        if(memory['h1b0/4]!==32'h01890100 || interrupts!=8)
-            $fatal(1,"observed channel configure must receive confirmed-channel record");
+        if(memory['h1b0/4]!==32'h018f0000 || interrupts!=8)
+            $fatal(1,"BCCH configuration must terminate the search before confirmation");
         memory['h1c8/4]=32'h00da00da;
-        wait(memory['h1c8/4][31:16]==16'h88);repeat(4)@(negedge clk);
-        if(memory['h1b4/4][31:16]!==16'h2180 || memory['h1c0/4]!==32'h59061a00 || interrupts!=9)
+        wait(memory['h1c8/4][31:16]==16'hdc);repeat(4)@(negedge clk);
+        if(memory['h1b4/4]!==32'h01890100 || interrupts!=9)$fatal(1,"confirmation must follow search termination");
+        memory['h1c8/4]=32'h00dc00dc;
+        wait(memory['h1c8/4][31:16]==16'h8a);repeat(4)@(negedge clk);
+        if(memory['h1b8/4][31:16]!==16'h2180 || memory['h1c4/4]!==32'h59061a00 || interrupts!=10)
             $fatal(1,"channel confirmation must preserve periodic SI2 and wrap");
-        memory['h1c8/4]=32'h00880088;
+        memory['h1c8/4]=32'h008a008a;
         memory[10]=32'h0c020000;memory[11]=0;
         memory[12]=32'h0100c100;memory[13]=32'h024a0000;
         doorbell('h100a4,27);
-        wait(memory['h1c8/4][31:16]==16'h8a);repeat(4)@(negedge clk);
-        if(memory['h110/4]!==32'h01890000 || interrupts!=10)
+        wait(memory['h1c8/4][31:16]==16'h8c);repeat(4)@(negedge clk);
+        if(memory['h114/4]!==32'h01890000 || interrupts!=11)
             $fatal(1,"traffic confirm token must correlate with channel parity");
-        memory['h1c8/4]=32'h008a008a;
+        memory['h1c8/4]=32'h008c008c;
         memory[13][15:0]=16'h0255;memory[14]=32'h03050000;
         doorbell('h100a4,29);
-        wait(memory['h1c8/4][31:16]==16'hdc);repeat(4)@(negedge clk);
-        if(memory['h114/4]!==32'ha28b0000 || memory['h118/4]!==32'h024a00d0 ||
-           memory['h1b4/4][15:0]!==16'h0080 || interrupts!=11)
+        wait(memory['h1c8/4][31:16]==16'hde);repeat(4)@(negedge clk);
+        if(memory['h118/4]!==32'ha28b0000 || memory['h11c/4]!==32'h024a00d0 ||
+           memory['h1b8/4][15:0]!==16'h0080 || interrupts!=12)
             $fatal(1,"blind band search ALL_RSSI response");
+        memory['h1c8/4]=32'h00de00de;
+        // The long scan overlaps a scheduled SI transmission. Drain it before
+        // issuing another channel request, just as the MCU receiver does.
+        wait(memory['h1c8/4][31:16]==16'h8c);repeat(4)@(negedge clk);
+        memory['h1c8/4]=32'h008c008c;
+        memory[14][15:0]=16'h0c02;memory[15]=0;
+        memory[16]=32'h00000100;memory[17]=32'h5000024a;
+        doorbell('h100a4,36);
+        wait(memory['h1c8/4][31:16]==16'h8e);repeat(4)@(negedge clk);
+        if(memory['h118/4]!==32'h01890100 || interrupts!=14)
+            $fatal(1,"NO_PSW must not replay for subsequent BCCH configuration");
         $display("PASS DSP network: original local transport, observed search opcode, SCH/SI3/SI2/SI4 queue delivery and FIQ");$finish;
     end
     initial begin #100000;$fatal(1,"DSP timeout");end

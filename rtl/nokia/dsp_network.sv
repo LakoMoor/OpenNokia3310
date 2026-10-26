@@ -17,7 +17,7 @@ module dsp_network #(parameter CLK_HZ=27000000,ENABLE_NETWORK=0) (
     wire [31:0] service_address,service_data;
     wire [3:0] service_be;
     wire channel_valid;
-    wire [7:0] channel_token;
+    wire [7:0] channel_token,channel_logch;
     wire net_lock,net_valid,net_write,net_fiq;
     wire [31:0] net_address,net_data;
     wire [3:0] net_be;
@@ -26,7 +26,7 @@ module dsp_network #(parameter CLK_HZ=27000000,ENABLE_NETWORK=0) (
         .m_valid(service_valid),.m_write(service_write),.m_address(service_address),.m_wdata(service_data),
         .m_be(service_be),.m_ready(m_ready && !net_lock),.m_rdata(m_rdata),
         .last_opcode(last_opcode),.last_sub(last_sub),.messages(messages),
-        .channel_valid(channel_valid),.channel_token(channel_token));
+        .channel_valid(channel_valid),.channel_token(channel_token),.channel_logch(channel_logch));
     assign busy=service_busy || net_lock;
     assign fiq0=service_fiq || net_fiq;
     assign m_valid=net_lock ? net_valid : service_valid;
@@ -38,6 +38,7 @@ module dsp_network #(parameter CLK_HZ=27000000,ENABLE_NETWORK=0) (
         logic lock,start,pending,bcch;
         logic confirm_pending,confirm_packet,rssi_pending,rssi_packet;
         logic [7:0] confirm_token;
+        logic psw_pending,psw_packet,psw_sent;
         logic [1:0] si_kind;
         logic [31:0] seen_messages;
         logic [31:0] packets;
@@ -48,7 +49,7 @@ module dsp_network #(parameter CLK_HZ=27000000,ENABLE_NETWORK=0) (
         wire byte_valid,byte_last,byte_ready,packet_done,packet_error;
         wire [7:0] byte_data;
         assign net_lock=lock;
-        virtual_cell cell_source(.clk(clk),.reset(reset),.start(start),.bcch(bcch),.channel_confirm(confirm_packet),.confirm_token(confirm_token),.all_rssi(rssi_packet),.si_kind(si_kind),.plmn(24'h00f110),
+        virtual_cell cell_source(.clk(clk),.reset(reset),.start(start),.bcch(bcch),.channel_confirm(confirm_packet),.confirm_token(confirm_token),.all_rssi(rssi_packet),.no_psw(psw_packet),.si_kind(si_kind),.plmn(24'h00f110),
             .lac(16'h0001),.cell_id(16'h0001),.arfcn(10'd586),.bsic(6'd0),.frame_number(frame_number),
             .ready(byte_ready),.valid(byte_valid),.last(byte_last),.data(byte_data),.busy(),.done());
         mdi_injector injector(.clk(clk),.reset(reset),.in_valid(byte_valid),.in_last(byte_last),.in_data(byte_data),
@@ -64,17 +65,21 @@ module dsp_network #(parameter CLK_HZ=27000000,ENABLE_NETWORK=0) (
             end else frame_phase<=frame_phase+13000;
             if(messages!=seen_messages)begin
                 seen_messages<=messages;
-                if(last_opcode==8'h56)begin pending<=1;bcch<=0;si_kind<=0;delay_count<=0;end
+                if(last_opcode==8'h56)begin pending<=1;bcch<=0;si_kind<=0;delay_count<=0;psw_sent<=0;end
                 if(last_opcode==8'h55)rssi_pending<=1;
-                if(channel_valid)begin confirm_pending<=1;confirm_token<=channel_token;end
+                if(channel_valid)begin
+                    confirm_pending<=1;confirm_token<=channel_token;
+                    if(channel_logch==8'h50 && !psw_sent)begin psw_pending<=1;psw_sent<=1;end
+                end
             end
             if(delay_count!=0)begin
                 delay_count<=delay_count-1'b1;
                 if(delay_count==1)pending<=1;
             end
-            if((pending || confirm_pending || rssi_pending) && !lock && !service_busy && !event_valid)begin
-                lock<=1;start<=1;confirm_packet<=confirm_pending;rssi_packet<=!confirm_pending && rssi_pending;
-                if(confirm_pending)confirm_pending<=0;
+            if((pending || confirm_pending || rssi_pending || psw_pending) && !lock && !service_busy && !event_valid)begin
+                lock<=1;start<=1;psw_packet<=psw_pending;confirm_packet<=!psw_pending && confirm_pending;rssi_packet<=!psw_pending && !confirm_pending && rssi_pending;
+                if(psw_pending)psw_pending<=0;
+                else if(confirm_pending)confirm_pending<=0;
                 else if(rssi_pending)rssi_pending<=0;
                 else pending<=0;
             end
@@ -82,10 +87,10 @@ module dsp_network #(parameter CLK_HZ=27000000,ENABLE_NETWORK=0) (
                 lock<=0;
                 if(!packet_error)begin
                     packets<=packets+1'b1;
-                    if(!confirm_packet && !rssi_packet)begin bcch<=1;if(bcch)si_kind<=si_kind==2 ? 2'd0 : si_kind+1'b1;delay_count<=CLK_HZ/4;end
+                    if(!confirm_packet && !rssi_packet && !psw_packet)begin bcch<=1;if(bcch)si_kind<=si_kind==2 ? 2'd0 : si_kind+1'b1;delay_count<=CLK_HZ/4;end
                 end
             end
-            if(reset)begin lock<=0;start<=0;pending<=0;bcch<=0;confirm_pending<=0;confirm_packet<=0;confirm_token<=0;rssi_pending<=0;rssi_packet<=0;si_kind<=0;seen_messages<=0;delay_count<=0;frame_phase<=0;frame_number<=0;packets<=0;end
+            if(reset)begin lock<=0;start<=0;pending<=0;bcch<=0;confirm_pending<=0;confirm_packet<=0;confirm_token<=0;rssi_pending<=0;rssi_packet<=0;psw_pending<=0;psw_packet<=0;psw_sent<=0;si_kind<=0;seen_messages<=0;delay_count<=0;frame_phase<=0;frame_number<=0;packets<=0;end
         end
     end else begin: disabled
         assign net_lock=0;assign net_valid=0;assign net_write=0;assign net_fiq=0;
