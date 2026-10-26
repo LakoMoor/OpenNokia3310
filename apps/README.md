@@ -44,7 +44,7 @@ are new GPL-3.0-or-later code. Proprietary Nokia firmware is not bundled.
 ## Desktop
 
 Download **OpenNokia3310-Windows-preview.zip** from the
-[Windows preview release](https://github.com/LakoMoor/OpenNokia3310/releases/tag/v0.2.2-preview),
+[Windows preview release](https://github.com/LakoMoor/OpenNokia3310/releases/tag/v0.2.3-preview),
 extract the entire folder, and run **OpenNokia3310.exe**. Python and OSS CAD Suite
 are not required: the Windows build includes the programmer and its DLLs.
 The Tang FTDI USB driver must be installed. The interface is in English.
@@ -61,7 +61,7 @@ FPGA configuration stays below it. Flash installation first saves the complete
 read-back verification. A failed/incomplete backup blocks writing. SRAM tests
 do not change persistent flash. JTAG operations interrupt the running FPGA.
 
-The source version adds **Install complete Nokia (FPGA + ROM)**: choose the
+Windows preview 0.2.3 adds **Install complete Nokia (FPGA + ROM)**: choose the
 FPGA image and a local Nokia ROM once, then run this action. It validates both,
 backs up flash once, writes/verifies ROM, writes/verifies FPGA and starts it.
 If ROM programming fails, FPGA replacement is not attempted. This new combined

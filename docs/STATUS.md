@@ -2,6 +2,14 @@
 
 ## October 26, 2026 — original boot investigation
 
+- Windows [preview 0.2.3](https://github.com/LakoMoor/OpenNokia3310/releases/tag/v0.2.3-preview)
+  now ships the combined installer, saved paths, programmer watchdog and the
+  explicitly hash-checked qualified pre-CHV FPGA image. ZIP integrity, FPGA
+  manifest/hash and absence of ROM files were checked. Final EXE startup passed;
+  local audio smoke test opened its stream and wrote 23,520 PCM frames.
+  ZIP SHA256 `abefac88bd4697e09677a6bf3cf59e9517b7e7fa01ad57dd1b952ced552eec88`.
+  Full combined hardware installation and visual GUI review remain unverified.
+
 - Desktop installer now terminates a stalled programmer after 30 seconds for
   board detection or 10 minutes for backup/programming. It reports failure and
   does not continue the installation. Nine backend tests pass, including a
