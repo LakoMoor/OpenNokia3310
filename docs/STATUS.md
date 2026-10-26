@@ -2,6 +2,20 @@
 
 ## October 26, 2026 — original boot investigation
 
+- Review of the reference DSP ROM6 dispatcher exposed an incorrect prototype
+  `89` format: channel confirmation is a one-byte correlation token, not the
+  ten-byte radio prefix used by RECEIVED_BLOCK. The wrapper now snapshots the
+  token from request payload byte 6 (or traffic-logch parity), rejects truncated
+  requests for confirmation, and sends a one-byte MDI `89` body. Tests cover
+  BCCH and traffic token correlation, odd-byte padding, queue ownership and
+  subsequent periodic SI delivery. All 23 RTL cases pass. Original-ROM testing
+  with this corrected reply is running; no registration is claimed.
+- The earlier long-confirm experiment completed 400M clocks with 17,846 LCD
+  writes, 70 virtual packet commits and 145 receive-consumer changes. Its new
+  opcode `55` is blind band search according to the reference dispatcher; it
+  cannot be treated as evidence of successful channel setup. Its trace and RAM
+  snapshot are retained locally for comparison with the corrected reply.
+
 - The new channel-confirm v6.39 experiment shows actual MCU receive-consumer
   movement after virtual packet commits. It also emits a new DSP opcode `55`/
   sub `03` at cycle 160,633,848, whereas the previous 400M-cycle SI-only run

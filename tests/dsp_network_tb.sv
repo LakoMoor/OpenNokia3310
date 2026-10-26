@@ -77,15 +77,23 @@ module dsp_network_tb;
         if(memory['h198/4]!==32'h49061b00 || interrupts!=7 || network_packets!=5)
             $fatal(1,"BCCH cycle must return to SI3");
         memory['h1c8/4]=32'h00d800d8;
-        memory[6][15:0]=16'h0202;memory[7]=32'h04000000;
-        doorbell('h100a4,15);
-        wait(memory['h1c8/4][31:16]==16'hde);repeat(4)@(negedge clk);
-        if(memory['h1b0/4]!==32'h0a895000 || memory['h1b4/4][31:24]!==8'd1 || interrupts!=8)
+        memory[6][15:0]=16'h0c02;memory[7]=0;
+        memory[8]=32'h00000100;memory[9]=32'h5000024a;
+        doorbell('h100a4,20);
+        wait(memory['h1c8/4][31:16]==16'hda);repeat(4)@(negedge clk);
+        if(memory['h1b0/4]!==32'h01890100 || interrupts!=8)
             $fatal(1,"observed channel configure must receive confirmed-channel record");
-        memory['h1c8/4]=32'h00de00de;
-        wait(memory['h1c8/4][31:16]==16'h8c);repeat(4)@(negedge clk);
-        if(memory['h1bc/4][31:16]!==16'h2180 || memory['h100/4]!==32'h59061a00 || interrupts!=9)
+        memory['h1c8/4]=32'h00da00da;
+        wait(memory['h1c8/4][31:16]==16'h88);repeat(4)@(negedge clk);
+        if(memory['h1b4/4][31:16]!==16'h2180 || memory['h1c0/4]!==32'h59061a00 || interrupts!=9)
             $fatal(1,"channel confirmation must preserve periodic SI2 and wrap");
+        memory['h1c8/4]=32'h00880088;
+        memory[10]=32'h0c020000;memory[11]=0;
+        memory[12]=32'h0100c100;memory[13]=32'h024a0000;
+        doorbell('h100a4,27);
+        wait(memory['h1c8/4][31:16]==16'h8a);repeat(4)@(negedge clk);
+        if(memory['h110/4]!==32'h01890000 || interrupts!=10)
+            $fatal(1,"traffic confirm token must correlate with channel parity");
         $display("PASS DSP network: original local transport, observed search opcode, SCH/SI3/SI2/SI4 queue delivery and FIQ");$finish;
     end
     initial begin #100000;$fatal(1,"DSP timeout");end

@@ -14,7 +14,9 @@ module dsp_service #(parameter CLK_HZ=27_000_000) (
     input logic m_ready,
     input logic [31:0] m_rdata,
     output logic [7:0] last_opcode,last_sub,
-    output logic [31:0] messages
+    output logic [31:0] messages,
+    output logic channel_valid,
+    output logic [7:0] channel_token
 );
     typedef enum logic [4:0] {IDLE,TX_ISSUE,TX_WAIT,CONSUME,CONSUME_WAIT,
         RING_ISSUE,RING_WAIT,REPLY_ISSUE,REPLY_WAIT,COMMIT,COMMIT_WAIT,
@@ -116,6 +118,8 @@ module dsp_service #(parameter CLK_HZ=27_000_000) (
             CONSUME_WAIT:if(m_ready) begin
                 m_valid<=0;tx_pending<=0;messages<=messages+1'b1;
                 last_opcode<=tx_opcode;last_sub<=payload[0];
+                channel_valid<=tx_opcode==8'h02 && tx_length>=9;
+                channel_token<=payload[8]>=8'hc0 ? {7'd0,!payload[8][0]} : {7'd0,payload[6][0]};
                 kind<=0;state<=IDLE;
                 if(tx_opcode==8'h70) begin
                     case(payload[0])
@@ -170,6 +174,7 @@ module dsp_service #(parameter CLK_HZ=27_000_000) (
             tx_pos<=0;tx_length<=0;tx_opcode<=0;tx_index<=0;kind<=0;reply_length<=0;reply_index<=0;rx_cursor<=0;
             cb_value<=0;cb_block<=8'h14;cb_delay<=0;running<=0;selftest_done<=0;heartbeat<=0;
             fiq0<=0;irq4<=0;last_opcode<=0;last_sub<=0;messages<=0;
+            channel_valid<=0;channel_token<=0;
             for(int i=0;i<32;i=i+1) payload[i]<=0;
         end
     end

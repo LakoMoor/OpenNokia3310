@@ -3,6 +3,7 @@ module virtual_cell_tb;
     reg clk=0,reset=1,start=0,bcch=0,ready=0;
     reg [1:0] si_kind=0;
     reg channel_confirm=0;
+    reg [7:0] confirm_token=1;
     reg [23:0] plmn=24'h00f110;
     reg [15:0] lac=16'h1234,cell_id=16'h5678;
     reg [9:0] arfcn=586;
@@ -52,9 +53,8 @@ module virtual_cell_tb;
            {captured[18],captured[19]}!==16'h1234)$fatal(1,"SI4 length/LAI");
         for(integer i=20;i<25;i++)if(captured[i]!=0)$fatal(1,"SI4 selection/RACH");
         for(integer i=25;i<35;i++)if(captured[i]!='h2b)$fatal(1,"SI4 rest octets");
-        channel_confirm=1;launch();channel_confirm=0;receive(12);
-        if(captured[0]!=10 || captured[1]!='h89 || captured[2]!='h50 || captured[4]!=1 ||
-           {captured[8],captured[9]}!==16'd586)$fatal(1,"channel confirm envelope");
+        channel_confirm=1;launch();channel_confirm=0;confirm_token=0;receive(3);
+        if(captured[0]!=1 || captured[1]!='h89 || captured[2]!=1)$fatal(1,"channel confirm envelope/token");
         launch();@(negedge clk);reset=1;@(negedge clk);if(busy || valid || done)$fatal(1,"reset cancels pending packet");
         $display("PASS virtual cell: SCH/SI3/SI2/SI4 MDI envelopes, configured identity, backpressure, reset");$finish;
     end

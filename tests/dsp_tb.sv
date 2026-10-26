@@ -7,6 +7,8 @@ module dsp_tb;
     wire [31:0] m_address,m_wdata,messages;
     wire [3:0] m_be;
     wire [7:0] last_opcode,last_sub;
+    wire channel_valid;
+    wire [7:0] channel_token;
     reg [31:0] memory[0:127];
     reg [3:0] ticks=0;
     wire m_ready=ticks[1:0]==2;
