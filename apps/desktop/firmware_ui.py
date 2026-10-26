@@ -7,6 +7,7 @@ import tkinter as tk
 from tkinter import filedialog,messagebox,ttk
 from flasher import find_loader,program
 import sys
+import preferences
 
 class FirmwarePage(ttk.Frame):
     def __init__(self,parent,remote):
@@ -17,6 +18,11 @@ class FirmwarePage(ttk.Frame):
         bundled=Path(sys.executable).parent/'images/nokia_top.fs'
         if getattr(sys,'frozen',False) and bundled.is_file():self.image.set(str(bundled))
         self.folder=tk.StringVar(value=str(Path.home()/'OpenNokia3310'/'backups'))
+        for name,value in preferences.load().items():
+            # Prefer the programmer and FPGA shipped with this release over old paths.
+            if name=='loader' and self.loader.get():continue
+            if name=='image' and bundled.is_file():continue
+            getattr(self,name).set(value)
         ttk.Label(self,text='Firmware manager',font=('Segoe UI',20)).pack(anchor='w')
         ttk.Label(self,text='SRAM testing is temporary. Flash installation survives power-off.\nFlash writes require a successful full 8 MiB backup and use read-back verification.',wraplength=550).pack(anchor='w',pady=8)
         self.actions=ttk.Combobox(self,textvariable=self.action,state='readonly',values=[
@@ -54,6 +60,8 @@ class FirmwarePage(ttk.Frame):
         self.busy=True;self.start.configure(state='disabled');self.progress.start()
         values=(self.loader.get(),action,self.image.get(),self.eeprom.get(),self.folder.get())
         rom=self.rom.get()
+        try:preferences.save({name:getattr(self,name).get() for name in ('loader','image','rom','eeprom','folder')})
+        except OSError as e:self.events.put(('log','Could not remember installer paths: '+str(e)))
         def job():
             try:program(*values,lambda s:self.events.put(('log',s)),rom=rom);self.events.put(('done','Operation completed successfully.'))
             except Exception as e:self.events.put(('error',str(e)))

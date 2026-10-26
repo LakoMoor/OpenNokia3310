@@ -20,6 +20,11 @@
   completes 200 million cycles with 3,176 LCD writes. This is not a hardware boot.
 - Full-system one-action Windows installation passes seven backend tests.
   FPGA and ROM preparation precede backup/writes; ROM failure blocks FPGA write.
+- Extended SPI stream regression passes 512 nonuniform ROM words, 0–96-cycle
+  DMA backpressure and reset/reload while requiring one continuous CS assertion.
+  All 18 existing RTL regressions pass with the registered-CS change.
+- Installer paths now persist locally between application launches. A separate
+  preferences test verifies round-trip paths and malformed-file recovery.
 - See [compatibility goal and reference review](ROADMAP.md) for the remaining
   original-phone and virtual-network acceptance criteria.
 

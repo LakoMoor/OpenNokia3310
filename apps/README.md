@@ -66,6 +66,8 @@ FPGA image and a local Nokia ROM once, then run this action. It validates both,
 backs up flash once, writes/verifies ROM, writes/verifies FPGA and starts it.
 If ROM programming fails, FPGA replacement is not attempted. This new combined
 flow passes backend tests but still needs full hardware qualification.
+ROM/EEPROM/backup choices are remembered locally for the next run; the current
+release's bundled FPGA and programmer take precedence over obsolete paths.
 
 UART disconnects before programming. Reconnect after loading the FPGA image.
 To set up a board: install your ROM, test the Nokia `.fs` in SRAM, then install
