@@ -2,6 +2,26 @@
 
 ## October 26, 2026 — original boot investigation
 
+- The isolated `cm-cipher-740M` v6.39 run completed: 740M clocks, 36,602 LCD
+  writes, 242 virtual records, matching initial/final keypad-script hashes.
+  Original requests now contain Ciphering Mode Complete (`06 32`, N(S)=0,
+  cycle 632,784,634), followed by CC SETUP (`03 45`, N(S)=1, cycle 636,756,200).
+  SETUP carries called-party BCD `81 21 43 f5` (12345). Subsequent copies retain
+  N(S)=1 and set P=1: they are retries, not additional calls. The original UI
+  displays **Calling...**, not an established conversation.
+  [Original simulated calling screen](img/simulation-original-calling.png)
+  is the 650M framebuffer enlarged with nearest-neighbour scaling; it is not a
+  physical HDMI capture. The run predates the L3 ownership fix, explaining the
+  unacknowledged SETUP. A fresh isolated ownership-fix run is now in progress.
+- Added a reliable one-outstanding-I-frame transmitter for future CC/SMS
+  responses. Independent SAPI 0/3 instances validate RR/piggyback ACK framing,
+  maintain modulo-8 N(S), retain exact payload/sequence under stalls and retries,
+  reject ACKs for unsent output, accept delayed retry ACKs and bound retry
+  exhaustion without reporting success. Directed tests pass for both SAPIs,
+  including malformed/other-SAPI ACKs, wrap and reset. This transmitter is not
+  connected to a CC/SMS service yet; calls and SMS remain unfinished.
+  The complete 37-case RTL suite and four trace-parser tests pass.
+
 - Added synchronous L3 header inspection over the retained LAPDm message RAM.
   Ownership is released only after a consumer accepts the inspected message;
   header fields, SAPI and full 9-bit length remain stable under backpressure.

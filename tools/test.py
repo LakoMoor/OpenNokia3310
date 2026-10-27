@@ -20,6 +20,7 @@ def main():
     Path("build/tests").mkdir(parents=True, exist_ok=True)
     cases = {
         "lapdm_rx": ["rtl/nokia/lapdm_rx.sv"],
+        "lapdm_tx": ["rtl/nokia/lapdm_tx.sv"],
         "l3_header": ["rtl/nokia/l3_header.sv"],
         "mm_iframe_ack": ["rtl/nokia/mm_registration.sv"],
         "mm_retry": ["rtl/nokia/mm_registration.sv"],

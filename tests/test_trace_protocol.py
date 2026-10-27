@@ -30,13 +30,26 @@ class TraceProtocolTests(unittest.TestCase):
         self.assertFalse(events[1]['framing_valid']) # LI claims four bytes but only three fit
 
     def test_complete_cm_service_packet(self):
-        payload='0080013f41052471033018810819101032547698102b2b2b2b000000'
+        payload='0080013f41052471033018810809101032547698102b2b2b2b000000'
         event=summarize(f'DSP message=78 opcode=1b sub=0 length=28 payload={payload} cycle=620871835')['events'][0]
         self.assertEqual(event['captured_bytes'],28)
         self.assertFalse(event['truncated'])
         self.assertTrue(event['framing_valid'])
         self.assertEqual(event['initial_l3_pd'],5)
         self.assertEqual(event['initial_l3_type'],0x24)
-        self.assertEqual(event['information_prefix'],'05247103301881081910103254769810')
+        self.assertEqual(event['information_prefix'],'05247103301881080910103254769810')
+
+    def test_original_mode_complete_and_setup(self):
+        events=summarize('\n'.join([
+            'DSP message=82 opcode=1b sub=0 length=28 payload=008001200906322b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b000000 cycle=632784634',
+            'DSP message=83 opcode=1b sub=0 length=28 payload=008001224903450404600200815e04812143f5a11501012b2b000000 cycle=636756200',
+            'DSP message=85 opcode=1b sub=0 length=28 payload=008001324903450404600200815e04812143f5a11501012b2b000000 cycle=640735561']))['events']
+        self.assertEqual([e['ns'] for e in events],[0,1,1])
+        self.assertEqual([e['nr'] for e in events],[1,1,1])
+        self.assertEqual(events[0]['information_prefix'],'0632')
+        self.assertEqual(events[1]['information_prefix'],'03450404600200815e04812143f5a1150101')
+        self.assertFalse(events[1]['more'])
+        self.assertTrue(events[2]['poll_final'])
+        self.assertTrue(all(e['framing_valid'] and not e['truncated'] for e in events))
 
 if __name__=='__main__':unittest.main()
