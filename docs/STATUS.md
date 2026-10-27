@@ -2,6 +2,18 @@
 
 ## October 26, 2026 — original boot investigation
 
+- Connected experimental RACH requests to `virtual_access`: the DSP decoder
+  snapshots six request bytes, captures RA and derives the request FN from the
+  explicit-frame mode or current frame plus offset. The scheduler delivers
+  RA_INFO first, waits CLK_HZ/10, then sends a correlated Immediate Assignment.
+  The shared injector preserves unread MCU data even past the grant deadline.
+  The new integration test checks actual M2D request decoding, RA_INFO/FIQ,
+  unread-queue protection and grant RA/FN bytes across ring wrap. All 25 RTL
+  cases pass. An original v6.39 400M-clock experiment is running to check whether
+  firmware accepts the grant; no dedicated-channel establishment or registration
+  is claimed yet. This fixed-cell prototype handles one outstanding RACH and
+  has not been qualified on the physical FPGA.
+
 - Added a standalone `virtual_access` RACH response builder. It emits MDI `84`
   RA_INFO and an MDI `80` CCCH Immediate Assignment using the same captured
   RA/request frame. Directed tests check the request-reference T1'/T3/T2 tuple,
