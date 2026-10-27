@@ -2,6 +2,20 @@
 
 ## October 26, 2026 — original boot investigation
 
+- The NO_PSW experiment advances beyond repeated search: v6.39 configures CCCH
+  (`02`, payload `040000000000001a6000024a...`) at cycle 261,129,071 and emits
+  RACH request opcode `0C`, payload `0000166c00000000`, at 261,375,575. This is
+  an observed access attempt, not completed location update or registration.
+  The 300M trace/RAM/LCD are archived locally before the next transport run.
+- A new failing test exposed skipped M2D commands: one producer notification
+  spanning multiple descriptors acknowledged the entire range after processing
+  only its first record. DSP transport now acknowledges each descriptor, retains
+  pending work until the producer cursor is reached and skips halfword padding
+  for odd payload lengths. Batched, odd-length and zero-length tests pass; all
+  23 RTL regression cases pass. Zero-length telemetry no longer reports stale sub.
+- Placement after PIN-format optimization still failed at 18,883 LUTs; the
+  current source has no qualified full CHV/network hardware image yet.
+
 - The 300M-clock ALL_RSSI experiment completed with 7,406 LCD writes, 51 virtual
   records and 106 consumer changes. At cycle 228,450,273 firmware asks for a
   second blind scan, then emits targeted search `56` at 228,650,894 and BCCH

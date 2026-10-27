@@ -26,6 +26,8 @@ module dsp_service #(parameter CLK_HZ=27_000_000) (
     logic tx_pending,cb_pending,host_pending,running,selftest_done;
     logic [15:0] previous_tx,tx_end;
     logic [7:0] tx_pos,tx_length,tx_opcode,tx_index;
+    wire [7:0] record_end=tx_pos[0] ? (tx_pos==8'ha3 ? 8'd0 : tx_pos+8'd1) : tx_pos;
+    wire [15:0] record_cursor={9'd0,record_end[7:1]};
     logic [7:0] payload [0:31];
     logic [7:0] byte_value;
     logic [2:0] kind;
@@ -114,10 +116,10 @@ module dsp_service #(parameter CLK_HZ=27_000_000) (
                 tx_index<=tx_index+1'b1;
                 state<=(tx_index>=1 && tx_index=={1'b0,tx_length}+1) ? CONSUME : TX_ISSUE;
             end
-            CONSUME:request(1,32'h100a6,{16'b0,tx_end},3,CONSUME_WAIT);
+            CONSUME:request(1,32'h100a6,{16'b0,record_cursor},3,CONSUME_WAIT);
             CONSUME_WAIT:if(m_ready) begin
-                m_valid<=0;tx_pending<=0;messages<=messages+1'b1;
-                last_opcode<=tx_opcode;last_sub<=payload[0];
+                m_valid<=0;tx_pending<=record_cursor!=tx_end;tx_pos<=record_end;messages<=messages+1'b1;
+                last_opcode<=tx_opcode;last_sub<=tx_length==0 ? 8'd0 : payload[0];
                 channel_valid<=tx_opcode==8'h02 && tx_length>=9;
                 channel_token<=payload[8]>=8'hc0 ? {7'd0,!payload[8][0]} : {7'd0,payload[6][0]};
                 channel_logch<=payload[8];

@@ -53,6 +53,17 @@ module dsp_tb;
             $fatal(1,"MSID command reply");
         if(memory['h1c8/4][15:0]!==16'h0081)
             $fatal(1,"DSP changed MCU consumer");
+        // One producer notification covers two descriptors. Neither may vanish.
+        memory[5][15:0]=16'h0055;
+        memory[6]=32'h02560305;
+        doorbell('h100a4,14);
+        if(messages!=4 || last_opcode!='h56 || last_sub!=3 || memory['ha4/4][15:0]!=14)
+            $fatal(1,"batched M2D descriptors were skipped");
+        memory[7]=32'h0155aa00; // odd payload plus halfword padding
+        memory[8]=32'h00560000;
+        doorbell('h100a4,17);
+        if(messages!=6 || last_opcode!='h56 || last_sub!=0 || memory['ha4/4][15:0]!=17)
+            $fatal(1,"odd descriptor padding or zero-length stale payload");
         $display("PASS DSP: wait-state transport, M2D parse, D2M wrap, cursor ownership, MSID seed");$finish;
     end
     initial begin #100000;$fatal(1,"DSP timeout");end
