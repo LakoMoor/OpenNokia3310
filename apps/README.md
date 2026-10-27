@@ -8,7 +8,7 @@ It supports the N4 live LCD and on-screen keypad, and invokes an installed
 `openFPGALoader` for a backup-first combined FPGA/ROM installation. Enter the
 UART port and local file paths explicitly. It is a development preview: Windows
 hardware programming and other operating systems have not yet been qualified,
-and it does not yet provide audio, automatic USB detection, or
+and it does not yet provide audio or
 Android installation. The existing Windows application remains available below.
 ROM files and backups must not be committed to the repository.
 On Windows, `cargo run --manifest-path apps/rust-studio/Cargo.toml --
@@ -16,6 +16,11 @@ On Windows, `cargo run --manifest-path apps/rust-studio/Cargo.toml --
 Tang. This diagnostic does not test key input or flash writes. Installer tests
 use a simulated programmer and cover step failures and incomplete backups;
 the full Rust installation flow has not yet been tested on hardware.
+The refresh button selects an FT2232 candidate only if exactly one matches;
+when multiple candidates are present the user must choose the UART port.
+The Windows Rust enumerator identified the attached Tang as COM6. A key probe
+sent digit 1 followed by release and observed a subsequent LCD change; this
+observation alone does not prove that the key caused that change.
 
 ## Android (USB-C OTG)
 

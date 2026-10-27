@@ -14,6 +14,17 @@ use std::{
 };
 
 const FLASH_SIZE: u64 = 8 * 1024 * 1024;
+fn tang_port_candidates(ports: &[serialport::SerialPortInfo]) -> Vec<String> {
+    ports
+        .iter()
+        .filter_map(|port| match &port.port_type {
+            serialport::SerialPortType::UsbPort(usb) if usb.vid == 0x0403 && usb.pid == 0x6010 => {
+                Some(port.port_name.clone())
+            }
+            _ => None,
+        })
+        .collect()
+}
 fn packet(op: u8, value: u8) -> [u8; 3] {
     [0xa5, op, value]
 }
@@ -209,6 +220,7 @@ struct Studio {
     events: mpsc::Receiver<String>,
     tx: mpsc::Sender<String>,
     installing: Arc<AtomicBool>,
+    ports: Vec<String>,
 }
 impl Default for Studio {
     fn default() -> Self {
@@ -230,6 +242,7 @@ impl Default for Studio {
             events,
             tx,
             installing: Arc::new(AtomicBool::new(false)),
+            ports: Vec::new(),
         }
     }
 }
@@ -344,17 +357,28 @@ impl eframe::App for Studio {
                     }
                 });
                 ui.horizontal_wrapped(|ui| {
-                    if ui.button("List serial ports").clicked() {
+                    if ui.button("Find Tang / refresh ports").clicked() {
                         match serialport::available_ports() {
                             Ok(ports) => {
-                                for p in ports {
-                                    self.log
-                                        .push_str(&format!("{} {:?}\n", p.port_name, p.port_type));
+                                let candidates = tang_port_candidates(&ports);
+                                self.ports = ports.iter().map(|p| p.port_name.clone()).collect();
+                                if candidates.len() == 1 {
+                                    self.port = candidates[0].clone();
+                                    self.log.push_str(&format!("Found FT2232 UART candidate: {}.\n", self.port));
+                                } else {
+                                    self.log.push_str(&format!("Found {} FT2232 candidates; choose the UART port manually.\n", candidates.len()));
                                 }
                             }
                             Err(e) => self.log.push_str(&format!("{e}\n")),
                         }
                     }
+                    egui::ComboBox::from_label("Available ports")
+                        .selected_text(if self.port.is_empty() { "Select a port" } else { &self.port })
+                        .show_ui(ui, |ui| {
+                            for name in &self.ports {
+                                ui.selectable_value(&mut self.port, name.clone(), name);
+                            }
+                        });
                 });
                 let (rect, _) = ui.allocate_exact_size(Vec2::new(420., 240.), Sense::hover());
                 ui.painter()
@@ -487,6 +511,27 @@ fn main() -> eframe::Result {
         }
         return Ok(());
     }
+    if args.len() == 3 && args[1] == "--probe-key" {
+        if let Err(error) = probe_key(&args[2]) {
+            eprintln!("Key probe failed: {error}");
+            std::process::exit(1);
+        }
+        return Ok(());
+    }
+    if args.len() == 2 && args[1] == "--list-tang" {
+        match serialport::available_ports() {
+            Ok(ports) => {
+                for port in tang_port_candidates(&ports) {
+                    println!("{port}");
+                }
+            }
+            Err(error) => {
+                eprintln!("Port enumeration failed: {error}");
+                std::process::exit(1);
+            }
+        }
+        return Ok(());
+    }
     eframe::run_native(
         "Open Nokia Studio",
         eframe::NativeOptions {
@@ -495,6 +540,66 @@ fn main() -> eframe::Result {
         },
         Box::new(|_| Ok(Box::<Studio>::default())),
     )
+}
+
+fn probe_key(name: &str) -> Result<(), String> {
+    let mut port = serialport::new(name, 115200)
+        .timeout(Duration::from_millis(30))
+        .open()
+        .map_err(|e| e.to_string())?;
+    port.write_all(&packet(5, 1)).map_err(|e| e.to_string())?;
+    let mut lcd = [0; 504];
+    let mut before = None;
+    let mut changed = false;
+    let mut buf = Vec::new();
+    let start = std::time::Instant::now();
+    let mut last = start - Duration::from_secs(1);
+    while start.elapsed() < Duration::from_secs(5) {
+        if last.elapsed() >= Duration::from_millis(100) {
+            let mask = if start.elapsed() >= Duration::from_secs(2)
+                && start.elapsed() < Duration::from_millis(2400)
+            {
+                1u32 << 1
+            } else {
+                0
+            };
+            for i in 0..3 {
+                port.write_all(&packet(2 + i, (mask >> (8 * i)) as u8))
+                    .map_err(|e| e.to_string())?;
+            }
+            last = std::time::Instant::now();
+        }
+        let mut bytes = [0; 1024];
+        match port.read(&mut bytes) {
+            Ok(n) => {
+                buf.extend_from_slice(&bytes[..n]);
+                if decode(&mut buf, &mut lcd) {
+                    if start.elapsed() < Duration::from_secs(2) {
+                        before = Some(lcd);
+                    } else if start.elapsed() >= Duration::from_millis(2400)
+                        && before.is_some_and(|b| b != lcd)
+                    {
+                        changed = true;
+                    }
+                }
+            }
+            Err(e) if e.kind() == std::io::ErrorKind::TimedOut => (),
+            Err(e) => return Err(e.to_string()),
+        }
+    }
+    for i in 0..3 {
+        port.write_all(&packet(2 + i, 0))
+            .map_err(|e| e.to_string())?;
+    }
+    port.write_all(&packet(5, 0)).map_err(|e| e.to_string())?;
+    if before.is_none() {
+        return Err("No LCD frame before keypress".into());
+    }
+    if !changed {
+        return Err("LCD did not change after key 1; phone state may not accept digits".into());
+    }
+    println!("LCD changed following a key 1 press on {name}; key release was sent.");
+    Ok(())
 }
 
 fn probe_serial(name: &str) -> Result<(), String> {
@@ -533,6 +638,29 @@ fn probe_serial(name: &str) -> Result<(), String> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn tang_detection_filters_usb_vendor_and_product() {
+        use serialport::{SerialPortInfo, SerialPortType, UsbPortInfo};
+        let usb = |name: &str, vid, pid| SerialPortInfo {
+            port_name: name.into(),
+            port_type: SerialPortType::UsbPort(UsbPortInfo {
+                vid,
+                pid,
+                serial_number: None,
+                manufacturer: None,
+                product: None,
+            }),
+        };
+        let ports = [
+            usb("candidate", 0x0403, 0x6010),
+            usb("other", 0x1a86, 0x6010),
+            SerialPortInfo {
+                port_name: "built-in".into(),
+                port_type: SerialPortType::Unknown,
+            },
+        ];
+        assert_eq!(tang_port_candidates(&ports), vec!["candidate"]);
+    }
     #[test]
     fn packet_recovery() {
         let mut body = vec![0x4e, 0x34, 1, 1, 248];
