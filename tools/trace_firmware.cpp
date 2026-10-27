@@ -14,6 +14,7 @@ int main(int argc,char **argv) {
     if(argc<2) return 2;
     const unsigned limit=argc>2?std::stoul(argv[2]):10000000;
     const unsigned hold_power=argc>3?std::stoul(argv[3]):27000000;
+    const std::string output_dir=std::getenv("NOKIA_TRACE_OUTPUT") ? std::getenv("NOKIA_TRACE_OUTPUT") : "build/boot_trace";
     // Reference MAD2 emulator uses a 24-bit, zero-backed address space.
     // Keep unmapped bus reads distinguishable from ARM architectural aborts.
     std::vector<uint8_t> memory(0x1000000,0);
@@ -67,7 +68,7 @@ int main(int argc,char **argv) {
             }
         }
         if(cycle && cycle%25000000==0) {
-            save_frame("build/boot_trace/frame-"+std::to_string(cycle)+".pgm");
+            save_frame(output_dir+"/frame-"+std::to_string(cycle)+".pgm");
             std::cout<<"PROGRESS cycle="<<cycle<<" pc="<<std::hex<<cpu->trace_pc<<" addr="<<cpu->mem_addr<<std::dec<<" LCD="<<lcd<<" reads="<<fetches<<"\n"<<std::flush;
         }
         cpu->clk=0;cpu->resetn=cycle>=8;cpu->keys=scripted_keys | (cycle<hold_power ? 1u<<16 : 0);
@@ -189,8 +190,8 @@ int main(int argc,char **argv) {
         <<" virtual packets="<<network_packets<<" MDI consumer changes="<<network_drains
         <<" last bus address=0x"<<std::hex<<last_addr<<"\n";
     std::cout<<"This does not assert a successful Nokia firmware boot.\n";
-    std::ofstream ram("build/boot_trace/ram.bin",std::ios::binary);
+    std::ofstream ram(output_dir+"/ram.bin",std::ios::binary);
     ram.write(reinterpret_cast<const char*>(memory.data()),0x400000);
     cpu->final();
-    save_frame("build/boot_trace/lcd.pgm");
+    save_frame(output_dir+"/lcd.pgm");
 }

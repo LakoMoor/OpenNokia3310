@@ -2,6 +2,16 @@
 
 ## October 26, 2026 — original boot investigation
 
+- Original-ROM trace output is now isolated per run under `build/trace-runs/`.
+  Each run records ROM/RTL/harness hashes, clock, virtual-network flag, memory
+  stalls, cycle limit and terminal status. Frames and RAM are written only to
+  that run directory; a nonempty explicit directory is rejected. Reuse checks
+  compiled RTL/options and harness hashes instead of trusting an old executable.
+  A 100-cycle original-ROM smoke run produced its own log/LCD/RAM and completed
+  manifest; it is not phone-boot evidence. A 600M virtual-network run with C-key
+  dismissal of startup dialogs is being compiled/run in a new isolated directory.
+- The full RTL suite now passes 32 cases after I-frame acknowledgement handling.
+
 - In the first MM-integrated v6.39 run, firmware sends RR N(R)=1 at cycle
   287,212,579, RR N(R)=2 at 291,183,204 and DISC at 295,155,177. This is actual
   acceptance of LU Accept and Channel Release, not just the synthetic test peer.
