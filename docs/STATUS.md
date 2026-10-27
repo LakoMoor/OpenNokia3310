@@ -14,6 +14,13 @@
   resource fit and firmware equivalence are not yet established.
   An additional directed test verifies all 256 reassembled bytes, sequence
   number wrap and rejection of a further byte beyond the message limit.
+  The serial receiver's full-network synthesis completed at 14,809 raw LUT1–4
+  and 4,774 ALU, versus 111,678 and 4,918 with parallel writes; the receiver
+  adds one block RAM. This is not a device-fit result. Placement is running
+  on that exact pre-reset-handshake netlist snapshot. A subsequent change makes
+  `frame_ready` low during reset or link reset so a held input frame cannot be
+  spuriously accepted and acknowledged after a reset; RX capacity and DSP/CC
+  tests pass. The placement experiment predates this last change.
 
 - Added an explicit `nokia_top` virtual-network parameter and
   `tools/build.py nokia_top --virtual-network` option. The default board build

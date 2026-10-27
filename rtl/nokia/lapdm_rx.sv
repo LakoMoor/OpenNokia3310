@@ -31,7 +31,8 @@ module lapdm_rx #(parameter MAX_L3=256) (
     wire [9:0] total={1'b0,used[sapi3]}+{4'd0,count};
     // A full L3 output blocks new data, but a retransmitted I-frame must still
     // get its RR again if the previous acknowledgement was lost.
-    assign frame_ready=!copy_busy && (!message_valid || (received[sapi3] && ns==3'(expected[sapi3]-1'b1)));
+    assign frame_ready=!reset && !link_reset && !copy_busy &&
+        (!message_valid || (received[sapi3] && ns==3'(expected[sapi3]-1'b1)));
     always_ff @(posedge clk)begin
         read_data<=storage[{message_sapi3,read_address}];
         ack_valid<=0;error<=0;

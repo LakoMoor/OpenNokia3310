@@ -57,6 +57,14 @@ module lapdm_rx_tb;
         repeat(24)@(negedge clk);
         if(ack_valid || message_valid || !frame_ready)$fatal(1,"reset must abort copy without delivering stale data");
         send(24'h030001);if(!ack_valid || !message_valid || message_length!=0)$fatal(1,"link did not recover after abort");
+        consume();
+        @(negedge clk);link_reset=1;frame[183:160]=24'h030005;frame[159:152]=8'h42;frame_valid=1;
+        #1;if(frame_ready)$fatal(1,"frame must not be accepted during link reset");
+        @(negedge clk);link_reset=0;
+        while(!frame_ready)@(negedge clk);
+        @(negedge clk);frame_valid=0;
+        while(!ack_valid && !error)@(negedge clk);
+        if(error || !message_valid || message_length!=1 || ack_nr!=1)$fatal(1,"held frame lost after link reset");
         $display("PASS LAPDm RX: independent SAPI reassembly, duplicates, ordering, overflow, backpressure/reset");$finish;
     end
     initial begin #20000;$fatal(1,"RX timeout");end
