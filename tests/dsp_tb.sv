@@ -40,6 +40,12 @@ module dsp_tb;
         @(negedge clk);event_valid=0;
         wait(!busy);repeat(2) @(negedge clk);
     endtask
+    task put_byte(input integer address,input [7:0] value);
+        memory[address/4][(3-(address%4))*8+:8]=value;
+    endtask
+    function automatic [7:0] get_byte(input integer address);
+        return memory[address/4][(3-(address%4))*8+:8];
+    endfunction
     initial begin
         for(integer i=0;i<128;i=i+1) memory[i]=0;
         // Start at the last D2M slot: the two-word response must wrap.
@@ -75,6 +81,28 @@ module dsp_tb;
         doorbell('h100a4,17);
         if(messages!=6 || last_opcode!='h56 || last_sub!=0 || memory['ha4/4][15:0]!=17)
             $fatal(1,"odd descriptor padding or zero-length stale payload");
+        // Security command 16 returns a fixed unlocked record and echoes 24
+        // seed bytes. Check the whole long response, not just its header.
+        memory['h1c8/4]=32'h008a008a;
+        put_byte(34,26);put_byte(35,'h70);put_byte(36,'h16);
+        for(integer i=1;i<26;i=i+1) put_byte(36+i,8'(i+8'h40));
+        doorbell('h100a4,31);
+        if(messages!=7 || memory['h1c8/4][31:16]!==16'h00a5 ||
+           get_byte('h114)!==8'h34 || get_byte('h115)!==8'h74)
+            $fatal(1,"long security reply header or cursor");
+        for(integer i=0;i<52;i=i+1) begin
+            logic [191:0] record_data;
+            logic [7:0] expected_byte;
+            record_data=192'hffffffffff0f0000009800000000000000000000087c0000;
+            expected_byte=0;
+            if(i==0)expected_byte='h35;
+            else if(i==1)expected_byte='h32;
+            else if(i==2)expected_byte=1;
+            else if(i>=4 && i<28)expected_byte=record_data[191-(i-4)*8-:8];
+            else if(i>=28)expected_byte=8'(i-26+8'h40);
+            if(get_byte('h116+i)!==expected_byte)
+                $fatal(1,"long security reply byte %0d",i);
+        end
         $display("PASS DSP: wait-state transport, M2D parse, D2M wrap, cursor ownership, MSID seed");$finish;
     end
     initial begin #100000;$fatal(1,"DSP timeout");end

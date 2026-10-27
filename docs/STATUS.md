@@ -2,6 +2,14 @@
 
 ## October 28, 2026 — SIM recheck and DSP message pulse
 
+- Heap/seed-1 placement of the 19,501-site message-pulse netlist failed to
+  find a legal placement; it did not produce a bitstream. Its 820M-cycle
+  original-ROM regression completed with matching key-script hashes and the
+  same CONNECT ACK, RELEASE COMPLETE and DISC cycle points as before.
+  The DSP security-command test now verifies every byte of the 52-byte reply.
+  Narrower reply-index arithmetic synthesized and packed to 19,494 LUT sites.
+  The later placement and ROM run were interrupted when their process handles
+  disappeared; their logs are incomplete and prove neither success nor failure.
 - After USB reconnection, COM6 opened and the previously timing-qualified SIM
   diagnostic image was loaded into FPGA SRAM over JTAG. The original ROM
   executed at least 123 SIM commands, with no reported bus or memory error;

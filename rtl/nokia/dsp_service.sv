@@ -46,7 +46,9 @@ module dsp_service #(parameter CLK_HZ=27_000_000) (
     logic [27:0] heartbeat;
     wire [15:0] next_cursor=rx_cursor==16'he3 ? 16'h80 : rx_cursor+1'b1;
     wire [191:0] unlocked_record=192'hffffffffff0f0000009800000000000000000000087c0000;
-    function automatic [7:0] response_byte(input integer i);
+    // A reply contains at most 52 bytes. Nine bits also cover every byte
+    // address produced by the full eight-bit reply_index without truncation.
+    function automatic [7:0] response_byte(input logic [8:0] i);
         begin
             response_byte=0;
             case(kind)
@@ -73,8 +75,9 @@ module dsp_service #(parameter CLK_HZ=27_000_000) (
             endcase
         end
     endfunction
+    wire [8:0] reply_byte_index={reply_index,1'b0}-9'd2;
     wire [15:0] reply_word=kind==6 ? 16'h0300 : reply_index==0 ? {reply_length,8'h74} :
-        {response_byte((int'(reply_index)-1)*2),response_byte((int'(reply_index)-1)*2+1)};
+        {response_byte(reply_byte_index),response_byte(reply_byte_index+9'd1)};
     always_comb begin
         byte_value=(m_rdata>>((3-tx_pos[1:0])*8)) & 8'hff;
         busy=state!=IDLE || tx_pending || cb_pending || host_pending;
