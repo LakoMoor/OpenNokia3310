@@ -11,8 +11,10 @@ module lapdm_rx_tb;
     lapdm_rx #(.MAX_L3(32)) dut(.*);
     always #5 clk=~clk;
     task send(input [23:0] header);
-        @(negedge clk);frame[183:160]=header;frame_valid=1;
+        bit accepted;
+        @(negedge clk);frame[183:160]=header;frame_valid=1;#1;accepted=frame_ready;
         @(negedge clk);frame_valid=0;
+        if(accepted)while(!ack_valid && !error)@(negedge clk);
     endtask
     task consume;
         @(negedge clk);message_ready=1;@(negedge clk);message_ready=0;
@@ -47,6 +49,14 @@ module lapdm_rx_tb;
             if(!message_valid || !ack_valid || ack_nr!==3'((i+1)%8))$fatal(1,"N(S) modulo wrap %0d",i);
             consume();
         end
+        @(negedge clk);frame[183:160]=24'h030253;frame_valid=1;
+        @(negedge clk);frame_valid=0;
+        if(frame_ready || ack_valid || message_valid)$fatal(1,"copy must retain backpressure until data is stored");
+        repeat(4)@(negedge clk);
+        link_reset=1;@(negedge clk);link_reset=0;
+        repeat(24)@(negedge clk);
+        if(ack_valid || message_valid || !frame_ready)$fatal(1,"reset must abort copy without delivering stale data");
+        send(24'h030001);if(!ack_valid || !message_valid || message_length!=0)$fatal(1,"link did not recover after abort");
         $display("PASS LAPDm RX: independent SAPI reassembly, duplicates, ordering, overflow, backpressure/reset");$finish;
     end
     initial begin #20000;$fatal(1,"RX timeout");end

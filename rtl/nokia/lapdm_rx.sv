@@ -19,6 +19,11 @@ module lapdm_rx #(parameter MAX_L3=256) (
     logic [2:0] expected[0:1];
     logic [8:0] used[0:1];
     logic received[0:1];
+    logic copy_busy,copy_sapi3,copy_final,copy_more;
+    logic [4:0] copy_left;
+    logic [7:0] copy_address;
+    logic [8:0] copy_total;
+    logic [159:0] copy_data;
     wire [7:0] addr=frame[183:176],control=frame[175:168],li=frame[167:160];
     wire sapi3=addr[4:2]==3;
     wire [2:0] ns=control[3:1];
@@ -26,10 +31,22 @@ module lapdm_rx #(parameter MAX_L3=256) (
     wire [9:0] total={1'b0,used[sapi3]}+{4'd0,count};
     // A full L3 output blocks new data, but a retransmitted I-frame must still
     // get its RR again if the previous acknowledgement was lost.
-    assign frame_ready=!message_valid || (received[sapi3] && ns==3'(expected[sapi3]-1'b1));
+    assign frame_ready=!copy_busy && (!message_valid || (received[sapi3] && ns==3'(expected[sapi3]-1'b1)));
     always_ff @(posedge clk)begin
         read_data<=storage[{message_sapi3,read_address}];
         ack_valid<=0;error<=0;
+        if(copy_busy && !reset && !(link_reset && link_sapi3==copy_sapi3))begin
+            storage[{copy_sapi3,copy_address}]<=copy_data[159:152];
+            copy_data<={copy_data[151:0],8'd0};copy_address<=copy_address+1'b1;
+            copy_left<=copy_left-1'b1;
+            if(copy_left==1)begin
+                copy_busy<=0;expected[copy_sapi3]<=expected[copy_sapi3]+1'b1;
+                received[copy_sapi3]<=1;ack_valid<=1;ack_sapi3<=copy_sapi3;
+                ack_final<=copy_final;ack_nr<=expected[copy_sapi3]+1'b1;
+                if(copy_more)used[copy_sapi3]<=copy_total;
+                else begin used[copy_sapi3]<=0;message_valid<=1;message_sapi3<=copy_sapi3;message_length<=copy_total;end
+            end
+        end
         if(message_valid && message_ready)message_valid<=0;
         if(frame_valid && frame_ready)begin
             if(frame_length<3 || frame_length>23 || addr[7:5]!=0 || !addr[0] ||
@@ -40,14 +57,14 @@ module lapdm_rx #(parameter MAX_L3=256) (
                 if(ns==expected[sapi3])begin
                     if(total>MAX_L3 || total>256)error<=1;
                     else begin
-                        for(integer i=0;i<20;i++)
-                            if(i<count)storage[{sapi3,8'(used[sapi3]+i)}]<=frame[159-i*8-:8];
-                        expected[sapi3]<=expected[sapi3]+1'b1;
-                        received[sapi3]<=1;
-                        ack_valid<=1;ack_nr<=expected[sapi3]+1'b1;
-                        if(li[1])used[sapi3]<=9'(total);
-                        else begin
+                        if(count==0)begin
+                            expected[sapi3]<=expected[sapi3]+1'b1;received[sapi3]<=1;
+                            ack_valid<=1;ack_nr<=expected[sapi3]+1'b1;
                             used[sapi3]<=0;message_valid<=1;message_sapi3<=sapi3;message_length<=9'(total);
+                        end else begin
+                            copy_busy<=1;copy_sapi3<=sapi3;copy_final<=control[4];copy_more<=li[1];
+                            copy_left<=5'(count);copy_address<=used[sapi3][7:0];
+                            copy_total<=9'(total);copy_data<=frame[159:0];
                         end
                     end
                 end else if(received[sapi3] && ns==3'(expected[sapi3]-1'b1))ack_valid<=1; // duplicate: re-ACK only
@@ -55,6 +72,7 @@ module lapdm_rx #(parameter MAX_L3=256) (
             end
         end
         if(link_reset)begin
+            if(copy_busy && link_sapi3==copy_sapi3)copy_busy<=0;
             expected[link_sapi3]<=0;used[link_sapi3]<=0;received[link_sapi3]<=0;
             if(message_valid && message_sapi3==link_sapi3)message_valid<=0;
             ack_valid<=0;error<=0;
@@ -64,6 +82,7 @@ module lapdm_rx #(parameter MAX_L3=256) (
             received[0]<=0;received[1]<=0;
             ack_valid<=0;ack_sapi3<=0;ack_final<=0;ack_nr<=0;error<=0;
             message_valid<=0;message_sapi3<=0;message_length<=0;read_data<=0;
+            copy_busy<=0;copy_sapi3<=0;copy_final<=0;copy_more<=0;copy_left<=0;copy_address<=0;copy_total<=0;copy_data<=0;
         end
     end
 endmodule

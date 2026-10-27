@@ -2,6 +2,17 @@
 
 ## October 27, 2026 — virtual CC and hardware recheck
 
+- Initial full-network synthesis completed but is far beyond Tang capacity:
+  111,678 raw LUT1–4 cells, including approximately 93,164 associated with
+  the LAPDm receiver's 20 simultaneous byte writes. This is synthesis evidence,
+  not a placed image. Reworked reception to write one byte per clock through
+  a single memory port; `frame_ready` stays low while copying and the ACK is
+  emitted only after the final byte is stored. A same-link reset aborts an
+  in-flight copy without delivering or acknowledging stale data. Directed RX,
+  DSP reassembly and complete outgoing call/clearing tests pass. A new full
+  network synthesis and a two-call original-ROM simulation are running;
+  resource fit and firmware equivalence are not yet established.
+
 - Added an explicit `nokia_top` virtual-network parameter and
   `tools/build.py nokia_top --virtual-network` option. The default board build
   remains network-disabled; experimental outputs and build receipts are kept
