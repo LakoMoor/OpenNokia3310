@@ -2,6 +2,15 @@
 
 ## October 26, 2026 — original boot investigation
 
+- MM downlink I-frames now have bounded retry handling: one second of model
+  clocks after output acceptance, at most three retransmissions per stage.
+  Backpressure before acceptance does not consume attempts. Retries retain the
+  original data and N(S); delayed valid ACKs cancel queued retries. Exhaustion
+  exposes failure without claiming registration. Directed retry tests pass for
+  lost LU/release ACKs, unchanged frames, output stalls, failure and recovery.
+  The original-ROM experiment currently running predates retries. This is an
+  experimental reliability mechanism, not a complete LAPDm T200/N200 model.
+
 - Connected the minimal MM peer to actual SEND_BLOCK decoding and scheduled
   SDCCH downlink. LU Accept is gated until UA is committed; pending MM I-frames
   replace later idle fills and advance only on received RR acknowledgements.

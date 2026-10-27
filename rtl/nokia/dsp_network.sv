@@ -46,10 +46,10 @@ module dsp_network #(parameter CLK_HZ=27000000,ENABLE_NETWORK=0) (
         wire mm_valid,mm_ready;
         wire [183:0] mm_frame;
         assign mm_ready=start && dedicated_packet && mm_packet;
-        mm_registration mm_peer(.clk(clk),.reset(reset || (messages!=seen_messages && channel_valid && channel_logch==8'h80)),
+        mm_registration #(.RETRY_CYCLES(CLK_HZ)) mm_peer(.clk(clk),.reset(reset || (messages!=seen_messages && channel_valid && channel_logch==8'h80)),
             .uplink_valid(messages!=seen_messages && uplink_valid && uplink_logch==8'h80 && dedicated_enabled),
             .uplink_frame(uplink_frame),.uplink_length(uplink_length),.plmn(24'h00f110),.lac(16'd1),
-            .downlink_ready(mm_ready),.downlink_valid(mm_valid),.downlink_frame(mm_frame),.registered());
+            .downlink_ready(mm_ready),.downlink_valid(mm_valid),.downlink_frame(mm_frame),.registered(),.failed());
         logic [183:0] ua_frame;
         logic [7:0] ua_channel;
         wire ua_done,ua_accepted;

@@ -19,6 +19,7 @@ def main():
     os.environ["PATH"] = os.pathsep.join([str(Path(a.tools)/"bin"), str(Path(a.tools)/"lib"), os.environ["PATH"]])
     Path("build/tests").mkdir(parents=True, exist_ok=True)
     cases = {
+        "mm_retry": ["rtl/nokia/mm_registration.sv"],
         "mm_registration": ["rtl/nokia/mm_registration.sv"],
         "lapdm_ua": ["rtl/nokia/lapdm_ua.sv"],
         "virtual_dedicated": ["rtl/nokia/virtual_dedicated.sv"],
