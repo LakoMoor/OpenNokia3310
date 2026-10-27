@@ -55,7 +55,7 @@ module dsp_network #(parameter CLK_HZ=27000000,ENABLE_NETWORK=0) (
         logic [7:0] ua_channel;
         wire ua_done,ua_accepted;
         wire [183:0] ua_response;
-        lapdm_ua ua_builder(.clk(clk),.reset(reset),.start(messages!=seen_messages && uplink_valid && uplink_logch==8'h80),
+        lapdm_ua ua_builder(.clk(clk),.reset(reset),.start(messages!=seen_messages && uplink_valid && uplink_logch==8'h80 && dedicated_enabled),
             .frame(uplink_frame),.frame_length(uplink_length),.done(ua_done),.accepted(ua_accepted),.response(ua_response),.information_length());
         logic [21:0] fill_fn;
         logic access_pending,grant_pending,access_packet,grant_packet,rach_active;
@@ -137,6 +137,7 @@ module dsp_network #(parameter CLK_HZ=27000000,ENABLE_NETWORK=0) (
                 end
                 if(channel_valid)begin
                     confirm_pending<=1;confirm_token<=channel_token;
+                    ua_pending<=0;mm_allowed<=0;
                     dedicated_enabled<=channel_logch==8'h80;
                     dedicated_has_fill<=0;
                     if(channel_logch!=8'h80)begin fill_pending<=0;block_pending<=0;ua_pending<=0;end

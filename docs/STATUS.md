@@ -2,6 +2,13 @@
 
 ## October 26, 2026 — original boot investigation
 
+- Fixed stale LAPDm responses across channel boundaries. UA decoding now requires
+  an active SDCCH; every channel reconfiguration clears pending UA and MM-output
+  eligibility. A DSP-queue test sends unsolicited SABM before channel setup,
+  then queues a valid SABM and reconfigures before its UA slot. It verifies that
+  neither response leaks into the new connection. The directed test passes;
+  the original Net Monitor exit experiment currently running predates this fix.
+
 - The isolated 600M standby run completed with 25,406 LCD writes, 146 virtual
   records and 300 MCU consumer changes. Main-screen repeated fields may be a
   Net Monitor diagnostic page (index 03), rather than damaged glyph rendering;

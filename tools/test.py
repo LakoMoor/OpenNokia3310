@@ -26,6 +26,7 @@ def main():
         "virtual_dedicated": ["rtl/nokia/virtual_dedicated.sv"],
         "dsp_access": ["rtl/nokia/dsp_service.sv","rtl/nokia/dsp_network.sv","rtl/nokia/lapdm_ua.sv","rtl/nokia/mm_registration.sv","rtl/nokia/virtual_access.sv","rtl/nokia/virtual_dedicated.sv","rtl/nokia/virtual_cell.sv","rtl/nokia/mdi_injector.sv"],
         "dsp_dedicated": ["rtl/nokia/dsp_service.sv","rtl/nokia/dsp_network.sv","rtl/nokia/lapdm_ua.sv","rtl/nokia/mm_registration.sv","rtl/nokia/virtual_access.sv","rtl/nokia/virtual_dedicated.sv","rtl/nokia/virtual_cell.sv","rtl/nokia/mdi_injector.sv"],
+        "dsp_link_reset": ["rtl/nokia/dsp_service.sv","rtl/nokia/dsp_network.sv","rtl/nokia/lapdm_ua.sv","rtl/nokia/mm_registration.sv","rtl/nokia/virtual_access.sv","rtl/nokia/virtual_dedicated.sv","rtl/nokia/virtual_cell.sv","rtl/nokia/mdi_injector.sv"],
         "dsp_mm": ["rtl/nokia/dsp_service.sv","rtl/nokia/dsp_network.sv","rtl/nokia/lapdm_ua.sv","rtl/nokia/mm_registration.sv","rtl/nokia/virtual_access.sv","rtl/nokia/virtual_dedicated.sv","rtl/nokia/virtual_cell.sv","rtl/nokia/mdi_injector.sv"],
         "virtual_access": ["rtl/nokia/virtual_access.sv"],
         "dsp_network": ["rtl/nokia/dsp_service.sv","rtl/nokia/dsp_network.sv","rtl/nokia/lapdm_ua.sv","rtl/nokia/mm_registration.sv","rtl/nokia/virtual_access.sv","rtl/nokia/virtual_dedicated.sv","rtl/nokia/virtual_cell.sv","rtl/nokia/mdi_injector.sv"],
