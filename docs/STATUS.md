@@ -2,6 +2,20 @@
 
 ## October 26, 2026 — original boot investigation
 
+- The first integrated-RACH v6.39 experiment reaches an SDCCH configuration:
+  opcode `02`, payload `04000000027101808000024a...`, at cycle 266,399,223.
+  It completes 400M clocks with 17,324 LCD writes, 80 virtual records and 165
+  MCU consumer changes. This is evidence that the phone accepted an access
+  assignment, not completed registration or a working call/SMS service.
+- Corrected two access-model issues found during review: the Immediate Assignment
+  radio-prefix frame now uses a fresh scheduled CCCH block (6/12/16/22/26/32/
+  36/42/46 within a 51-frame multiframe), independently of the original RACH
+  reference inside the L2 message; a later RACH with updated transmitted FN
+  replaces an unsent grant and receives new RA_INFO instead of being ignored.
+  Tests cover reduced-FN wrap, CCCH/hyperframe alignment and latest RA/FN grant
+  correlation. All 25 RTL cases pass. The updated 400M original-ROM experiment
+  is running; hardware remains unchanged and registration remains unverified.
+
 - Connected experimental RACH requests to `virtual_access`: the DSP decoder
   snapshots six request bytes, captures RA and derives the request FN from the
   explicit-frame mode or current frame plus offset. The scheduler delivers

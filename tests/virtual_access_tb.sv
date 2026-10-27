@@ -3,6 +3,7 @@ module virtual_access_tb;
     reg clk=0,reset=1,start=0,grant=0,ready=0;
     reg [7:0] ra=8'h16;
     reg [21:0] request_fn=12345;
+    reg [21:0] block_fn=210;
     reg [9:0] arfcn=586;
     reg [5:0] bsic=5;
     wire valid,busy,done,last;
@@ -36,6 +37,7 @@ module virtual_access_tb;
             $fatal(1,"RA_INFO reference/FN");
         for(integer i=6;i<10;i++)if(captured[i]!=0)$fatal(1,"RA_INFO padding");
         grant=1;packet(35);
+        if({captured[5],captured[6],captured[7]}!==24'd210)$fatal(1,"IA block FN must differ from request FN");
         if(captured[0]!=33 || captured[1]!='h80 || captured[2]!='h60 ||
            {captured[12],captured[13],captured[14]}!==24'h2d063f ||
            {captured[16],captured[17],captured[18]}!==24'h41a24a ||

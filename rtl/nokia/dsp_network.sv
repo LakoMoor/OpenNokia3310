@@ -51,6 +51,21 @@ module dsp_network #(parameter CLK_HZ=27000000,ENABLE_NETWORK=0) (
         logic [25:0] delay_count;
         logic [21:0] frame_number;
         logic [31:0] frame_phase;
+        function automatic [21:0] next_ccch(input [21:0] fn);
+            reg [5:0] t3;
+            reg [5:0] offset;
+            reg [22:0] candidate;
+            begin
+                t3=6'(fn%51);
+                if(t3<=6)offset=6;else if(t3<=12)offset=12;
+                else if(t3<=16)offset=16;else if(t3<=22)offset=22;
+                else if(t3<=26)offset=26;else if(t3<=32)offset=32;
+                else if(t3<=36)offset=36;else if(t3<=42)offset=42;
+                else if(t3<=46)offset=46;else offset=57;
+                candidate={1'b0,fn}-{17'd0,t3}+{17'd0,offset};
+                next_ccch=22'(candidate>=2715648 ? candidate-2715648 : candidate);
+            end
+        endfunction
         wire byte_valid,byte_last,byte_ready,packet_done,packet_error;
         wire cell_valid,cell_last,access_valid,access_last;
         wire [7:0] cell_data,access_data;
@@ -58,7 +73,7 @@ module dsp_network #(parameter CLK_HZ=27000000,ENABLE_NETWORK=0) (
         assign byte_last=access_packet ? access_last : cell_last;
         assign byte_data=access_packet ? access_data : cell_data;
         virtual_access access_source(.clk(clk),.reset(reset),.start(start && access_packet),.grant(grant_packet),
-            .ra(access_ra),.request_fn(access_fn),.arfcn(10'd586),.bsic(6'd0),
+            .ra(access_ra),.request_fn(access_fn),.block_fn(next_ccch(frame_number)),.arfcn(10'd586),.bsic(6'd0),
             .ready(byte_ready && access_packet),.valid(access_valid),.last(access_last),.data(access_data),.busy(),.done());
         wire [7:0] byte_data;
         assign net_lock=lock;
@@ -80,8 +95,11 @@ module dsp_network #(parameter CLK_HZ=27000000,ENABLE_NETWORK=0) (
                 seen_messages<=messages;
                 if(last_opcode==8'h56)begin pending<=1;bcch<=0;si_kind<=0;delay_count<=0;psw_sent<=0;end
                 if(last_opcode==8'h55)rssi_pending<=1;
-                if(rach_valid && !rach_active)begin
+                if(rach_valid)begin
                     rach_active<=1;access_pending<=1;access_ra<=rach_payload[31:24];
+                    // A later RACH report may carry the actual transmitted FN.
+                    // Cancel an unsent grant and report the updated reference.
+                    grant_pending<=0;grant_delay<=0;
                     access_fn<=rach_payload[39:32]==1 ? {6'd0,rach_payload[15:0]} :
                         22'((frame_number+{14'd0,rach_payload[23:16]})%42432);
                 end
@@ -90,7 +108,7 @@ module dsp_network #(parameter CLK_HZ=27000000,ENABLE_NETWORK=0) (
                     if(channel_logch==8'h50 && !psw_sent)begin psw_pending<=1;psw_sent<=1;end
                 end
             end
-            if(grant_delay!=0)begin
+            if(grant_delay!=0 && !(messages!=seen_messages && rach_valid))begin
                 grant_delay<=grant_delay-1'b1;
                 if(grant_delay==1)grant_pending<=1;
             end
@@ -98,7 +116,7 @@ module dsp_network #(parameter CLK_HZ=27000000,ENABLE_NETWORK=0) (
                 delay_count<=delay_count-1'b1;
                 if(delay_count==1)pending<=1;
             end
-            if((pending || confirm_pending || rssi_pending || psw_pending || access_pending || grant_pending) && !lock && !service_busy && !event_valid)begin
+            if((pending || confirm_pending || rssi_pending || psw_pending || access_pending || grant_pending) && !lock && !service_busy && !event_valid && messages==seen_messages)begin
                 lock<=1;start<=1;
                 access_packet<=access_pending || grant_pending;grant_packet<=!access_pending && grant_pending;
                 psw_packet<=psw_pending;confirm_packet<=!psw_pending && confirm_pending;rssi_packet<=!psw_pending && !confirm_pending && rssi_pending;

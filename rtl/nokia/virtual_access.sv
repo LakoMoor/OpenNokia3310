@@ -6,6 +6,7 @@ module virtual_access (
     input logic clk,reset,start,grant,
     input logic [7:0] ra,
     input logic [21:0] request_fn,
+    input logic [21:0] block_fn,
     input logic [9:0] arfcn,
     input logic [5:0] bsic,
     input logic ready,
@@ -15,6 +16,7 @@ module virtual_access (
     logic grant_q;
     logic [7:0] ra_q;
     logic [21:0] fn_q;
+    logic [21:0] block_q;
     logic [9:0] arfcn_q;
     logic [5:0] bsic_q;
     wire [2:0] tsc_q=bsic_q[2:0];
@@ -42,7 +44,7 @@ module virtual_access (
                 1:data=8'h80;
                 2:data=8'h60;
                 3:data={2'd0,bsic_q};
-                5:data={2'd0,fn_q[21:16]};6:data=fn_q[15:8];7:data=fn_q[7:0];
+                5:data={2'd0,block_q[21:16]};6:data=block_q[15:8];7:data=block_q[7:0];
                 8:data={6'd0,arfcn_q[9:8]};9:data=arfcn_q[7:0];
                 12:data=8'h2d;13:data=6;14:data=8'h3f;
                 16:data=8'h41; // SDCCH/8 subchannel 0, timeslot 1
@@ -56,12 +58,12 @@ module virtual_access (
     always_ff @(posedge clk)begin
         done<=0;
         if(start && !busy)begin
-            busy<=1;index<=0;grant_q<=grant;ra_q<=ra;fn_q<=request_fn;
+            busy<=1;index<=0;grant_q<=grant;ra_q<=ra;fn_q<=request_fn;block_q<=block_fn;
             arfcn_q<=arfcn;bsic_q<=bsic;
         end else if(busy && ready)begin
             if(last)begin busy<=0;done<=1;end
             else index<=index+1'b1;
         end
-        if(reset)begin busy<=0;done<=0;index<=0;grant_q<=0;ra_q<=0;fn_q<=0;arfcn_q<=0;bsic_q<=0;end
+        if(reset)begin busy<=0;done<=0;index<=0;grant_q<=0;ra_q<=0;fn_q<=0;block_q<=0;arfcn_q<=0;bsic_q<=0;end
     end
 endmodule
