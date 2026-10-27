@@ -20,7 +20,12 @@ module sim_card #(parameter CLK_HZ=27_000_000) (
     logic [7:0] control,clock_control,low_water,rx_flush,tx_flush,interrupts;
     logic [7:0] rx[0:511];
     logic [9:0] wr_ptr,read_ptr,visible_ptr;
-    logic [25:0] pace;
+    // The counter is loaded only from CLK_HZ/960 or one less. Preserve the
+    // old 26-bit behavior for out-of-range parameters, and trim unused bits
+    // at the actual Tang clock without changing SIM byte pacing.
+    localparam integer PACE_RELOAD=CLK_HZ/960;
+    localparam integer PACE_BITS=(PACE_RELOAD==0 || PACE_RELOAD >= (1<<26)) ? 26 : $clog2(PACE_RELOAD+1);
+    logic [PACE_BITS-1:0] pace;
     logic [15:0] selected,selected_df,fcp_fid;
     logic fcp_directory;
     typedef enum logic [3:0] {IDLE,PARSE,ATR,ACK,OUT_ACK,DATA_PREP,DATA,SW1,SW2,UPDATE_PREP,UPDATE,CHV_WAIT,CHV_PREP,CHV_LOAD} state_t;

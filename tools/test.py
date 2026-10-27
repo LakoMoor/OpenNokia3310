@@ -61,6 +61,7 @@ def main():
         "nor": ["rtl/nokia/nor_bus.sv"],
         "dsp": ["rtl/nokia/dsp_service.sv"],
         "sim": ["rtl/nokia/sim_card.sv"],
+        "sim_pace": ["rtl/nokia/sim_card.sv"],
         "status": ["rtl/nokia/uart_status.sv"],
         "arm_fiq": cpu_sources()+["rtl/nokia/arm7_probe.sv"],
     }

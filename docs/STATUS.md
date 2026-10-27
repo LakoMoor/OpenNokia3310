@@ -2,6 +2,12 @@
 
 ## October 28, 2026 — SIM recheck and DSP message pulse
 
+- The SIM byte-pacing counter now derives its width from the system clock:
+  15 bits at 16.875 MHz instead of 26, with legacy width for out-of-range
+  parameters. A new test checks the exact first and second ATR byte intervals
+  at the Tang clock; all RTL cases passed. Network synthesis completed, but
+  area and timing after placement remain unverified. An original-ROM virtual
+  call regression for this change is running; no hardware image was written.
 - Heap/seed-1 placement of the 19,501-site message-pulse netlist failed to
   find a legal placement; it did not produce a bitstream. Its 820M-cycle
   original-ROM regression completed with matching key-script hashes and the
