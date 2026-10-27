@@ -2,6 +2,16 @@
 
 ## October 27, 2026 — virtual CC and hardware recheck
 
+- The original v6.39 ROM completed two calls in the 1.1B-cycle serial-RX
+  simulation: CONNECT ACK at 656,617,583 and 958,499,543; RELEASE COMPLETE at
+  775,784,675 and 1,053,830,352; both followed by DISC. Key-script hashes match.
+  A separate 820M-cycle run with the iterative frame-number calculations and
+  counters completed one call and clearing at the same first-call cycle points.
+  These establish simulated signalling for the tested flows, not voice, SMS,
+  device placement or operation on Tang. A simulated-annealing placement with
+  seed 2 has started on the preserved 95%-LUT network netlist; the prior heap
+  placement failed. No successful placement or timing is claimed yet.
+
 - The incremental GSM frame counters synthesize at 14,470 raw LUT1–4 and
   3,636 ALU, down from 14,517 and 3,997 in the preceding variant. The device
   placer reported 19,900/20,736 LUT4 sites (95%) but terminated with `Unable
