@@ -45,23 +45,23 @@ module arm7tdmis_multiplier (
     output logic [2:0]  cycle_count   // m parameter, 1..4
 );
 
-    // ---- 64-bit-extended operands so the multiply produces a 64-bit
-    //      product without truncation. Sign-extend for signed forms,
-    //      zero-extend for unsigned (and for short MUL/MLA, where the
-    //      sign-vs-unsigned distinction doesn't matter for the low 32
-    //      bits we keep).
-    logic [63:0] op_a_ext;
-    logic [63:0] op_b_ext;
+    // A single signed 33x33 product represents both 32-bit signed and
+    // unsigned operands exactly. Avoid a 64x64 multiply of replicated sign
+    // bits, which consumes several Gowin DSPs and partial-product adders.
+    logic signed [32:0] op_a_ext;
+    logic signed [32:0] op_b_ext;
+    logic signed [65:0] full_product;
     logic [63:0] product;
     logic [63:0] accumulator;
 
     always_comb begin
-        op_a_ext    = is_signed ? {{32{op_a[31]}}, op_a} : {32'h0, op_a};
-        op_b_ext    = is_signed ? {{32{op_b[31]}}, op_b} : {32'h0, op_b};
+        op_a_ext    = {is_signed && op_a[31], op_a};
+        op_b_ext    = {is_signed && op_b[31], op_b};
         accumulator = accumulate
                         ? (is_long ? {acc_hi, acc_lo} : {32'h0, acc_lo})
                         : 64'h0;
-        product     = (op_a_ext * op_b_ext) + accumulator;
+        full_product = op_a_ext * op_b_ext;
+        product     = full_product[63:0] + accumulator;
     end
 
     assign result_lo = product[31:0];

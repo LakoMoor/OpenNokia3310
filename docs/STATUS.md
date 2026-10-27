@@ -2,6 +2,17 @@
 
 ## October 27, 2026 — virtual CC and hardware recheck
 
+- Replaced the ARM multiplier's replicated-sign 64x64 expression with an exact
+  signed 33x33 product (conditional sign bits) truncated to 64 bits before
+  accumulation. All 512 boundary and 20,000 deterministic random comparisons
+  against the previous expression pass, including results, N/Z, write mask and
+  early-termination cycle count. The full 40-case RTL suite also passes.
+  Board synthesis reduces MULT36X36 cells from 3 to 1, ALU from 2,884 to 2,820
+  and raw LUT1–4 from 15,217 to 15,156 versus the archived pre-network CHV
+  synthesis. This is a resource reduction, not proof of full network fit.
+  Heap/seed-1 placement of the revised pre-network board is in progress;
+  no resulting image has been programmed or hardware-qualified.
+
 - Tang USB is available again: FTDI serial 2023030621B on COM6; JTAG detects
   Gowin ID 0x81b. Without rewriting FPGA or ROM, UART reports SDRAM ready,
   ROM done, PLL locked, increasing LCD writes, no memory/bus errors and no LCD

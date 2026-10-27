@@ -19,6 +19,7 @@ def main():
     os.environ["PATH"] = os.pathsep.join([str(Path(a.tools)/"bin"), str(Path(a.tools)/"lib"), os.environ["PATH"]])
     Path("build/tests").mkdir(parents=True, exist_ok=True)
     cases = {
+        "multiplier": ["third_party/arm7tdmi-sv/rtl/datapath/arm7tdmis_multiplier.sv"],
         "lapdm_rx": ["rtl/nokia/lapdm_rx.sv"],
         "lapdm_tx": ["rtl/nokia/lapdm_tx.sv"],
         "cc_voice": ["rtl/nokia/lapdm_tx.sv","rtl/nokia/cc_voice.sv"],
