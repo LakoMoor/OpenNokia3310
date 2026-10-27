@@ -1,6 +1,9 @@
 `timescale 1ns/1ps
 module virtual_dedicated_tb;
     reg clk=0,reset=1,start=0,request_block=0,ready=0;
+    reg custom_frame=0;
+    reg [183:0] frame={23{8'h2b}};
+    reg [7:0] logch=8'h80;
     reg [21:0] frame_number=22'h123456;
     reg [9:0] arfcn=586;
     reg [5:0] bsic=27;

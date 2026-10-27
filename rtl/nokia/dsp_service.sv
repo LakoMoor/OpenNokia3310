@@ -18,7 +18,11 @@ module dsp_service #(parameter CLK_HZ=27_000_000) (
     output logic channel_valid,
     output logic [7:0] channel_token,channel_logch,
     output logic rach_valid,
-    output logic [47:0] rach_payload
+    output logic [47:0] rach_payload,
+    output logic uplink_valid,
+    output logic [4:0] uplink_length,
+    output logic [7:0] uplink_logch,
+    output logic [183:0] uplink_frame
 );
     typedef enum logic [4:0] {IDLE,TX_ISSUE,TX_WAIT,CONSUME,CONSUME_WAIT,
         RING_ISSUE,RING_WAIT,REPLY_ISSUE,REPLY_WAIT,COMMIT,COMMIT_WAIT,
@@ -127,6 +131,11 @@ module dsp_service #(parameter CLK_HZ=27_000_000) (
                 channel_logch<=payload[8];
                 rach_valid<=tx_opcode==8'h0c && tx_length>=6;
                 for(integer b=0;b<6;b++)rach_payload[47-b*8-:8]<=payload[b];
+                // ROM6 uses padded SEND_BLOCK records (v6.39: 28 bytes).
+                // The on-air LAPDm frame remains the first 23 bytes after logch.
+                uplink_valid<=tx_opcode==8'h1b && tx_length>=5 && tx_length<=32;
+                uplink_length<=tx_length>=25 ? 5'd23 : 5'(tx_length-2);uplink_logch<=payload[1];
+                for(integer b=0;b<23;b++)uplink_frame[183-b*8-:8]<=payload[b+2];
                 kind<=0;state<=IDLE;
                 if(tx_opcode==8'h70) begin
                     case(payload[0])
@@ -184,6 +193,7 @@ module dsp_service #(parameter CLK_HZ=27_000_000) (
             channel_valid<=0;channel_token<=0;
             channel_logch<=0;
             rach_valid<=0;rach_payload<=0;
+            uplink_valid<=0;uplink_length<=0;uplink_logch<=0;uplink_frame<=0;
             for(int i=0;i<32;i=i+1) payload[i]<=0;
         end
     end

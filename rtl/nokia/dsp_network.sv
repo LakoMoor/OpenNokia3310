@@ -16,7 +16,10 @@ module dsp_network #(parameter CLK_HZ=27000000,ENABLE_NETWORK=0) (
     wire service_busy,service_fiq,service_valid,service_write;
     wire [31:0] service_address,service_data;
     wire [3:0] service_be;
-    wire channel_valid,rach_valid;
+    wire channel_valid,rach_valid,uplink_valid;
+    wire [4:0] uplink_length;
+    wire [7:0] uplink_logch;
+    wire [183:0] uplink_frame;
     wire [47:0] rach_payload;
     wire [7:0] channel_token,channel_logch;
     wire net_lock,net_valid,net_write,net_fiq;
@@ -27,7 +30,7 @@ module dsp_network #(parameter CLK_HZ=27000000,ENABLE_NETWORK=0) (
         .m_valid(service_valid),.m_write(service_write),.m_address(service_address),.m_wdata(service_data),
         .m_be(service_be),.m_ready(m_ready && !net_lock),.m_rdata(m_rdata),
         .last_opcode(last_opcode),.last_sub(last_sub),.messages(messages),
-        .channel_valid(channel_valid),.channel_token(channel_token),.channel_logch(channel_logch),.rach_valid(rach_valid),.rach_payload(rach_payload));
+        .channel_valid(channel_valid),.channel_token(channel_token),.channel_logch(channel_logch),.rach_valid(rach_valid),.rach_payload(rach_payload),.uplink_valid(uplink_valid),.uplink_length(uplink_length),.uplink_logch(uplink_logch),.uplink_frame(uplink_frame));
     assign busy=service_busy || net_lock;
     assign fiq0=service_fiq || net_fiq;
     assign m_valid=net_lock ? net_valid : service_valid;
@@ -39,6 +42,13 @@ module dsp_network #(parameter CLK_HZ=27000000,ENABLE_NETWORK=0) (
         logic lock,start,pending,bcch;
         logic dedicated_enabled,fill_pending,block_pending,dedicated_packet,block_packet;
         logic dedicated_has_fill;
+        logic ua_pending,ua_packet;
+        logic [183:0] ua_frame;
+        logic [7:0] ua_channel;
+        wire ua_done,ua_accepted;
+        wire [183:0] ua_response;
+        lapdm_ua ua_builder(.clk(clk),.reset(reset),.start(messages!=seen_messages && uplink_valid && uplink_logch==8'h80),
+            .frame(uplink_frame),.frame_length(uplink_length),.done(ua_done),.accepted(ua_accepted),.response(ua_response),.information_length());
         logic [21:0] fill_fn;
         logic access_pending,grant_pending,access_packet,grant_packet,rach_active;
         logic [7:0] access_ra;
@@ -76,7 +86,7 @@ module dsp_network #(parameter CLK_HZ=27000000,ENABLE_NETWORK=0) (
         assign byte_last=dedicated_packet ? ded_last : access_packet ? access_last : cell_last;
         assign byte_data=dedicated_packet ? ded_data : access_packet ? access_data : cell_data;
         virtual_dedicated dedicated_source(.clk(clk),.reset(reset),.start(start && dedicated_packet),
-            .request_block(block_packet),.frame_number(fill_fn),.arfcn(10'd586),.bsic(6'd0),
+            .request_block(block_packet),.custom_frame(ua_packet),.frame(ua_frame),.logch(ua_channel),.frame_number(fill_fn),.arfcn(10'd586),.bsic(6'd0),
             .ready(byte_ready && dedicated_packet),.valid(ded_valid),.last(ded_last),.data(ded_data),.busy(),.done());
         virtual_access access_source(.clk(clk),.reset(reset),.start(start && access_packet),.grant(grant_packet),
             .ra(access_ra),.request_fn(access_fn),.block_fn(next_ccch(frame_number)),.arfcn(10'd586),.bsic(6'd0),
@@ -92,6 +102,7 @@ module dsp_network #(parameter CLK_HZ=27000000,ENABLE_NETWORK=0) (
             .m_ready(m_ready && lock),.m_rdata(m_rdata));
         always_ff @(posedge clk)begin
             start<=0;
+            if(ua_done && ua_accepted)begin ua_frame<=ua_response;ua_channel<=uplink_logch;ua_pending<=1;end
             // One GSM TDMA frame = 60/13000 seconds; preserve fractional clocks.
             if(frame_phase+13000>=CLK_HZ*60)begin
                 frame_phase<=frame_phase+13000-CLK_HZ*60;
@@ -117,7 +128,7 @@ module dsp_network #(parameter CLK_HZ=27000000,ENABLE_NETWORK=0) (
                     confirm_pending<=1;confirm_token<=channel_token;
                     dedicated_enabled<=channel_logch==8'h80;
                     dedicated_has_fill<=0;
-                    if(channel_logch!=8'h80)begin fill_pending<=0;block_pending<=0;end
+                    if(channel_logch!=8'h80)begin fill_pending<=0;block_pending<=0;ua_pending<=0;end
                     if(channel_logch==8'h50 && !psw_sent)begin psw_pending<=1;psw_sent<=1;end
                 end
             end
@@ -133,6 +144,8 @@ module dsp_network #(parameter CLK_HZ=27000000,ENABLE_NETWORK=0) (
                 lock<=1;start<=1;
                 dedicated_packet<=!access_pending && !grant_pending && !psw_pending && !confirm_pending && !rssi_pending && (fill_pending || block_pending);
                 block_packet<=!fill_pending && block_pending;
+                ua_packet<=ua_pending && fill_pending;
+                if(!access_pending && !grant_pending && !psw_pending && !confirm_pending && !rssi_pending && fill_pending && ua_pending)ua_pending<=0;
                 access_packet<=access_pending || grant_pending;grant_packet<=!access_pending && grant_pending;
                 psw_packet<=psw_pending;confirm_packet<=!psw_pending && confirm_pending;rssi_packet<=!psw_pending && !confirm_pending && rssi_pending;
                 if(access_pending)access_pending<=0;
@@ -159,6 +172,7 @@ module dsp_network #(parameter CLK_HZ=27000000,ENABLE_NETWORK=0) (
             if(reset)begin
                 access_pending<=0;grant_pending<=0;access_packet<=0;grant_packet<=0;rach_active<=0;
                 access_ra<=0;access_fn<=0;grant_delay<=0;
+                ua_pending<=0;ua_packet<=0;ua_frame<=0;ua_channel<=0;
                 dedicated_enabled<=0;dedicated_has_fill<=0;fill_pending<=0;block_pending<=0;dedicated_packet<=0;block_packet<=0;fill_fn<=0;
                 lock<=0;start<=0;pending<=0;bcch<=0;confirm_pending<=0;confirm_packet<=0;confirm_token<=0;rssi_pending<=0;rssi_packet<=0;psw_pending<=0;psw_packet<=0;psw_sent<=0;si_kind<=0;seen_messages<=0;delay_count<=0;frame_phase<=0;frame_number<=0;packets<=0;end
         end

@@ -21,10 +21,10 @@ def main():
     cases = {
         "lapdm_ua": ["rtl/nokia/lapdm_ua.sv"],
         "virtual_dedicated": ["rtl/nokia/virtual_dedicated.sv"],
-        "dsp_access": ["rtl/nokia/dsp_service.sv","rtl/nokia/dsp_network.sv","rtl/nokia/virtual_access.sv","rtl/nokia/virtual_dedicated.sv","rtl/nokia/virtual_cell.sv","rtl/nokia/mdi_injector.sv"],
-        "dsp_dedicated": ["rtl/nokia/dsp_service.sv","rtl/nokia/dsp_network.sv","rtl/nokia/virtual_access.sv","rtl/nokia/virtual_dedicated.sv","rtl/nokia/virtual_cell.sv","rtl/nokia/mdi_injector.sv"],
+        "dsp_access": ["rtl/nokia/dsp_service.sv","rtl/nokia/dsp_network.sv","rtl/nokia/lapdm_ua.sv","rtl/nokia/virtual_access.sv","rtl/nokia/virtual_dedicated.sv","rtl/nokia/virtual_cell.sv","rtl/nokia/mdi_injector.sv"],
+        "dsp_dedicated": ["rtl/nokia/dsp_service.sv","rtl/nokia/dsp_network.sv","rtl/nokia/lapdm_ua.sv","rtl/nokia/virtual_access.sv","rtl/nokia/virtual_dedicated.sv","rtl/nokia/virtual_cell.sv","rtl/nokia/mdi_injector.sv"],
         "virtual_access": ["rtl/nokia/virtual_access.sv"],
-        "dsp_network": ["rtl/nokia/dsp_service.sv","rtl/nokia/dsp_network.sv","rtl/nokia/virtual_access.sv","rtl/nokia/virtual_dedicated.sv","rtl/nokia/virtual_cell.sv","rtl/nokia/mdi_injector.sv"],
+        "dsp_network": ["rtl/nokia/dsp_service.sv","rtl/nokia/dsp_network.sv","rtl/nokia/lapdm_ua.sv","rtl/nokia/virtual_access.sv","rtl/nokia/virtual_dedicated.sv","rtl/nokia/virtual_cell.sv","rtl/nokia/mdi_injector.sv"],
         "sim_chv": ["rtl/nokia/sim_chv.sv"],
         "virtual_cell": ["rtl/nokia/virtual_cell.sv"],
         "mdi_injector": ["rtl/nokia/virtual_cell.sv","rtl/nokia/mdi_injector.sv"],
@@ -55,7 +55,7 @@ def main():
     for name, sources in cases.items():
         if "rtl/nokia/sim_card.sv" in sources:sources=["rtl/nokia/sim_chv.sv",*sources]
         if "rtl/nokia/nokia_core.sv" in sources:
-            sources=["rtl/nokia/dsp_network.sv","rtl/nokia/virtual_access.sv","rtl/nokia/virtual_dedicated.sv","rtl/nokia/virtual_cell.sv","rtl/nokia/mdi_injector.sv",*sources]
+            sources=["rtl/nokia/dsp_network.sv","rtl/nokia/lapdm_ua.sv","rtl/nokia/virtual_access.sv","rtl/nokia/virtual_dedicated.sv","rtl/nokia/virtual_cell.sv","rtl/nokia/mdi_injector.sv",*sources]
         if a.case and name not in a.case:
             continue
         output = Path("build/tests") / name

@@ -2,6 +2,18 @@
 
 ## October 26, 2026 — original boot investigation
 
+- The dedicated-scheduling original v6.39 trace emits real SEND_BLOCK `1B`
+  requests with SABM data, including prefix `0080013f4905087000f110ff...`.
+  Their DSP payload length is 28 bytes, so the decoder now accepts ROM6 padding
+  after the first 23 on-air LAPDm bytes instead of rejecting lengths above 25.
+- Connected SEND_BLOCK decoding to UA validation and the scheduled SDCCH
+  downlink. A pending UA replaces the next idle frame, preserving the exact
+  original SABM information. The end-to-end test covers padded 28-byte M2D input,
+  UA queue/FIQ delivery, SAPI/PF/information echo and leaving the channel.
+  All 28 RTL cases pass. A new original-ROM experiment is running to qualify
+  actual establishment; MM registration acceptance and I-frame handling are
+  still missing. No working registration/calls/SMS are claimed.
+
 - Added standalone LAPDm SABM/DISC acknowledgement logic. UA echoes the exact
   SABM information field for contention resolution, preserves SAPI and P/F,
   pads unused bytes and rejects truncated/oversized/segmented frames, invalid

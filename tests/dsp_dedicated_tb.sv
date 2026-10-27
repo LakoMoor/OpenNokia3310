@@ -45,15 +45,23 @@ module dsp_dedicated_tb;
         wait(memory['h1c8/4][31:16]==16'h96);repeat(4)@(negedge clk);
         if(memory['h128/4]!==32'h01868000 || interrupts!=3)$fatal(1,"uplink block request");
         memory['h1c8/4]=32'h00960096;
-        memory[3][15:0]=16'h0c02;memory[4]=0;
-        memory[5]=32'h00000100;memory[6]=32'h6000024a;
-        doorbell('h100a4,14);
-        wait(memory['h1c8/4][31:16]==16'h98);repeat(4)@(negedge clk);
-        if(memory['h12c/4]!==32'h01890100 || interrupts!=4)$fatal(1,"leave SDCCH confirmation");
-        memory['h1c8/4]=32'h00980098;
+        // SEND_BLOCK: logch 80, SABM P=1, three information octets 05 08 11.
+        memory[3][15:0]=16'h1c1b;memory[4]=32'h0080033f;memory[5]=32'h0d050811;
+        for(integer i=6;i<11;i++)memory[i]=32'h2b2b2b2b;
+        doorbell('h100a4,22);
+        wait(memory['h1c8/4][31:16]==16'ha8);repeat(4)@(negedge clk);
+        if(memory['h12c/4]!==32'h21808000 || memory['h138/4]!==32'h01730d05 ||
+           memory['h13c/4]!==32'h08112b2b || interrupts!=4)$fatal(1,"scheduled UA must echo original SABM");
+        memory['h1c8/4]=32'h00a800a8;
+        memory[11]=32'h0c020000;memory[12]=0;
+        memory[13]=32'h01006000;memory[14]=32'h024a0000;
+        doorbell('h100a4,29);
+        wait(memory['h1c8/4][31:16]==16'haa);repeat(4)@(negedge clk);
+        if(memory['h150/4]!==32'h01890100 || interrupts!=5)$fatal(1,"leave SDCCH confirmation");
+        memory['h1c8/4]=32'h00aa00aa;
         repeat(6000)@(negedge clk);
-        if(interrupts!=4 || memory['h1c8/4]!==32'h00980098)$fatal(1,"dedicated events continued after channel change");
+        if(interrupts!=5 || memory['h1c8/4]!==32'h00aa00aa)$fatal(1,"dedicated events continued after channel change");
         $display("PASS DSP dedicated: SDCCH configure, aligned fill then uplink request, queue/FIQ");$finish;
     end
-    initial begin #100000;$fatal(1,"DSP dedicated timeout");end
+    initial begin #150000;$fatal(1,"DSP dedicated timeout");end
 endmodule
