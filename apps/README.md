@@ -8,8 +8,9 @@ It supports the N4 live LCD and on-screen keypad, and invokes an installed
 `openFPGALoader` for a backup-first combined FPGA/ROM installation. Enter the
 UART port and local file paths explicitly. It is a development preview: Windows
 hardware programming and other operating systems have not yet been qualified,
-and it does not yet provide audio or
-Android installation. The existing Windows application remains available below.
+and it does not yet provide Android installation. The existing Windows
+application remains available below. On Linux, building the audio backend
+requires ALSA development headers.
 ROM files and backups must not be committed to the repository.
 On Windows, `cargo run --manifest-path apps/rust-studio/Cargo.toml --
 --probe-serial COM6` received 21 checksum-valid LCD frames from the connected
@@ -21,6 +22,11 @@ when multiple candidates are present the user must choose the UART port.
 The Windows Rust enumerator identified the attached Tang as COM6. A key probe
 sent digit 1 followed by release and observed a subsequent LCD change; this
 observation alone does not prove that the key caused that change.
+Rust audio synthesizes the N4 device oscillator state on the default output and
+falls silent after 700 ms without valid packets. `--probe-audio COM6` opened
+the Windows output and received the FPGA 1 kHz test state; actual audibility
+has not been confirmed. Closing the app window is cancelled during installation;
+unexpected process termination or power loss can still interrupt a flash write.
 
 ## Android (USB-C OTG)
 

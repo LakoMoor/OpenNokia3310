@@ -1,3 +1,4 @@
+mod audio;
 use eframe::egui::{self, Color32, Sense, Vec2};
 use sha2::{Digest, Sha256};
 use std::{
@@ -7,7 +8,7 @@ use std::{
     process::{Command, Stdio},
     sync::{
         atomic::{AtomicBool, AtomicU32, Ordering},
-        mpsc, Arc,
+        mpsc, Arc, Mutex,
     },
     thread,
     time::{Duration, SystemTime, UNIX_EPOCH},
@@ -29,6 +30,13 @@ fn packet(op: u8, value: u8) -> [u8; 3] {
     [0xa5, op, value]
 }
 fn decode(buf: &mut Vec<u8>, lcd: &mut [u8; 504]) -> bool {
+    decode_with(buf, lcd, |_, _| {})
+}
+fn decode_with<F: FnMut(u8, &[u8])>(
+    buf: &mut Vec<u8>,
+    lcd: &mut [u8; 504],
+    mut on_packet: F,
+) -> bool {
     let mut changed = false;
     while buf.len() >= 5 {
         if &buf[..2] != b"N4" {
@@ -52,6 +60,7 @@ fn decode(buf: &mut Vec<u8>, lcd: &mut [u8; 504]) -> bool {
             lcd.copy_from_slice(&buf[5..509]);
             changed = true;
         }
+        on_packet(buf[2], &buf[5..size - 1]);
         buf.drain(..size);
     }
     changed
@@ -105,10 +114,25 @@ fn run(loader: &str, args: &[&str], log: &mpsc::Sender<String>) -> Result<(), St
         .arg("-b")
         .arg("tangnano20k")
         .args(args)
-        .stdout(Stdio::null())
-        .stderr(Stdio::null())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
         .spawn()
         .map_err(|e| format!("Cannot start programmer: {e}"))?;
+    // Drain both pipes concurrently: the programmer can emit enough output to
+    // fill a pipe while waiting on USB, and the watchdog must keep running.
+    for mut pipe in [
+        Box::new(child.stdout.take().unwrap()) as Box<dyn Read + Send>,
+        Box::new(child.stderr.take().unwrap()) as Box<dyn Read + Send>,
+    ] {
+        let log = log.clone();
+        thread::spawn(move || {
+            let mut text = String::new();
+            let _ = pipe.read_to_string(&mut text);
+            if !text.trim().is_empty() {
+                let _ = log.send(text);
+            }
+        });
+    }
     let start = std::time::Instant::now();
     loop {
         if let Some(status) = child.try_wait().map_err(|e| e.to_string())? {
@@ -221,6 +245,8 @@ struct Studio {
     tx: mpsc::Sender<String>,
     installing: Arc<AtomicBool>,
     ports: Vec<String>,
+    audio: Arc<Mutex<audio::State>>,
+    audio_test: Arc<AtomicBool>,
 }
 impl Default for Studio {
     fn default() -> Self {
@@ -243,6 +269,8 @@ impl Default for Studio {
             tx,
             installing: Arc::new(AtomicBool::new(false)),
             ports: Vec::new(),
+            audio: Arc::new(Mutex::new(audio::State::default())),
+            audio_test: Arc::new(AtomicBool::new(false)),
         }
     }
 }
@@ -266,6 +294,8 @@ impl Studio {
         let stop = Arc::new(AtomicBool::new(false));
         let end = stop.clone();
         let tx = self.tx.clone();
+        let audio = self.audio.clone();
+        let audio_test = self.audio_test.clone();
         let (frame_tx, rx) = mpsc::sync_channel(2);
         self.stop = Some(stop);
         self.rx = Some(rx);
@@ -282,11 +312,24 @@ impl Studio {
                 }
             };
             tx.send(format!("Connected {name}")).ok();
+            let _audio_stream = match audio::start(audio.clone()) {
+                Ok(stream) => Some(stream),
+                Err(error) => {
+                    let _ = tx.send(format!("Audio unavailable: {error}"));
+                    None
+                }
+            };
             let _ = p.write_all(&packet(5, 1));
             let mut buf = Vec::new();
             let mut lcd = [0; 504];
             let mut last = std::time::Instant::now() - Duration::from_secs(1);
             while !end.load(Ordering::Relaxed) {
+                if audio_test.swap(false, Ordering::Relaxed) {
+                    if let Err(error) = p.write_all(&packet(8, 1)) {
+                        let _ = tx.send(format!("Audio test failed: {error}"));
+                        break;
+                    }
+                }
                 if last.elapsed() >= Duration::from_millis(100) {
                     let k = keys.load(Ordering::Relaxed);
                     for i in 0..3 {
@@ -301,7 +344,11 @@ impl Studio {
                 match p.read(&mut chunk) {
                     Ok(n) => {
                         buf.extend_from_slice(&chunk[..n]);
-                        if decode(&mut buf, &mut lcd) {
+                        if decode_with(&mut buf, &mut lcd, |kind, payload| {
+                            if let Ok(mut state) = audio.lock() {
+                                state.packet(kind, payload);
+                            }
+                        }) {
                             let _ = frame_tx.try_send(lcd.to_vec());
                         }
                     }
@@ -318,6 +365,9 @@ impl Studio {
             let _ = p.write_all(&packet(5, 0));
             // Release the OS handle before allowing JTAG programming.
             drop(p);
+            if let Ok(mut state) = audio.lock() {
+                state.frequencies = [0.; 3];
+            }
             tx.send("Disconnected".into()).ok();
             serial_busy.store(false, Ordering::SeqCst);
         });
@@ -325,6 +375,11 @@ impl Studio {
 }
 impl eframe::App for Studio {
     fn update(&mut self, ctx: &egui::Context, _: &mut eframe::Frame) {
+        if self.installing.load(Ordering::SeqCst) && ctx.input(|i| i.viewport().close_requested()) {
+            ctx.send_viewport_cmd(egui::ViewportCommand::CancelClose);
+            self.log
+                .push_str("Installation is still running; wait for it to finish before closing.\n");
+        }
         while let Ok(s) = self.events.try_recv() {
             self.log.push_str(&s);
             self.log.push('\n');
@@ -379,6 +434,12 @@ impl eframe::App for Studio {
                                 ui.selectable_value(&mut self.port, name.clone(), name);
                             }
                         });
+                });
+                ui.horizontal(|ui| {
+                    if let Ok(mut state) = self.audio.lock() { ui.checkbox(&mut state.enabled, "Play device audio"); }
+                    if ui.add_enabled(self.serial_busy.load(Ordering::SeqCst), egui::Button::new("Audio test")).clicked() {
+                        self.audio_test.store(true, Ordering::Relaxed);
+                    }
                 });
                 let (rect, _) = ui.allocate_exact_size(Vec2::new(420., 240.), Sense::hover());
                 ui.painter()
@@ -518,6 +579,13 @@ fn main() -> eframe::Result {
         }
         return Ok(());
     }
+    if args.len() == 3 && args[1] == "--probe-audio" {
+        if let Err(error) = probe_audio(&args[2]) {
+            eprintln!("Audio probe failed: {error}");
+            std::process::exit(1);
+        }
+        return Ok(());
+    }
     if args.len() == 2 && args[1] == "--list-tang" {
         match serialport::available_ports() {
             Ok(ports) => {
@@ -540,6 +608,45 @@ fn main() -> eframe::Result {
         },
         Box::new(|_| Ok(Box::<Studio>::default())),
     )
+}
+
+fn probe_audio(name: &str) -> Result<(), String> {
+    let audio = Arc::new(Mutex::new(audio::State::default()));
+    let _stream = audio::start(audio.clone())?;
+    let mut port = serialport::new(name, 115200)
+        .timeout(Duration::from_millis(50))
+        .open()
+        .map_err(|e| e.to_string())?;
+    port.write_all(&packet(5, 1)).map_err(|e| e.to_string())?;
+    port.write_all(&packet(8, 1)).map_err(|e| e.to_string())?;
+    let mut lcd = [0; 504];
+    let mut buf = Vec::new();
+    let mut seen = false;
+    let start = std::time::Instant::now();
+    while start.elapsed() < Duration::from_secs(3) {
+        let mut bytes = [0; 1024];
+        match port.read(&mut bytes) {
+            Ok(n) => {
+                buf.extend_from_slice(&bytes[..n]);
+                decode_with(&mut buf, &mut lcd, |kind, body| {
+                    if let Ok(mut state) = audio.lock() {
+                        state.packet(kind, body);
+                        if kind == 3 && state.frequencies[0] == 1000. {
+                            seen = true;
+                        }
+                    }
+                });
+            }
+            Err(e) if e.kind() == std::io::ErrorKind::TimedOut => (),
+            Err(e) => return Err(e.to_string()),
+        }
+    }
+    port.write_all(&packet(5, 0)).map_err(|e| e.to_string())?;
+    if !seen {
+        return Err("No 1 kHz test tone state received".into());
+    }
+    println!("Opened default audio output and received 1 kHz FPGA test state on {name}; audibility is not verified.");
+    Ok(())
 }
 
 fn probe_key(name: &str) -> Result<(), String> {
