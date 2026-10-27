@@ -22,7 +22,7 @@ class BuildFailureTest(unittest.TestCase):
             image=output/'nokia_memtest.fs'
             image.write_bytes(b'previous successful image')
             try:
-                with patch.object(build,'ROOT',root),patch.object(sys,'argv',['build.py','nokia_memtest']), \
+                with patch.object(build,'ROOT',root),patch.object(sys,'argv',['build.py','nokia_memtest','--placer','sa','--seed','2']), \
                      patch.object(build.subprocess,'run',side_effect=subprocess.CalledProcessError(1,'yosys')), \
                      patch.dict(os.environ,{},clear=False):
                     with self.assertRaises(subprocess.CalledProcessError):build.main()
@@ -32,6 +32,8 @@ class BuildFailureTest(unittest.TestCase):
                 self.assertEqual(saved[0].read_bytes(),b'previous successful image')
                 receipt=json.loads((output/'build-result.json').read_text())
                 self.assertEqual(receipt['status'],'failed')
+                self.assertEqual(receipt['placer'],'sa')
+                self.assertEqual(receipt['seed'],2)
                 self.assertIsNone(receipt['bitstream'])
             finally:
                 os.chdir(previous_cwd)

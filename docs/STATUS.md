@@ -2,6 +2,17 @@
 
 ## October 26, 2026 — original boot investigation
 
+- Tested simulated-annealing placement (seed 2) on the historical pre-network
+  CHV synthesis snapshot. The process terminated during initial placement with
+  no output PNR JSON and no useful terminal error in its captured log. This is
+  a failed experiment, not a placed/routed image or a current-source qualification.
+  The snapshot hash and experiment scope are retained locally. Current full
+  CHV/network fit remains unresolved.
+- `build.py` now accepts explicit `--placer` and `--seed`, preserves default
+  heap/seed-1 behavior, and records both in build-result JSON even on failure.
+  The failed-build regression passes with nondefault options while still proving
+  the old .fs is preserved separately and cannot masquerade as the new output.
+
 - Started an isolated 850M original v6.39 experiment that exits Net Monitor,
   enters test number 12345 through Nokia keypad events and presses Call. It
   runs entirely inside the virtual model; no physical cellular call is made.

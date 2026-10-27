@@ -23,6 +23,8 @@ def main():
     p.add_argument("target", choices=["arm7_probe", "nokia_core", "nokia_io_top", "nokia_top", "nokia_memtest", "nokia_romtest"])
     p.add_argument("--lut4-only",action="store_true",help="Avoid wide-LUT placement clusters on crowded boards")
     p.add_argument("--synth-only", action="store_true")
+    p.add_argument("--placer",choices=['heap','sa','static'],default='heap')
+    p.add_argument("--seed",type=int,default=1)
     p.add_argument("--tools", default=os.environ.get("TOOLS", "E:/tools/oss-cad-suite"))
     args = p.parse_args()
     args.lut4_only = args.lut4_only or args.target=="nokia_top"
@@ -39,7 +41,8 @@ def main():
         bitstream.rename(previous)
         print('Previous image preserved:',previous,flush=True)
     receipt=out/'build-result.json'
-    receipt.write_text(json.dumps({'target':args.target,'status':'in_progress'},indent=2)+'\n')
+    options={'target':args.target,'placer':args.placer,'seed':args.seed,'lut4_only':args.lut4_only}
+    receipt.write_text(json.dumps({**options,'status':'in_progress'},indent=2)+'\n')
     if args.target in ("nokia_memtest","nokia_romtest"):
         sources=["rtl/board/gowin_prims.v","rtl/board/pll_nokia.v",
                  "third_party/open-pocket-gbc/rtl/sdram_ctrl.sv","rtl/nokia/uart_status.sv","rtl/nokia/uart_lcd.sv","rtl/nokia/flash_boot.sv",f"rtl/top/{args.target}.sv"]
@@ -71,7 +74,7 @@ def main():
             try:
                 subprocess.run(argv, check=True, stdout=log, stderr=subprocess.STDOUT)
             except subprocess.CalledProcessError:
-                receipt.write_text(json.dumps({'target':args.target,'status':'failed',
+                receipt.write_text(json.dumps({**options,'status':'failed',
                     'stage':argv[0],'bitstream':None},indent=2)+'\n')
                 log.flush()
                 print("\n".join((out/logfile).read_text(errors="replace").splitlines()[-35:]), file=sys.stderr)
@@ -80,7 +83,7 @@ def main():
     run(["yosys", "-Q", "-T", "-m", "slang", "-s", str(out / "synth.ys")], "yosys.log")
     print((out / "stat.txt").read_text(), flush=True)
     if args.synth_only:
-        receipt.write_text(json.dumps({'target':args.target,'status':'synthesis_only','bitstream':None},indent=2)+'\n')
+        receipt.write_text(json.dumps({**options,'status':'synthesis_only','bitstream':None},indent=2)+'\n')
         return
     if args.target not in ("nokia_io_top","nokia_top","nokia_memtest","nokia_romtest"):
         p.error("This target has external buses, not board pins; use --synth-only")
@@ -94,11 +97,11 @@ def main():
          "--write", str(out / "pnr.json"), "--device", "GW2AR-LV18QN88C8/I7",
          "--vopt", "family=GW2A-18C", "--vopt", "cst="+cst,
          "--pre-pack", "rtl/board/place.py", "--sdc", sdc,
-         "--seed", "1"], "nextpnr.log")
+         "--placer",args.placer,"--seed",str(args.seed)], "nextpnr.log")
     run(["gowin_pack", "-d", "GW2A-18C", *(["--mspi_as_gpio"] if args.target in ("nokia_top","nokia_romtest") else []), "-o", str(out / (args.target + ".fs")),
          str(out / "pnr.json")], "pack.log")
     print("Bitstream:", (ROOT / out / (args.target + ".fs")), flush=True)
-    receipt.write_text(json.dumps({'target':args.target,'status':'built',
+    receipt.write_text(json.dumps({**options,'status':'built',
         'bitstream':str(bitstream),'sha256':hashlib.sha256(bitstream.read_bytes()).hexdigest(),
         'hardware_qualified':False},indent=2)+'\n')
 
