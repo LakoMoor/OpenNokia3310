@@ -8,4 +8,5 @@ __pycache__/
 /apps/android/.gradle/
 /apps/android/**/build/
 /apps/android/local.properties
+/apps/rust-studio/target/
 *.keystore

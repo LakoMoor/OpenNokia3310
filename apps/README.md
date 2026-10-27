@@ -1,5 +1,17 @@
 # Companion applications
 
+## Rust desktop preview
+
+`rust-studio/` is an experimental cross-platform Rust desktop application using
+egui and wgpu. Build with `cargo run --manifest-path apps/rust-studio/Cargo.toml`.
+It supports the N4 live LCD and on-screen keypad, and invokes an installed
+`openFPGALoader` for a backup-first combined FPGA/ROM installation. Enter the
+UART port and local file paths explicitly. It is a development preview: Windows
+hardware programming and other operating systems have not yet been qualified,
+and it does not yet provide audio, automatic USB detection, or
+Android installation. The existing Windows application remains available below.
+ROM files and backups must not be committed to the repository.
+
 ## Android (USB-C OTG)
 
 `android/` builds **Open Nokia 3310**, an installable Android application (Android
