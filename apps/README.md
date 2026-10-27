@@ -27,6 +27,8 @@ falls silent after 700 ms without valid packets. `--probe-audio COM6` opened
 the Windows output and received the FPGA 1 kHz test state; actual audibility
 has not been confirmed. Closing the app window is cancelled during installation;
 unexpected process termination or power loss can still interrupt a flash write.
+The remote also offers system-menu, palette and volume commands; the LCD uses
+the palette reported by the board. These new controls await hardware verification.
 
 ## Android (USB-C OTG)
 

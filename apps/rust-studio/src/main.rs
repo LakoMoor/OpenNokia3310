@@ -240,7 +240,8 @@ struct Studio {
     key_until: [Option<std::time::Instant>; 17],
     stop: Option<Arc<AtomicBool>>,
     serial_busy: Arc<AtomicBool>,
-    rx: Option<mpsc::Receiver<Vec<u8>>>,
+    rx: Option<mpsc::Receiver<(Vec<u8>, bool)>>,
+    gray: bool,
     events: mpsc::Receiver<String>,
     tx: mpsc::Sender<String>,
     installing: Arc<AtomicBool>,
@@ -248,6 +249,8 @@ struct Studio {
     page: u8,
     audio: Arc<Mutex<audio::State>>,
     audio_test: Arc<AtomicBool>,
+    commands: Option<mpsc::Sender<[u8; 3]>>,
+    volume: u8,
 }
 impl Default for Studio {
     fn default() -> Self {
@@ -266,6 +269,7 @@ impl Default for Studio {
             stop: None,
             serial_busy: Arc::new(AtomicBool::new(false)),
             rx: None,
+            gray: false,
             events,
             tx,
             installing: Arc::new(AtomicBool::new(false)),
@@ -273,6 +277,8 @@ impl Default for Studio {
             page: 0,
             audio: Arc::new(Mutex::new(audio::State::default())),
             audio_test: Arc::new(AtomicBool::new(false)),
+            commands: None,
+            volume: 5,
         }
     }
 }
@@ -284,6 +290,7 @@ impl Studio {
             stop.store(true, Ordering::Relaxed);
         }
         self.rx = None;
+        self.commands = None;
     }
     fn connect(&mut self) {
         if self.serial_busy.swap(true, Ordering::SeqCst) {
@@ -299,8 +306,10 @@ impl Studio {
         let audio = self.audio.clone();
         let audio_test = self.audio_test.clone();
         let (frame_tx, rx) = mpsc::sync_channel(2);
+        let (command_tx, command_rx) = mpsc::channel::<[u8; 3]>();
         self.stop = Some(stop);
         self.rx = Some(rx);
+        self.commands = Some(command_tx);
         thread::spawn(move || {
             let mut p = match serialport::new(&name, 115200)
                 .timeout(Duration::from_millis(30))
@@ -324,8 +333,16 @@ impl Studio {
             let _ = p.write_all(&packet(5, 1));
             let mut buf = Vec::new();
             let mut lcd = [0; 504];
+            let mut gray = false;
             let mut last = std::time::Instant::now() - Duration::from_secs(1);
             while !end.load(Ordering::Relaxed) {
+                while let Ok(command) = command_rx.try_recv() {
+                    if let Err(error) = p.write_all(&command) {
+                        let _ = tx.send(format!("Command failed: {error}"));
+                        end.store(true, Ordering::Relaxed);
+                        break;
+                    }
+                }
                 if audio_test.swap(false, Ordering::Relaxed) {
                     if let Err(error) = p.write_all(&packet(8, 1)) {
                         let _ = tx.send(format!("Audio test failed: {error}"));
@@ -347,11 +364,14 @@ impl Studio {
                     Ok(n) => {
                         buf.extend_from_slice(&chunk[..n]);
                         if decode_with(&mut buf, &mut lcd, |kind, payload| {
+                            if kind == 2 && payload.len() >= 10 {
+                                gray = payload[8] & 2 != 0;
+                            }
                             if let Ok(mut state) = audio.lock() {
                                 state.packet(kind, payload);
                             }
                         }) {
-                            let _ = frame_tx.try_send(lcd.to_vec());
+                            let _ = frame_tx.try_send((lcd.to_vec(), gray));
                         }
                     }
                     Err(e) if e.kind() == std::io::ErrorKind::TimedOut => {}
@@ -387,8 +407,9 @@ impl eframe::App for Studio {
             self.log.push('\n');
         }
         if let Some(rx) = &self.rx {
-            while let Ok(v) = rx.try_recv() {
+            while let Ok((v, gray)) = rx.try_recv() {
                 self.lcd.copy_from_slice(&v);
+                self.gray = gray;
             }
         }
         ctx.request_repaint_after(Duration::from_millis(50));
@@ -469,12 +490,27 @@ impl eframe::App for Studio {
                         self.audio_test.store(true, Ordering::Relaxed);
                     }
                 });
+                ui.horizontal_wrapped(|ui| {
+                    let connected = self.serial_busy.load(Ordering::SeqCst);
+                    if ui.add_enabled(connected, egui::Button::new("Device menu")).clicked() {
+                        if let Some(tx) = &self.commands { let _ = tx.send(packet(5, 3)); }
+                    }
+                    if ui.add_enabled(connected, egui::Button::new("Green display")).clicked() {
+                        if let Some(tx) = &self.commands { let _ = tx.send(packet(7, 0)); }
+                    }
+                    if ui.add_enabled(connected, egui::Button::new("Gray display")).clicked() {
+                        if let Some(tx) = &self.commands { let _ = tx.send(packet(7, 1)); }
+                    }
+                    if ui.add_enabled(connected, egui::Slider::new(&mut self.volume, 0..=10).text("Volume")).changed() {
+                        if let Some(tx) = &self.commands { let _ = tx.send(packet(6, self.volume)); }
+                    }
+                });
                 ui.add_space(14.);
                 ui.label(egui::RichText::new("LIVE DISPLAY  /  84 × 48").size(11.).color(Color32::from_gray(145)));
                     let scale = (ui.available_width() / 84.).clamp(2., 4.);
                 let (rect, _) = ui.allocate_exact_size(Vec2::new(84.*scale, 48.*scale), Sense::hover());
-                ui.painter()
-                    .rect_filled(rect, 0., Color32::from_rgb(190, 206, 145));
+                let (light, dark) = if self.gray { (Color32::from_rgb(214,217,203), Color32::from_rgb(37,43,36)) } else { (Color32::from_rgb(190,206,145), Color32::from_rgb(35,52,29)) };
+                ui.painter().rect_filled(rect, 0., light);
                 for y in 0..48 {
                     for x in 0..84 {
                         if self.lcd[(y / 8) * 84 + x] & (1 << (y % 8)) != 0 {
@@ -482,7 +518,7 @@ impl eframe::App for Studio {
                             ui.painter().rect_filled(
                                 egui::Rect::from_min_size(min, Vec2::splat(scale)),
                                 0.,
-                                Color32::from_rgb(35, 52, 29),
+                                dark,
                             );
                         }
                     }
