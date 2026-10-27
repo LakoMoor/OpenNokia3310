@@ -7,7 +7,7 @@ module dsp_tb;
     wire [31:0] m_address,m_wdata,messages;
     wire [3:0] m_be;
     wire [7:0] last_opcode,last_sub;
-    wire channel_valid,rach_valid,uplink_valid;
+    wire channel_valid,rach_valid,uplink_valid,message_valid;
     wire [4:0] uplink_length;
     wire [7:0] uplink_logch;
     wire [183:0] uplink_frame;
@@ -18,9 +18,16 @@ module dsp_tb;
     wire m_ready=ticks[1:0]==2;
     wire [31:0] m_rdata=memory[m_address[8:2]];
     integer interrupts=0;
+    reg [31:0] observed_messages=0;
     always #5 clk=~clk;
     dsp_service #(.CLK_HZ(1000)) dut(.*);
     always @(posedge clk) begin
+        if (reset) observed_messages<=0;
+        else begin
+            if (message_valid !== (messages != observed_messages))
+                $fatal(1,"DSP message pulse differs from counter change");
+            observed_messages<=messages;
+        end
         ticks<=ticks+1'b1;
         if(fiq0) interrupts<=interrupts+1;
         if(m_valid && m_ready && m_write)

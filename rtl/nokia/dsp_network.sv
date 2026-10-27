@@ -16,7 +16,7 @@ module dsp_network #(parameter CLK_HZ=27000000,ENABLE_NETWORK=0) (
     wire service_busy,service_fiq,service_valid,service_write;
     wire [31:0] service_address,service_data;
     wire [3:0] service_be;
-    wire channel_valid,rach_valid,uplink_valid;
+    wire channel_valid,rach_valid,uplink_valid,message_valid;
     wire [4:0] uplink_length;
     wire [7:0] uplink_logch;
     wire [183:0] uplink_frame;
@@ -29,7 +29,7 @@ module dsp_network #(parameter CLK_HZ=27000000,ENABLE_NETWORK=0) (
         .event_address(event_address),.event_value(event_value),.busy(service_busy),.fiq0(service_fiq),.irq4(irq4),
         .m_valid(service_valid),.m_write(service_write),.m_address(service_address),.m_wdata(service_data),
         .m_be(service_be),.m_ready(m_ready && !net_lock),.m_rdata(m_rdata),
-        .last_opcode(last_opcode),.last_sub(last_sub),.messages(messages),
+        .last_opcode(last_opcode),.last_sub(last_sub),.messages(messages),.message_valid(message_valid),
         .channel_valid(channel_valid),.channel_token(channel_token),.channel_logch(channel_logch),.rach_valid(rach_valid),.rach_payload(rach_payload),.uplink_valid(uplink_valid),.uplink_length(uplink_length),.uplink_logch(uplink_logch),.uplink_frame(uplink_frame));
     assign busy=service_busy || net_lock;
     assign fiq0=service_fiq || net_fiq;
@@ -58,7 +58,7 @@ module dsp_network #(parameter CLK_HZ=27000000,ENABLE_NETWORK=0) (
         wire [7:0] cc_read_address;
         wire [183:0] cc_frame;
         // Only implemented MM/CC consumers release their retained L3 messages.
-        l3_header l3(.clk(clk),.reset(reset || (messages!=seen_messages && channel_valid) ||
+        l3_header l3(.clk(clk),.reset(reset || (message_valid && channel_valid) ||
                 (ua_done && ua_accepted && (uplink_frame[175:168] & 8'hef)==8'h2f)),
             .message_valid(rx_message_valid),.message_sapi3(rx_message_sapi3),.message_length(rx_message_length),
             .message_ready(rx_message_ready),.read_address(rx_read_address),.read_data(rx_read_data),
@@ -67,10 +67,10 @@ module dsp_network #(parameter CLK_HZ=27000000,ENABLE_NETWORK=0) (
                 (cm_active && !header_sapi3 && header_complete && header_length==2 && header_pd==6 && header_type==8'h32)),
             .sapi3(header_sapi3),.has_header(header_complete),.length(header_length),
             .discriminator(header_pd),.message_type(header_type));
-        lapdm_rx receiver(.clk(clk),.reset(reset || (messages!=seen_messages && channel_valid)),
+        lapdm_rx receiver(.clk(clk),.reset(reset || (message_valid && channel_valid)),
             .link_reset(ua_done && ua_accepted && (uplink_frame[175:168] & 8'hef)==8'h2f),
             .link_sapi3(uplink_frame[180:178]==3),
-            .frame_valid(messages!=seen_messages && uplink_valid && dedicated_enabled && uplink_logch==8'h80 && !uplink_frame[168]),
+            .frame_valid(message_valid && uplink_valid && dedicated_enabled && uplink_logch==8'h80 && !uplink_frame[168]),
             .frame_ready(),.frame(uplink_frame),.frame_length(uplink_length),
             .ack_valid(rx_ack),.ack_sapi3(rx_sapi3),.ack_final(rx_final),.ack_nr(rx_nr),.error(),
             .message_valid(rx_message_valid),.message_sapi3(rx_message_sapi3),.message_length(rx_message_length),
@@ -81,24 +81,24 @@ module dsp_network #(parameter CLK_HZ=27000000,ENABLE_NETWORK=0) (
         assign mm_ready=start && dedicated_packet && mm_packet && mm_valid;
         assign cc_ready=start && dedicated_packet && mm_packet && !mm_valid;
         cc_voice #(.RETRY_CYCLES(CLK_HZ)) cc_peer(.clk(clk),
-            .reset(reset || !cm_active || !dedicated_enabled || (messages!=seen_messages && channel_valid)),
+            .reset(reset || !cm_active || !dedicated_enabled || (message_valid && channel_valid)),
             .header_valid(header_valid),.header_sapi3(header_sapi3),.header_complete(header_complete),
             .header_length(header_length),.header_pd(header_pd),.header_type(header_type),
             .header_ready(cc_header_ready),.read_address(cc_read_address),.read_data(rx_read_data),
             .receive_nr(rr_nr[0]),
-            .uplink_valid(messages!=seen_messages && uplink_valid && uplink_logch==8'h80 && dedicated_enabled),
+            .uplink_valid(message_valid && uplink_valid && uplink_logch==8'h80 && dedicated_enabled),
             .uplink_frame(uplink_frame),.uplink_length(uplink_length),
             .downlink_valid(cc_valid),.downlink_ready(cc_ready),.downlink_frame(cc_frame),
             .call_active(),.call_cleared(),.failed(),.called_number(),.called_digits(),.called_type());
-        mm_registration #(.RETRY_CYCLES(CLK_HZ)) mm_peer(.clk(clk),.reset(reset || (messages!=seen_messages && channel_valid && channel_logch==8'h80)),
-            .uplink_valid(messages!=seen_messages && uplink_valid && uplink_logch==8'h80 && dedicated_enabled),
+        mm_registration #(.RETRY_CYCLES(CLK_HZ)) mm_peer(.clk(clk),.reset(reset || (message_valid && channel_valid && channel_logch==8'h80)),
+            .uplink_valid(message_valid && uplink_valid && uplink_logch==8'h80 && dedicated_enabled),
             .uplink_frame(uplink_frame),.uplink_length(uplink_length),.plmn(24'h00f110),.lac(16'd1),
             .downlink_ready(mm_ready),.downlink_valid(mm_valid),.downlink_frame(mm_frame),.registered(),.failed(),.cm_active(cm_active));
         logic [183:0] ua_frame;
         logic [7:0] ua_channel;
         wire ua_done,ua_accepted;
         wire [183:0] ua_response;
-        lapdm_ua ua_builder(.clk(clk),.reset(reset),.start(messages!=seen_messages && uplink_valid && uplink_logch==8'h80 && dedicated_enabled),
+        lapdm_ua ua_builder(.clk(clk),.reset(reset),.start(message_valid && uplink_valid && uplink_logch==8'h80 && dedicated_enabled),
             .frame(uplink_frame),.frame_length(uplink_length),.done(ua_done),.accepted(ua_accepted),.response(ua_response),.information_length());
         logic [21:0] fill_fn;
         logic access_pending,grant_pending,access_packet,grant_packet,rach_active;
@@ -109,7 +109,6 @@ module dsp_network #(parameter CLK_HZ=27000000,ENABLE_NETWORK=0) (
         logic [7:0] confirm_token;
         logic psw_pending,psw_packet,psw_sent;
         logic [1:0] si_kind;
-        logic [31:0] seen_messages;
         logic [31:0] packets;
         assign network_packets=packets;
         logic [25:0] delay_count;
@@ -179,8 +178,7 @@ module dsp_network #(parameter CLK_HZ=27000000,ENABLE_NETWORK=0) (
                 frame_t3<=frame_t3==50 ? 0 : frame_t3+1'b1;
                 reduced_fn<=reduced_fn==42431 ? 0 : reduced_fn+1'b1;
             end else frame_phase<=frame_phase+13000;
-            if(messages!=seen_messages)begin
-                seen_messages<=messages;
+            if(message_valid)begin
                 if(last_opcode==8'h56)begin pending<=1;bcch<=0;si_kind<=0;delay_count<=0;psw_sent<=0;end
                 if(last_opcode==8'h55)rssi_pending<=1;
                 if(rach_valid)begin
@@ -200,7 +198,7 @@ module dsp_network #(parameter CLK_HZ=27000000,ENABLE_NETWORK=0) (
                     if(channel_logch==8'h50 && !psw_sent)begin psw_pending<=1;psw_sent<=1;end
                 end
             end
-            if(grant_delay!=0 && !(messages!=seen_messages && rach_valid))begin
+            if(grant_delay!=0 && !(message_valid && rach_valid))begin
                 grant_delay<=grant_delay-1'b1;
                 if(grant_delay==1)grant_pending<=1;
             end
@@ -208,7 +206,7 @@ module dsp_network #(parameter CLK_HZ=27000000,ENABLE_NETWORK=0) (
                 delay_count<=delay_count-1'b1;
                 if(delay_count==1)pending<=1;
             end
-            if((pending || confirm_pending || rssi_pending || psw_pending || access_pending || grant_pending || fill_pending || block_pending) && !lock && !service_busy && !event_valid && messages==seen_messages)begin
+            if((pending || confirm_pending || rssi_pending || psw_pending || access_pending || grant_pending || fill_pending || block_pending) && !lock && !service_busy && !event_valid && !message_valid)begin
                 lock<=1;start<=1;
                 dedicated_packet<=!access_pending && !grant_pending && !psw_pending && !confirm_pending && !rssi_pending && (fill_pending || block_pending);
                 block_packet<=!fill_pending && block_pending;
@@ -256,7 +254,7 @@ module dsp_network #(parameter CLK_HZ=27000000,ENABLE_NETWORK=0) (
                 rr_pending<=0;rr_packet<=0;rr_frame<=0;rr_nr[0]<=0;rr_nr[1]<=0;rr_final<=0;
                 ua_pending<=0;ua_packet<=0;mm_packet<=0;mm_allowed<=0;ua_frame<=0;ua_channel<=0;ua_releases_channel<=0;
                 dedicated_enabled<=0;dedicated_has_fill<=0;fill_pending<=0;block_pending<=0;dedicated_packet<=0;block_packet<=0;fill_fn<=0;
-                lock<=0;start<=0;pending<=0;bcch<=0;confirm_pending<=0;confirm_packet<=0;confirm_token<=0;rssi_pending<=0;rssi_packet<=0;psw_pending<=0;psw_packet<=0;psw_sent<=0;si_kind<=0;seen_messages<=0;delay_count<=0;frame_phase<=0;frame_number<=0;frame_t3<=0;reduced_fn<=0;packets<=0;end
+                lock<=0;start<=0;pending<=0;bcch<=0;confirm_pending<=0;confirm_packet<=0;confirm_token<=0;rssi_pending<=0;rssi_packet<=0;psw_pending<=0;psw_packet<=0;psw_sent<=0;si_kind<=0;delay_count<=0;frame_phase<=0;frame_number<=0;frame_t3<=0;reduced_fn<=0;packets<=0;end
         end
     end else begin: disabled
         assign net_lock=0;assign net_valid=0;assign net_write=0;assign net_fiq=0;

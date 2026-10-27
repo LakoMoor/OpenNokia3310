@@ -15,6 +15,7 @@ module dsp_service #(parameter CLK_HZ=27_000_000) (
     input logic [31:0] m_rdata,
     output logic [7:0] last_opcode,last_sub,
     output logic [31:0] messages,
+    output logic message_valid,
     output logic channel_valid,
     output logic [7:0] channel_token,channel_logch,
     output logic rach_valid,
@@ -82,7 +83,7 @@ module dsp_service #(parameter CLK_HZ=27_000_000) (
         begin m_valid<=1;m_write<=wr;m_address<=a;m_wdata<=d;m_be<=mask;state<=next_state;end
     endtask
     always_ff @(posedge clk) begin
-        fiq0<=0;irq4<=0;
+        fiq0<=0;irq4<=0;message_valid<=0;
         if(cb_delay!=0) cb_delay<=cb_delay-1'b1;
         if(selftest_done && heartbeat<4*CLK_HZ) heartbeat<=heartbeat+1'b1;
         if(event_valid) begin
@@ -124,7 +125,7 @@ module dsp_service #(parameter CLK_HZ=27_000_000) (
             end
             CONSUME:request(1,32'h100a6,{16'b0,record_cursor},3,CONSUME_WAIT);
             CONSUME_WAIT:if(m_ready) begin
-                m_valid<=0;tx_pending<=record_cursor!=tx_end;tx_pos<=record_end;messages<=messages+1'b1;
+                m_valid<=0;tx_pending<=record_cursor!=tx_end;tx_pos<=record_end;messages<=messages+1'b1;message_valid<=1;
                 last_opcode<=tx_opcode;last_sub<=tx_length==0 ? 8'd0 : payload[0];
                 channel_valid<=tx_opcode==8'h02 && tx_length>=9;
                 channel_token<=payload[8]>=8'hc0 ? {7'd0,!payload[8][0]} : {7'd0,payload[6][0]};
@@ -189,7 +190,7 @@ module dsp_service #(parameter CLK_HZ=27_000_000) (
             tx_pending<=0;cb_pending<=0;host_pending<=0;previous_tx<=0;tx_end<=0;
             tx_pos<=0;tx_length<=0;tx_opcode<=0;tx_index<=0;kind<=0;reply_length<=0;reply_index<=0;rx_cursor<=0;
             cb_value<=0;cb_block<=8'h14;cb_delay<=0;running<=0;selftest_done<=0;heartbeat<=0;
-            fiq0<=0;irq4<=0;last_opcode<=0;last_sub<=0;messages<=0;
+            fiq0<=0;irq4<=0;last_opcode<=0;last_sub<=0;messages<=0;message_valid<=0;
             channel_valid<=0;channel_token<=0;
             channel_logch<=0;
             rach_valid<=0;rach_payload<=0;

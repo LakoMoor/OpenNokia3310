@@ -1,5 +1,20 @@
 # Verification status
 
+## October 28, 2026 — SIM recheck and DSP message pulse
+
+- After USB reconnection, COM6 opened and the previously timing-qualified SIM
+  diagnostic image was loaded into FPGA SRAM over JTAG. The original ROM
+  executed at least 123 SIM commands, with no reported bus or memory error;
+  a live LCD snapshot showed the Time prompt. This confirms SIM traffic, not
+  registration or a successful call. The persistent flash was not rewritten.
+- The DSP service now emits a one-cycle message pulse while retaining its
+  32-bit diagnostic counter. The network consumes the pulse instead of keeping
+  and comparing a second counter. A test checks pulse/counter equivalence,
+  including batched descriptors; the full RTL test suite passed. Network
+  synthesis and preliminary packing report 19,501/20,736 LUT sites (94%),
+  down from the earlier 19,659-site netlist. Placement and an original-ROM
+  call regression are running; hardware fit and behavior remain unverified.
+
 ## October 27, 2026 — virtual CC and hardware recheck
 
 - The fractional-timer netlist heap/seed-2 placement terminated with `Unable to
