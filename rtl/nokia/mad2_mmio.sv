@@ -15,7 +15,9 @@ module mad2_mmio #(parameter CLK_HZ=27_000_000) (
     output logic irq, fiq,
     output logic lcd_wr, lcd_dc,
     output logic [7:0] lcd_data,
-    output logic unsupported
+    output logic unsupported,
+    output wire [31:0] sim_commands,
+    output wire [7:0] sim_last_ins
 );
     logic [7:0] shadow [0:255];
     logic mbus_receive_irq;
@@ -41,7 +43,7 @@ module mad2_mmio #(parameter CLK_HZ=27_000_000) (
     wire sim_fiq;
     sim_card #(.CLK_HZ(CLK_HZ)) u_sim (.clk(clk),.reset(reset),
         .valid(valid && ready && sim_select),.write(write),.address(address),.wdata(value[7:0]),
-        .rdata(sim_rdata),.fiq(sim_fiq),.commands(),.last_ins());
+        .rdata(sim_rdata),.fiq(sim_fiq),.commands(sim_commands),.last_ins(sim_last_ins));
     logic [6:0] mbus_count,mbus_kick;
     logic mbus_empty;
     keypad_3310 u_keypad (.keys(keys), .row_signal(row_signal), .row_direction(row_direction), .columns(columns));

@@ -69,17 +69,19 @@ module nokia_top (
     wire [3:0] be;
     wire [7:0] lcd_data_cpu;
     wire [72:0] audio_control;
-    wire [31:0] cpu_pc;
-    logic diagnostic_pc;
+    wire [31:0] cpu_pc,sim_commands;
+    wire [7:0] sim_last_ins;
+    logic diagnostic_pc,diagnostic_sim;
     always_ff @(posedge clk_sys)begin
-        if(reset)diagnostic_pc<=0;
-        else if(control_wr && control_opcode==7)diagnostic_pc<=control_data[7];
+        if(reset)begin diagnostic_pc<=0;diagnostic_sim<=0;end
+        else if(control_wr && control_opcode==7)begin diagnostic_pc<=control_data[7];diagnostic_sim<=control_data[6] && !control_data[7];end
     end
     nokia_core #(.CLK_HZ(CLK_HZ)) u_phone (
         .clk(clk_sys),.resetn(!reset && boot_done),.keys(keys),
         .mem_valid(valid),.mem_write(write),.mem_code(code),.mem_addr(address),.mem_wdata(wdata),.mem_be(be),
         .mem_ready(ready),.mem_error(error),.mem_rdata(rdata),
-        .lcd_wr(lcd_wr_cpu),.lcd_dc(lcd_dc_cpu),.lcd_data(lcd_data_cpu),.unsupported_mmio(unsupported),.audio_control(audio_control),.debug_pc(cpu_pc)
+        .lcd_wr(lcd_wr_cpu),.lcd_dc(lcd_dc_cpu),.lcd_data(lcd_data_cpu),.unsupported_mmio(unsupported),.audio_control(audio_control),.debug_pc(cpu_pc),
+        .debug_sim_commands(sim_commands),.debug_sim_ins(sim_last_ins)
     );
     wire loader_req,lp_ack,lp_rvalid,cpu_req,cpu_we;
     wire [20:0] loader_addr,cpu_addr;
@@ -146,5 +148,5 @@ module nokia_top (
         .lcd_wr(lcd_wr_cpu),.lcd_dc(lcd_dc_cpu),.lcd_data(lcd_data_cpu),
         .audio_control(link_audio),.volume(volume),.menu_open(menu_open),.menu_row(menu_row),.gray(gray),
         .flags({bus_fault,valid,!flash_cs_n,sys_lock,overflow,error,boot_done,sdram_ready}),
-        .address(boot_done ? (diagnostic_pc ? cpu_pc : address) : {11'b0,loader_addr}),.lcd_count(lcd_count),.tx(uart_tx));
+        .address(boot_done ? (diagnostic_pc ? cpu_pc : diagnostic_sim ? {sim_last_ins,sim_commands[23:0]} : address) : {11'b0,loader_addr}),.lcd_count(lcd_count),.tx(uart_tx));
 endmodule

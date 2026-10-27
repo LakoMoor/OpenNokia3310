@@ -8,6 +8,8 @@ module mad2_tb;
     reg dsp_fiq0=0,dsp_irq4=0;
     wire ready,irq,fiq,lcd_wr,lcd_dc,unsupported;
     wire [31:0] rdata;
+    wire [31:0] sim_commands;
+    wire [7:0] sim_last_ins;
     wire [7:0] lcd_data;
     always #5 clk=~clk;
     mad2_mmio #(.CLK_HZ(132220)) dut(.*);

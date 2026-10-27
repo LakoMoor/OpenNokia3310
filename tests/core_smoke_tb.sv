@@ -9,6 +9,8 @@ module core_smoke_tb;
     wire [7:0] lcd_data;
     wire [72:0] audio_control;
     wire [31:0] debug_pc;
+    wire [31:0] debug_sim_commands;
+    wire [7:0] debug_sim_ins;
     reg [3:0] cycle=0;
     wire mem_ready=cycle[2:0]==5;
     integer writes=0;

@@ -2,6 +2,16 @@
 
 ## October 27, 2026 — virtual CC and hardware recheck
 
+- Added an explicit hardware diagnostic selector for SIM APDU completion count
+  (24-bit modulo counter) and the last instruction byte, carried in the N4
+  status address field only while opcode 7 bit 6 is selected. Bit 7 retains
+  priority for the existing PC diagnostic; normal address reporting resumes
+  with opcode 7 value zero. `tools/read_sim_status.py` selects/restores the mode
+  and prints decoded status; it cannot recover APDU contents or history.
+  All 41 RTL cases and the decoder unit test pass. A diagnostic board
+  build and a no-network original-ROM comparison are running; hardware SIM
+  exchange and full APDU-level cause remain unverified.
+
 - The original-ROM two-call simulation completed 1.1 billion cycles with 45,920
   LCD writes and matching initial/final keypad script hashes. Both calls reached
   CONNECT ACK, followed by RELEASE COMPLETE and DISC after End. This confirms

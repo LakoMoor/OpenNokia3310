@@ -13,7 +13,9 @@ module nokia_core #(parameter CLK_HZ=27_000_000,VIRTUAL_NETWORK=0) (
     output logic [7:0] lcd_data,
     output logic unsupported_mmio,
     output wire [72:0] audio_control,
-    output wire [31:0] debug_pc
+    output wire [31:0] debug_pc,
+    output wire [31:0] debug_sim_commands,
+    output wire [7:0] debug_sim_ins
 `ifdef NOKIA_TRACE
     ,output wire [31:0] trace_pc, trace_cpsr,
     output wire [31:0] trace_regs [0:30]
@@ -89,7 +91,8 @@ module nokia_core #(parameter CLK_HZ=27_000_000,VIRTUAL_NETWORK=0) (
     );
     mad2_mmio #(.CLK_HZ(CLK_HZ)) u_mmio (.clk(clk),.reset(!resetn),.valid(valid && io_select),.write(write),
         .address(address[7:0]),.wdata(wdata),.byte_enable(be),.ready(io_ready),.rdata(io_rdata),
-        .keys(keys),.dsp_fiq0(dsp_fiq0),.dsp_irq4(dsp_irq4),.irq(irq),.fiq(fiq),.lcd_wr(lcd_wr),.lcd_dc(lcd_dc),.lcd_data(lcd_data),.unsupported(unsupported_mmio));
+        .keys(keys),.dsp_fiq0(dsp_fiq0),.dsp_irq4(dsp_irq4),.irq(irq),.fiq(fiq),.lcd_wr(lcd_wr),.lcd_dc(lcd_dc),.lcd_data(lcd_data),.unsupported(unsupported_mmio),
+        .sim_commands(debug_sim_commands),.sim_last_ins(debug_sim_ins));
     nor_bus u_nor (.clk(clk),.reset(!resetn),.valid(valid && !io_select && !dsp_select && !event_stall),.write(write),.code(code),
         .address(address),.wdata(wdata),.be(be),.ready(nor_ready),.error(nor_error),.rdata(nor_rdata),
         .m_valid(n_valid),.m_write(n_write),.m_code(n_code),.m_address(n_address),.m_wdata(n_wdata),.m_be(n_be),
@@ -120,8 +123,8 @@ module nokia_core #(parameter CLK_HZ=27_000_000,VIRTUAL_NETWORK=0) (
     assign trace_network_packets=u_dsp.network_packets;
     assign trace_rdata=rdata;
     assign trace_exec=u_cpu.u_core.u_core.executing && u_cpu.u_core.u_core.CLKEN && u_cpu.u_core.u_core.condition_pass;
-    assign trace_sim_commands=u_mmio.u_sim.commands;
-    assign trace_sim_ins=u_mmio.u_sim.last_ins;
+    assign trace_sim_commands=debug_sim_commands;
+    assign trace_sim_ins=debug_sim_ins;
     assign trace_exception=u_cpu.u_core.u_core.any_exc_fires;
     assign trace_rf_we=u_cpu.u_core.u_core.rf_write_en;
     assign trace_user_bank=u_cpu.u_core.u_core.force_user_bank_eff;
