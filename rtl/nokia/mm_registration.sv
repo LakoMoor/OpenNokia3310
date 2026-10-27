@@ -25,6 +25,11 @@ module mm_registration #(parameter RETRY_CYCLES=27000000,MAX_RETRIES=3) (
     wire sapi0=addr[7:2]==0 && addr[0];
     wire valid_length=uplink_length>=3 && uplink_length<=23;
     wire rr=uplink_valid && valid_length && sapi0 && ctrl[3:0]==1 && li==1;
+    // I-frames carry N(R) too. Accept their acknowledgement independently of
+    // the still-unimplemented uplink L3/reassembly path, but validate framing.
+    wire iframe_ack=uplink_valid && valid_length && sapi0 && !ctrl[0] && li[0] &&
+        li[7:2]<=20 && {1'b0,uplink_length}>={1'b0,li[7:2]}+7'd3;
+    wire acknowledgement=rr || iframe_ack;
     wire lu_sabm=uplink_valid && valid_length && sapi0 && (ctrl & 8'hef)==8'h2f &&
         li[1:0]==1 && li[7:2]>=2 && li[7:2]<=20 &&
         {1'b0,uplink_length}>={1'b0,li[7:2]}+7'd3 &&
@@ -53,12 +58,12 @@ module mm_registration #(parameter RETRY_CYCLES=27000000,MAX_RETRIES=3) (
         end
         case(state)
             IDLE:if(lu_sabm)begin plmn_q<=plmn;lac_q<=lac;state<=ACCEPT_OUT;retries<=0;timer<=0;end
-            ACCEPT_OUT:if(retries!=0 && rr && ctrl[7:5]==1)begin state<=RELEASE_OUT;retries<=0;timer<=0;end
+            ACCEPT_OUT:if(retries!=0 && acknowledgement && ctrl[7:5]==1)begin state<=RELEASE_OUT;retries<=0;timer<=0;end
                 else if(downlink_ready)begin state<=ACCEPT_ACK;timer<=0;end
-            ACCEPT_ACK:if(rr && ctrl[7:5]==1)begin state<=RELEASE_OUT;retries<=0;timer<=0;end
-            RELEASE_OUT:if(retries!=0 && rr && ctrl[7:5]==2)begin state<=COMPLETE;timer<=0;end
+            ACCEPT_ACK:if(acknowledgement && ctrl[7:5]==1)begin state<=RELEASE_OUT;retries<=0;timer<=0;end
+            RELEASE_OUT:if(retries!=0 && acknowledgement && ctrl[7:5]==2)begin state<=COMPLETE;timer<=0;end
                 else if(downlink_ready)begin state<=RELEASE_ACK;timer<=0;end
-            RELEASE_ACK:if(rr && ctrl[7:5]==2)begin state<=COMPLETE;timer<=0;end
+            RELEASE_ACK:if(acknowledgement && ctrl[7:5]==2)begin state<=COMPLETE;timer<=0;end
             default:;
         endcase
         if(reset)begin state<=IDLE;plmn_q<=0;lac_q<=0;timer<=0;retries<=0;end

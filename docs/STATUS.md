@@ -2,6 +2,17 @@
 
 ## October 26, 2026 — original boot investigation
 
+- In the first MM-integrated v6.39 run, firmware sends RR N(R)=1 at cycle
+  287,212,579, RR N(R)=2 at 291,183,204 and DISC at 295,155,177. This is actual
+  acceptance of LU Accept and Channel Release, not just the synthetic test peer.
+  A current-run LCD frame does not yet establish normal registered standby;
+  registration UI, serving-cell state, subsequent access and call/SMS remain
+  unverified. Old frame files from other runs must not be used as evidence.
+- MM acknowledgement handling now also accepts N(R) piggybacked in valid
+  SAPI-0 I-frames, with LI/length validation. Directed tests reject truncated,
+  wrong-SAPI, invalid-EL and duplicate/wrong-N(R) acknowledgements. Uplink L3
+  parsing/reassembly remains separate and incomplete.
+
 - MM downlink I-frames now have bounded retry handling: one second of model
   clocks after output acceptance, at most three retransmissions per stage.
   Backpressure before acceptance does not consume attempts. Retries retain the
