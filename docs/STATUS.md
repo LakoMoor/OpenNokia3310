@@ -2,6 +2,27 @@
 
 ## October 27, 2026 — virtual CC and hardware recheck
 
+- Added established-call clearing for the observed phone DISCONNECT. The CC
+  peer validates the mandatory Cause LV and trailing bounded TLVs, sends
+  RELEASE, waits for its LAPDm ACK and the matching bare RELEASE COMPLETE,
+  then reliably sends RR CHANNEL RELEASE. It marks clearing complete only
+  after that final I-frame is acknowledged; DISC/UA releases the SDCCH and
+  resets the call state. Directed DSP-queue tests now cover this whole chain,
+  including piggyback acknowledgements. Unit tests reject truncated/malformed
+  cause data and wrong transaction IDs without claiming successful clearing.
+  Early cancellation during call setup, optional Release Complete IEs,
+  incoming calls, speech transport and SMS still need implementation.
+  A static two-call original-ROM experiment (`two-call-clear-1100M`) is running
+  with End at 760M and 1040M; it also uses the optimized multiplier. Its result
+  is not yet established by the directed tests.
+  All 40 RTL cases pass after the clearing integration. The pre-network CHV
+  placement experiment is still alive (CPU usage checked while its log was
+  quiet); no placement success or failure is inferred from log silence.
+- The prior original-ROM run completed 820M clocks, 33,056 LCD writes, 305 virtual
+  records and 621 consumer changes. Its initial/final script hashes differ
+  because End was added live before 760M; the preserved initial script, final
+  script and actual KEY events explain that deliberate change.
+
 - The original v6.39 ROM has now sent CONNECT ACK (`03 0f`) at cycle
   656,617,583 in `cc-connect-820M`, after N(R)=2/3/4 confirmations for the CC
   handshake. Its 675M framebuffer shows the original **Call 1 / End** screen:
@@ -14,9 +35,9 @@
   script/hash and actual KEY events. The run is not yet complete.
   End was observed exactly at cycle 760,000,000; the phone sent DISCONNECT
   `03 65 02 e0 90` at cycle 763,865,917 (N(S)=3, N(R)=4), carrying normal-call
-  clearing cause 16. The next missing implementation is the virtual peer's
-  RELEASE / RELEASE COMPLETE / RR channel-release exchange; current CC retains
-  this request and must not claim that the call was cleanly cleared.
+  clearing cause 16. At that snapshot the virtual peer retained the request
+  without a RELEASE exchange. The implementation above now adds this path;
+  its original-ROM clearing result remains pending.
 
 - Replaced the ARM multiplier's replicated-sign 64x64 expression with an exact
   signed 33x33 product (conditional sign bits) truncated to 64 bits before
@@ -48,8 +69,8 @@
   release, all three replies, piggyback CONNECT ACK and link/reset cleanup.
   The parser also checks duplicate/missing IEs, invalid/filler BCD, unsupported
   data bearer/address extension, truncated and 256/257-byte bounds.
-  This is signalling only: incoming calls, CC disconnect/release, speech audio
-  and SMS are unfinished. The new isolated `cc-connect-820M` ROM run is in
+  This is signalling only: incoming calls, setup cancellation, speech audio
+  and SMS are unfinished. The isolated `cc-connect-820M` ROM run was in
   progress; CONNECT ACK has since been observed above, with clearing pending.
   All 39 RTL cases and four trace-parser tests pass after this integration.
 - The previous ownership-fix run completed 700M clocks with 33,908 LCD writes,

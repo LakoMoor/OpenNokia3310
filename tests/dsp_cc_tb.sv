@@ -86,13 +86,23 @@ module dsp_cc_tb;
         repeat(500)@(negedge clk);
         if(!dut.network.cc_peer.call_active || dut.network.rx_message_valid || dut.network.cc_peer.failed)
             $fatal(1,"CONNECT ACK/piggyback L2 ACK did not establish virtual CC state");
+        input_frame={23{8'h2b}};input_frame[183:120]=64'h018615036502e090;submit();
+        receive_frame(3,'h88,'h83,'h2d);
+        if(dut.network.cc_peer.call_active || dut.network.cc_peer.call_cleared)
+            $fatal(1,"DISCONNECT must start clearing without prematurely finishing it");
+        input_frame={23{8'h2b}};input_frame[183:144]=40'h01a809032a;submit();
+        receive_frame(3,'haa,6,'h0d);
+        if(dut.network.cc_peer.call_cleared)$fatal(1,"unacknowledged RR channel release cleared call");
+        rr('hc1);repeat(300)@(negedge clk);
+        if(!dut.network.cc_peer.call_cleared || dut.network.rx_message_valid || dut.network.cc_peer.failed)
+            $fatal(1,"RELEASE COMPLETE and RR channel-release acknowledgement failed");
         input_frame={23{8'h2b}};input_frame[183:160]=24'h015301;submit();
         receive_frame(1,'h73,'h2b,'h2b);repeat(5)@(negedge clk);
         if(dut.network.cc_peer.call_active || dut.network.dedicated_enabled)
             $fatal(1,"released link retained active call");
         @(negedge clk);reset=1;repeat(3)@(negedge clk);
         if(dut.network.cc_peer.call_active)$fatal(1,"reset retained active call");
-        $display("PASS DSP CC: CM UA/cipher -> original SETUP -> proceeding/alerting/connect -> phone ACK");$finish;
+        $display("PASS DSP CC: CM/SETUP/connect/phone ACK -> DISCONNECT/RELEASE/COMPLETE/channel release/DISC");$finish;
     end
     initial begin #600000;$fatal(1,"DSP CC timeout");end
 endmodule

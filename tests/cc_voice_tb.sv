@@ -6,7 +6,7 @@ module cc_voice_tb;
     reg [2:0] receive_nr=2;
     reg [183:0] uplink_frame={23{8'h2b}};
     reg [4:0] uplink_length=23;
-    wire header_ready,downlink_valid,call_active,failed;
+    wire header_ready,downlink_valid,call_active,call_cleared,failed;
     wire [7:0] read_address,called_type;
     wire [183:0] downlink_frame;
     wire [159:0] called_number;
@@ -36,13 +36,18 @@ module cc_voice_tb;
     endtask
     task response(input [2:0] ns,input [7:0] kind);
         wait(downlink_valid);@(negedge clk);
-        if(downlink_frame[183:176]!=3 || downlink_frame[175:168]!={3'd2,1'b0,ns,1'b0} ||
+        if(downlink_frame[183:176]!=3 || downlink_frame[175:168]!={receive_nr,1'b0,ns,1'b0} ||
            downlink_frame[167:144]!=={8'h09,8'h83,kind})$fatal(1,"CC frame sequence/TI/type");
         downlink_ready=1;@(negedge clk);downlink_ready=0;ack(3'(ns+1'b1));
     endtask
     task rejected;
         offer();wait(failed);@(negedge clk);
         if(header_ready || !header_valid || downlink_valid || call_active)$fatal(1,"invalid SETUP consumed/connected");
+    endtask
+    task established;
+        fresh();receive_nr=2;offer();response(1,2);response(2,1);response(3,7);
+        header_length=2;header_type='h0f;offer();wait(call_active);@(negedge clk);
+        header_type='h65;header_length=5;memory[2]=2;memory[3]='he0;memory[4]='h90;receive_nr=4;
     endtask
     reg [183:0] held;
     initial begin
@@ -60,6 +65,23 @@ module cc_voice_tb;
         @(negedge clk);header_pd=3;
         wait(call_active);@(negedge clk);
         if(header_valid || failed)$fatal(1,"CONNECT ACK ownership/active state");
+        header_length=5;header_type='h65;memory[2]=2;memory[3]='he0;memory[4]='h90;receive_nr=4;offer();
+        response(4,'h2d);repeat(5)@(negedge clk);
+        if(call_active || call_cleared || failed)$fatal(1,"RELEASE ACK alone cleared call");
+        header_length=2;header_type='h2a;header_pd='h13;offer();repeat(5)@(negedge clk);
+        if(header_ready || downlink_valid)$fatal(1,"wrong TI RELEASE COMPLETE accepted");
+        @(negedge clk);header_pd=3;receive_nr=5;
+        wait(downlink_valid);@(negedge clk);
+        if(downlink_frame[183:136]!==48'h03aa0d060d00 || call_cleared)
+            $fatal(1,"channel release framing/sequence/order");
+        downlink_ready=1;@(negedge clk);downlink_ready=0;
+        ack(5);if(call_cleared)$fatal(1,"wrong channel-release ACK cleared call");
+        ack(6);repeat(3)@(negedge clk);
+        if(!call_cleared || call_active || failed || header_valid)$fatal(1,"clearing did not complete");
+        established();header_length=4;rejected();
+        established();memory[2]=3;rejected();
+        established();memory[3]='h60;rejected();
+        established();header_length=7;memory[5]='h15;memory[6]=3;rejected();
         fresh();header_length=13;rejected(); // TLV runs past message end
         fresh();memory[13]='hee;rejected(); // invalid BCD
         fresh();memory[11]='hf1;rejected(); // filler before final octet

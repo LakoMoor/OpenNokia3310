@@ -89,7 +89,7 @@ module dsp_network #(parameter CLK_HZ=27000000,ENABLE_NETWORK=0) (
             .uplink_valid(messages!=seen_messages && uplink_valid && uplink_logch==8'h80 && dedicated_enabled),
             .uplink_frame(uplink_frame),.uplink_length(uplink_length),
             .downlink_valid(cc_valid),.downlink_ready(cc_ready),.downlink_frame(cc_frame),
-            .call_active(),.failed(),.called_number(),.called_digits(),.called_type());
+            .call_active(),.call_cleared(),.failed(),.called_number(),.called_digits(),.called_type());
         mm_registration #(.RETRY_CYCLES(CLK_HZ)) mm_peer(.clk(clk),.reset(reset || (messages!=seen_messages && channel_valid && channel_logch==8'h80)),
             .uplink_valid(messages!=seen_messages && uplink_valid && uplink_logch==8'h80 && dedicated_enabled),
             .uplink_frame(uplink_frame),.uplink_length(uplink_length),.plmn(24'h00f110),.lac(16'd1),
