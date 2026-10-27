@@ -2,6 +2,15 @@
 
 ## October 27, 2026 — virtual CC and hardware recheck
 
+- Both recent heap placement attempts ended with `Unable to find legal
+  placement for all cells`, including CCCH-delta at 19,880/20,736 reported
+  LUT sites. No PNR image was produced. The MDI injector now splits its record
+  buffer into even/odd banks with synchronous reads and a preparation cycle;
+  packet framing, odd padding, long records, ring wrap and FIQ ownership remain
+  covered by directed tests, as do DSP RACH and call flows. Full synthesis and
+  an original-ROM call run for the new buffer are in progress; actual area,
+  timing and firmware behavior remain to be measured.
+
 - The alternate simulated-annealing placement on the 95%-LUT network netlist
   terminated with exit 1 during initial placement; its log has no detailed
   error and no PNR file was produced. The CCCH next-block calculation was

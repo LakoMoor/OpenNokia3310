@@ -12,17 +12,25 @@ module mdi_injector (
     input logic m_ready,
     input logic [31:0] m_rdata
 );
-    typedef enum logic [3:0] {COLLECT,DROP,CHECK,RING,WAIT_RING,WORD,WAIT_WORD,COMMIT,WAIT_COMMIT,FINISH} state_t;
+    typedef enum logic [3:0] {COLLECT,DROP,CHECK,RING,WAIT_RING,WORD_PREP,WORD,WAIT_WORD,COMMIT,WAIT_COMMIT,FINISH} state_t;
     state_t state;
     // The 100-word ring must retain a free slot. 196 bytes fit in 98 words
     // and include the 164-byte ALL_RSSI record used by blind band search.
-    logic [7:0] buffer[0:195];
+    logic [7:0] buffer_even[0:97],buffer_odd[0:97];
+    logic [7:0] even_q,odd_q,declared_length;
     logic [7:0] count,bytes_count;
     logic [6:0] word_index;
     logic [15:0] cursor;
     wire [15:0] following=cursor==16'he3 ? 16'h80 : cursor+1'b1;
     wire [7:0] byte_index={word_index,1'b0};
-    wire [15:0] word_data={buffer[byte_index],byte_index+1<bytes_count ? buffer[byte_index+8'd1] : 8'd0};
+    wire [15:0] word_data={even_q,byte_index+1<bytes_count ? odd_q : 8'd0};
+    always_ff @(posedge clk)begin
+        even_q<=buffer_even[word_index];odd_q<=buffer_odd[word_index];
+        if(state==COLLECT && in_valid && !reset)begin
+            if(count[0])buffer_odd[count[7:1]]<=in_data;
+            else buffer_even[count[7:1]]<=in_data;
+        end
+    end
     assign in_ready=state==COLLECT || state==DROP;
     assign busy=state!=COLLECT || count!=0;
     task automatic request(input bit wr,input [31:0] address,data,input [3:0] lanes,input state_t next);
@@ -32,14 +40,14 @@ module mdi_injector (
         done<=0;error<=0;fiq0<=0;
         case(state)
             COLLECT:if(in_valid)begin
-                buffer[count]<=in_data;
+                if(count==0)declared_length<=in_data;
                 if(in_last)begin bytes_count<=count+1'b1;count<=0;state<=CHECK;end
                 else if(count==195)begin count<=0;state<=DROP;end
                 else count<=count+1'b1;
             end
             DROP:if(in_valid && in_last)begin state<=COLLECT;error<=1;end
             CHECK:begin
-                if(bytes_count<2 || {1'b0,bytes_count}!={1'b0,buffer[0]}+9'd2 || buffer[0]>194)begin error<=1;state<=COLLECT;end
+                if(bytes_count<2 || {1'b0,bytes_count}!={1'b0,declared_length}+9'd2 || declared_length>194)begin error<=1;state<=COLLECT;end
                 else state<=RING;
             end
             RING:request(0,32'h101c8,0,15,WAIT_RING);
@@ -47,21 +55,22 @@ module mdi_injector (
                 m_valid<=0;
                 // High half is the DSP producer; low half belongs to the MCU.
                 if(m_rdata[31:16]==m_rdata[15:0] && m_rdata[15:0]>=16'h80 && m_rdata[15:0]<16'he4)begin
-                    cursor<=m_rdata[31:16];word_index<=0;state<=WORD;
+                    cursor<=m_rdata[31:16];word_index<=0;state<=WORD_PREP;
                 end else state<=RING;
             end
+            WORD_PREP:state<=WORD;
             WORD:if(cursor[0])request(1,32'h10000+{15'b0,cursor,1'b0},{16'b0,word_data},3,WAIT_WORD);
                  else request(1,32'h10000+{15'b0,cursor,1'b0},{word_data,16'b0},12,WAIT_WORD);
             WAIT_WORD:if(m_ready)begin
                 m_valid<=0;cursor<=following;word_index<=word_index+1'b1;
-                state<=({word_index,1'b0}+2>=bytes_count) ? COMMIT : WORD;
+                state<=({word_index,1'b0}+2>=bytes_count) ? COMMIT : WORD_PREP;
             end
             COMMIT:request(1,32'h101c8,{cursor,16'b0},12,WAIT_COMMIT);
             WAIT_COMMIT:if(m_ready)begin m_valid<=0;state<=FINISH;end
             FINISH:begin fiq0<=1;done<=1;state<=COLLECT;end
             default:state<=COLLECT;
         endcase
-        if(reset)begin state<=COLLECT;count<=0;bytes_count<=0;word_index<=0;cursor<=0;
+        if(reset)begin state<=COLLECT;count<=0;bytes_count<=0;declared_length<=0;word_index<=0;cursor<=0;
             m_valid<=0;m_write<=0;m_address<=0;m_wdata<=0;m_be<=0;done<=0;error<=0;fiq0<=0;end
     end
 endmodule
