@@ -2,6 +2,13 @@
 
 ## October 27, 2026 — virtual CC and hardware recheck
 
+- The fractional timer width change synthesized to 14,441 raw LUT1–4 and
+  3,637 ALU versus 14,431 and 3,646 beforehand: the trade saves 9 ALU but
+  adds 10 raw LUT. Heap seed 2 placement is running on the new netlist; no
+  placement or timing success is claimed. An attempted removal of a pending
+  LAPDm UA frame register was reverted before commit because it could replace
+  a queued frame when another UA arrives during scheduling.
+
 - The 19,659-LUT network placement also terminated with `Unable to find legal
   placement for all cells`; no routed image exists. GSM fractional-frame phase
   storage is now sized from the configured clock and increment instead of a
