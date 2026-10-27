@@ -14,6 +14,10 @@
   disabling the virtual network alone does not reproduce the board's observed
   Insert SIM screen under these simulation conditions. The ten-second hold and
   actual board diagnostic remain necessary to identify the difference.
+  The ten-second-hold run also reached 400M and its 84×48 framebuffer is
+  pixel-identical to the short-hold run at that point (Net Monitor 03 / Menu).
+  Therefore the board's ten-second automatic power hold alone does not explain
+  the observed Insert SIM screen under the tested simulation conditions.
 
 - Added an explicit hardware diagnostic selector for SIM APDU completion count
   (24-bit modulo counter) and the last instruction byte, carried in the N4
