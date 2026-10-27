@@ -2,6 +2,14 @@
 
 ## October 26, 2026 — original boot investigation
 
+- Added standalone LAPDm SABM/DISC acknowledgement logic. UA echoes the exact
+  SABM information field for contention resolution, preserves SAPI and P/F,
+  pads unused bytes and rejects truncated/oversized/segmented frames, invalid
+  EA/EL, unsupported LPD/spare bits, non-U commands and DISC with information.
+  Directed tests pass for SAPI 0/3, maximum 20-byte echo and reset. This block
+  is not yet connected to SEND_BLOCK decoding or scheduled downlink delivery;
+  it does not implement MM registration, call control or SMS.
+
 - Added experimental SDCCH scheduling after a real logical-channel `80` request.
   It emits MDI RECEIVED_BLOCK with an empty LAPDm UI frame on each 51-frame
   boundary, followed by MDI `86` uplink-block request at frame offset 15 after
