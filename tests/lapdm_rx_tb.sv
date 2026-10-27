@@ -4,7 +4,7 @@ module lapdm_rx_tb;
     reg [183:0] frame={23{8'h2b}};
     reg [4:0] frame_length=23;
     reg [7:0] read_address=0;
-    wire frame_ready,ack_valid,ack_sapi3,error,message_valid,message_sapi3;
+    wire frame_ready,ack_valid,ack_sapi3,ack_final,error,message_valid,message_sapi3;
     wire [2:0] ack_nr;
     wire [8:0] message_length;
     wire [7:0] read_data;

@@ -2,6 +2,19 @@
 
 ## October 26, 2026 — original boot investigation
 
+- Connected LAPDm I-frame reception to SEND_BLOCK and scheduled SDCCH RR output.
+  Accepted segments advance N(R); duplicates are re-ACKed without duplicate L3
+  delivery, including while a completed L3 message remains pending. SAPI 0/3
+  RR work is retained separately, with P/F preserved. A DSP-queue integration
+  test covers segmented input, exact reassembled bytes, scheduled RR and loss/
+  retry of the final acknowledgement. All 35 RTL cases pass. L3 messages are retained, not consumed as
+  successful calls/SMS; the L3 dispatch/readout path is still incomplete.
+- The Net Monitor exit experiment completed all 600M clocks with 26,618 LCD
+  writes, 146 virtual records and 300 consumer changes. Its initial/final key
+  hashes match, and the applied-key log records the controlled menu sequence.
+  The normal `001 01` standby frame is simulation evidence only; current FPGA
+  source fit, hardware network operation, calls and SMS remain unqualified.
+
 - The repeated main-screen fields are now identified as Net Monitor, not a font
   rendering defect. In the isolated original v6.39 run, Menu -> Up reached the
   original Net monitor item; selecting it, entering test 0 and confirming returned

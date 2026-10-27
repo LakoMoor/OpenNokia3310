@@ -47,7 +47,7 @@ def main():
         sources = cpu_sources() + ["rtl/nokia/arm7_probe.sv"]
     elif args.target == "nokia_core":
         sources = cpu_sources() + ["rtl/nokia/keypad_3310.sv", "rtl/nokia/sim_chv.sv", "rtl/nokia/sim_card.sv", "rtl/nokia/mad2_mmio.sv", "rtl/nokia/nor_bus.sv", "rtl/nokia/dsp_service.sv", "rtl/nokia/nokia_sound.sv", "rtl/nokia/nokia_core.sv"]
-        sources += ["rtl/nokia/dsp_network.sv","rtl/nokia/lapdm_ua.sv","rtl/nokia/mm_registration.sv","rtl/nokia/virtual_access.sv","rtl/nokia/virtual_dedicated.sv","rtl/nokia/virtual_cell.sv","rtl/nokia/mdi_injector.sv"]
+        sources += ["rtl/nokia/dsp_network.sv","rtl/nokia/lapdm_ua.sv","rtl/nokia/lapdm_rx.sv","rtl/nokia/mm_registration.sv","rtl/nokia/virtual_access.sv","rtl/nokia/virtual_dedicated.sv","rtl/nokia/virtual_cell.sv","rtl/nokia/mdi_injector.sv"]
     else:
         sources = ["rtl/board/gowin_prims.v", "rtl/board/pll_hdmi480.v"]
         sources += [str(f) for f in sorted(Path("third_party/open-pocket-gbc/rtl").rglob("*.sv"))]

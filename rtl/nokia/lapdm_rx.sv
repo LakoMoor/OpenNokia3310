@@ -7,7 +7,7 @@ module lapdm_rx #(parameter MAX_L3=256) (
     output wire frame_ready,
     input logic [183:0] frame,
     input logic [4:0] frame_length,
-    output logic ack_valid,ack_sapi3,error,
+    output logic ack_valid,ack_sapi3,ack_final,error,
     output logic [2:0] ack_nr,
     output logic message_valid,message_sapi3,
     output logic [8:0] message_length,
@@ -24,7 +24,9 @@ module lapdm_rx #(parameter MAX_L3=256) (
     wire [2:0] ns=control[3:1];
     wire [5:0] count=li[7:2];
     wire [9:0] total={1'b0,used[sapi3]}+{4'd0,count};
-    assign frame_ready=!message_valid;
+    // A full L3 output blocks new data, but a retransmitted I-frame must still
+    // get its RR again if the previous acknowledgement was lost.
+    assign frame_ready=!message_valid || (received[sapi3] && ns==3'(expected[sapi3]-1'b1));
     always_ff @(posedge clk)begin
         read_data<=storage[{message_sapi3,read_address}];
         ack_valid<=0;error<=0;
@@ -34,7 +36,7 @@ module lapdm_rx #(parameter MAX_L3=256) (
                (addr[4:2]!=0 && addr[4:2]!=3) || control[0] || !li[0] ||
                count>20 || {1'b0,frame_length}<{1'b0,count}+7'd3 || (li[1] && count==0))error<=1;
             else begin
-                ack_sapi3<=sapi3;ack_nr<=expected[sapi3];
+                ack_sapi3<=sapi3;ack_final<=control[4];ack_nr<=expected[sapi3];
                 if(ns==expected[sapi3])begin
                     if(total>MAX_L3 || total>256)error<=1;
                     else begin
@@ -60,7 +62,7 @@ module lapdm_rx #(parameter MAX_L3=256) (
         if(reset)begin
             expected[0]<=0;expected[1]<=0;used[0]<=0;used[1]<=0;
             received[0]<=0;received[1]<=0;
-            ack_valid<=0;ack_sapi3<=0;ack_nr<=0;error<=0;
+            ack_valid<=0;ack_sapi3<=0;ack_final<=0;ack_nr<=0;error<=0;
             message_valid<=0;message_sapi3<=0;message_length<=0;read_data<=0;
         end
     end
