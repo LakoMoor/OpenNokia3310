@@ -11,6 +11,11 @@ hardware programming and other operating systems have not yet been qualified,
 and it does not yet provide audio, automatic USB detection, or
 Android installation. The existing Windows application remains available below.
 ROM files and backups must not be committed to the repository.
+On Windows, `cargo run --manifest-path apps/rust-studio/Cargo.toml --
+--probe-serial COM6` received 21 checksum-valid LCD frames from the connected
+Tang. This diagnostic does not test key input or flash writes. Installer tests
+use a simulated programmer and cover step failures and incomplete backups;
+the full Rust installation flow has not yet been tested on hardware.
 
 ## Android (USB-C OTG)
 

@@ -122,6 +122,21 @@ fn install(
     dir: String,
     tx: mpsc::Sender<String>,
 ) -> Result<(), String> {
+    install_with(loader, fpga, rom, eeprom, dir, tx, run)
+}
+
+fn install_with<F>(
+    loader: String,
+    fpga: String,
+    rom: String,
+    eeprom: String,
+    dir: String,
+    tx: mpsc::Sender<String>,
+    mut program: F,
+) -> Result<(), String>
+where
+    F: FnMut(&str, &[&str], &mpsc::Sender<String>) -> Result<(), String>,
+{
     let data = validate(
         Path::new(&fpga),
         Path::new(&rom),
@@ -142,7 +157,7 @@ fn install(
     fs::write(&prepared, &data).map_err(|e| e.to_string())?;
     let b = backup.to_str().ok_or("Invalid backup path")?;
     let p = prepared.to_str().ok_or("Invalid ROM path")?;
-    run(
+    program(
         &loader,
         &["--dump-flash", "-o", "0", "--file-size", "8388608", b],
         &tx,
@@ -163,13 +178,13 @@ fn install(
     )
     .map_err(|e| e.to_string())?;
     tx.send(format!("Backup: {b}\nSHA-256: {hash}")).ok();
-    run(
+    program(
         &loader,
         &["-f", "--verify", "-o", "0x200000", "--file-type", "bin", p],
         &tx,
     )?;
-    run(&loader, &["-f", "--verify", &fpga], &tx)?;
-    run(&loader, &[&fpga], &tx)?;
+    program(&loader, &["-f", "--verify", &fpga], &tx)?;
+    program(&loader, &[&fpga], &tx)?;
     tx.send(
         "Flash verified and FPGA loaded. Phone boot and network require separate verification."
             .into(),
@@ -187,6 +202,7 @@ struct Studio {
     log: String,
     lcd: [u8; 504],
     keys: Arc<AtomicU32>,
+    key_until: [Option<std::time::Instant>; 17],
     stop: Option<Arc<AtomicBool>>,
     serial_busy: Arc<AtomicBool>,
     rx: Option<mpsc::Receiver<Vec<u8>>>,
@@ -207,6 +223,7 @@ impl Default for Studio {
             log: String::new(),
             lcd: [0; 504],
             keys: Arc::new(AtomicU32::new(0)),
+            key_until: [None; 17],
             stop: None,
             serial_busy: Arc::new(AtomicBool::new(false)),
             rx: None,
@@ -219,6 +236,7 @@ impl Default for Studio {
 impl Studio {
     fn disconnect(&mut self) {
         self.keys.store(0, Ordering::Relaxed);
+        self.key_until = [None; 17];
         if let Some(stop) = self.stop.take() {
             stop.store(true, Ordering::Relaxed);
         }
@@ -285,6 +303,8 @@ impl Studio {
                 let _ = p.write_all(&packet(2 + i, 0));
             }
             let _ = p.write_all(&packet(5, 0));
+            // Release the OS handle before allowing JTAG programming.
+            drop(p);
             tx.send("Disconnected".into()).ok();
             serial_busy.store(false, Ordering::SeqCst);
         });
@@ -365,14 +385,28 @@ impl eframe::App for Studio {
                             if response.is_pointer_button_down_on() {
                                 pressed |= 1 << bit;
                             }
+                            if response.clicked() {
+                                self.key_until[bit] =
+                                    Some(std::time::Instant::now() + Duration::from_millis(150));
+                            }
                         }
                     });
                 }
-                if ui
-                    .add(egui::Button::new("Power"))
-                    .is_pointer_button_down_on()
-                {
+                let power = ui.add(egui::Button::new("Power"));
+                if power.is_pointer_button_down_on() {
                     pressed |= 1 << 16;
+                }
+                if power.clicked() {
+                    self.key_until[16] =
+                        Some(std::time::Instant::now() + Duration::from_millis(150));
+                }
+                let now = std::time::Instant::now();
+                for (bit, deadline) in self.key_until.iter_mut().enumerate() {
+                    if deadline.is_some_and(|until| now < until) {
+                        pressed |= 1 << bit;
+                    } else {
+                        *deadline = None;
+                    }
                 }
                 self.keys.store(pressed, Ordering::Relaxed);
                 ui.separator();
@@ -445,6 +479,14 @@ impl Drop for Studio {
     }
 }
 fn main() -> eframe::Result {
+    let args: Vec<String> = std::env::args().collect();
+    if args.len() == 3 && args[1] == "--probe-serial" {
+        if let Err(error) = probe_serial(&args[2]) {
+            eprintln!("Serial probe failed: {error}");
+            std::process::exit(1);
+        }
+        return Ok(());
+    }
     eframe::run_native(
         "Open Nokia Studio",
         eframe::NativeOptions {
@@ -453,6 +495,40 @@ fn main() -> eframe::Result {
         },
         Box::new(|_| Ok(Box::<Studio>::default())),
     )
+}
+
+fn probe_serial(name: &str) -> Result<(), String> {
+    let mut port = serialport::new(name, 115200)
+        .timeout(Duration::from_millis(100))
+        .open()
+        .map_err(|e| e.to_string())?;
+    port.write_all(&packet(5, 1)).map_err(|e| e.to_string())?;
+    let mut lcd = [0; 504];
+    let mut buf = Vec::new();
+    let mut frames = 0;
+    let start = std::time::Instant::now();
+    while start.elapsed() < Duration::from_secs(5) {
+        let mut bytes = [0; 1024];
+        match port.read(&mut bytes) {
+            Ok(n) => {
+                buf.extend_from_slice(&bytes[..n]);
+                if decode(&mut buf, &mut lcd) {
+                    frames += 1;
+                }
+            }
+            Err(e) if e.kind() == std::io::ErrorKind::TimedOut => (),
+            Err(e) => return Err(e.to_string()),
+        }
+    }
+    port.write_all(&packet(5, 0)).map_err(|e| e.to_string())?;
+    if frames == 0 {
+        return Err("No valid N4 LCD frames received".into());
+    }
+    println!(
+        "Received {frames} valid LCD frames over {name}; last frame SHA-256 {:x}",
+        Sha256::digest(lcd)
+    );
+    Ok(())
 }
 #[cfg(test)]
 mod tests {
@@ -476,5 +552,79 @@ mod tests {
         let mut lcd = [0; 504];
         assert!(!decode(&mut buf, &mut lcd));
         assert_eq!(lcd, [0; 504]);
+    }
+    #[test]
+    fn installer_stops_at_each_failure_and_orders_verified_writes() {
+        let root = std::env::temp_dir().join(format!(
+            "nokia-test-{}-{}",
+            std::process::id(),
+            SystemTime::now()
+                .duration_since(UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ));
+        fs::create_dir_all(&root).unwrap();
+        let fpga = root.join("test.fs");
+        let rom = root.join("test.bin");
+        fs::write(&fpga, format!("00111011\n{}", "0".repeat(1100))).unwrap();
+        let mut rom_data = vec![0u8; 0x200000];
+        rom_data[0..5].copy_from_slice(b"NHM-5");
+        fs::write(&rom, rom_data).unwrap();
+        for fail in 0..=4 {
+            let mut calls = Vec::<Vec<String>>::new();
+            let (tx, _) = mpsc::channel();
+            let result = install_with(
+                "fake-loader".into(),
+                fpga.to_str().unwrap().into(),
+                rom.to_str().unwrap().into(),
+                "".into(),
+                root.to_str().unwrap().into(),
+                tx,
+                |_, args, _| {
+                    calls.push(args.iter().map(|s| s.to_string()).collect());
+                    let step = calls.len();
+                    if step == fail {
+                        return Err("injected failure".into());
+                    }
+                    if step == 1 {
+                        fs::write(args.last().unwrap(), vec![0x5au8; FLASH_SIZE as usize]).unwrap();
+                    }
+                    Ok(())
+                },
+            );
+            assert_eq!(result.is_ok(), fail == 0);
+            assert_eq!(calls.len(), if fail == 0 { 4 } else { fail });
+            assert_eq!(calls[0][0], "--dump-flash");
+            if calls.len() > 1 {
+                assert_eq!(
+                    &calls[1][..5],
+                    ["-f", "--verify", "-o", "0x200000", "--file-type"]
+                );
+            }
+            if calls.len() > 2 {
+                assert_eq!(&calls[2][..2], ["-f", "--verify"]);
+            }
+            if calls.len() > 3 {
+                assert_eq!(calls[3], vec![fpga.to_str().unwrap().to_string()]);
+            }
+        }
+        let mut calls = 0;
+        let (tx, _) = mpsc::channel();
+        let result = install_with(
+            "fake-loader".into(),
+            fpga.to_str().unwrap().into(),
+            rom.to_str().unwrap().into(),
+            "".into(),
+            root.to_str().unwrap().into(),
+            tx,
+            |_, args, _| {
+                calls += 1;
+                fs::write(args.last().unwrap(), [1u8; 16]).unwrap();
+                Ok(())
+            },
+        );
+        assert!(result.is_err());
+        assert_eq!(calls, 1, "incomplete backup must block all writes");
+        fs::remove_dir_all(root).unwrap();
     }
 }
