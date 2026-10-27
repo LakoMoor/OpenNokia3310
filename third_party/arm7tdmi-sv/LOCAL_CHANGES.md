@@ -23,3 +23,15 @@ Flag and cycle-count logic is unchanged. `python tools/test.py --case multiplier
 compares all result/flag/cycle outputs against the old expression for 512
 boundary cases and 20,000 deterministic randomized input combinations.
 Actual board resource/timing and original-ROM checks remain separate gates.
+
+rtl/datapath/arm7tdmis_regfile.sv: replace reset writes to all data words with
+31 architectural validity bits. Reads of unwritten words return zero; reset
+clears validity synchronously, preserving the prior visible reset behavior.
+The data array has one explicit write address/data port, with unchanged priority
+(save state, debug, enabled architectural write), allowing LUT RAM inference.
+PC handling, all banks, debug reads, STATE_RDATA and VER_GPRS use the same visible
+values; Nokia's simulation trace also masks invalid raw words. Raw RAM contents
+are deliberately unspecified after reset and must not be used as architectural
+state. `python tools/test.py --case regfile` tests all 30 restore slots and
+5,000 deterministic randomized cycles, including resets, bank/PC/force-user
+reads, debug while CLKEN=0, write priority and physical-state snapshots.

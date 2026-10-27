@@ -136,6 +136,7 @@ module nokia_core #(parameter CLK_HZ=27_000_000,VIRTUAL_NETWORK=0) (
     assign trace_dsp_length=u_dsp.service.tx_length;
     for(genvar b=0;b<32;b=b+1)
         assign trace_dsp_payload[255-b*8-:8]=u_dsp.service.payload[b];
-    for(genvar i=0;i<31;i=i+1) assign trace_regs[i]=u_cpu.u_core.u_core.u_regfile.regs[i];
+    for(genvar i=0;i<31;i=i+1) assign trace_regs[i]=u_cpu.u_core.u_core.u_regfile.reg_valid[i] ?
+        u_cpu.u_core.u_core.u_regfile.regs[i] : 32'd0;
 `endif
 endmodule

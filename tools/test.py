@@ -19,6 +19,7 @@ def main():
     os.environ["PATH"] = os.pathsep.join([str(Path(a.tools)/"bin"), str(Path(a.tools)/"lib"), os.environ["PATH"]])
     Path("build/tests").mkdir(parents=True, exist_ok=True)
     cases = {
+        "regfile": cpu_sources(),
         "multiplier": ["third_party/arm7tdmi-sv/rtl/datapath/arm7tdmis_multiplier.sv"],
         "lapdm_rx": ["rtl/nokia/lapdm_rx.sv"],
         "lapdm_tx": ["rtl/nokia/lapdm_tx.sv"],
@@ -73,6 +74,7 @@ def main():
         output = Path("build/tests") / name
         output.mkdir(exist_ok=True)
         subprocess.run([shutil.which("verilator_bin") or "verilator", "--cc", "--timing", "--main",
+                        *(["-DARM7TDMIS_SAVE_STATE","-DARM7TDMIS_VERIFICATION"] if name=="regfile" else []),
                         "-Wno-fatal", "--top-module", name+"_tb", "--Mdir", str(output),
                         *sources, f"tests/{name}_tb.sv"], check=True,
                        stdout=subprocess.DEVNULL, stderr=(output/"lint.log").open("w"))

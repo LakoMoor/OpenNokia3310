@@ -95,6 +95,12 @@ module arm7tdmis_regfile
 );
 
     logic [31:0] regs [0:30];
+    // Reset architectural values with validity bits, not a bulk RAM clear.
+    // The data array then has one write port and can map to FPGA LUT RAM.
+    logic [30:0] reg_valid;
+    function automatic logic [31:0] read_physical(input logic [4:0] index);
+        return reg_valid[index] ? regs[index] : 32'd0;
+    endfunction
 
 `ifdef ARM7TDMIS_SAVE_STATE
     wire [4:0] state_physical_index = (STATE_INDEX < 5'd15)
@@ -102,7 +108,7 @@ module arm7tdmis_regfile
                                     : (STATE_INDEX < 5'd30)
                                     ? STATE_INDEX + 5'd1
                                     : 5'd0;
-    assign STATE_RDATA = regs[state_physical_index];
+    assign STATE_RDATA = read_physical(state_physical_index);
 `endif
 
     // ---- Bank index: (reg_num, mode) → flat-array index ----
@@ -142,7 +148,7 @@ module arm7tdmis_regfile
         if (r == 4'd15) begin
             return pc_in + pc_offset(t);
         end else begin
-            return regs[bank_index(r, effective_mode)];
+            return read_physical(bank_index(r, effective_mode));
         end
     endfunction
 
@@ -151,28 +157,35 @@ module arm7tdmis_regfile
     assign rc_data = read_with_offset(rc_addr, t_bit);
     assign dbg_rdata = (dbg_addr == 4'd15)
                      ? (pc_in + pc_offset(t_bit))
-                     : regs[bank_index(
+                     : read_physical(bank_index(
                          dbg_addr,
                          dbg_force_user_bank ? 5'(MODE_USER) : mode
-                       )];
+                       ));
 
     // ---- Write port (suppressed for wa_addr=15 — PC lives in core) ----
-    always_ff @(posedge CLK) begin
-        if (!nRESET) begin
-            for (int i = 0; i < 31; i = i + 1) regs[i] <= 32'h0;
+    logic write_active;
+    logic [4:0] write_index;
+    logic [31:0] write_value;
+    always_comb begin
+        write_active=0;write_index=0;write_value=wa_data;
+        if(nRESET)begin
 `ifdef ARM7TDMIS_SAVE_STATE
-        end else if (STATE_WRITE && STATE_INDEX < 5'd30) begin
-            regs[state_physical_index] <= STATE_WDATA;
+            if(STATE_WRITE && STATE_INDEX<5'd30)begin
+                write_active=1;write_index=state_physical_index;write_value=STATE_WDATA;
+            end else
 `endif
-        end else if (dbg_we && dbg_addr != 4'd15) begin
-            regs[bank_index(
-                dbg_addr,
-                dbg_force_user_bank ? 5'(MODE_USER) : mode
-            )] <= dbg_wdata;
-        end else if (CLKEN) begin
-            if (wa_enable && wa_addr != 4'd15)
-                regs[bank_index(wa_addr, effective_mode)] <= wa_data;
+            if(dbg_we && dbg_addr!=4'd15)begin
+                write_active=1;write_index=bank_index(dbg_addr,dbg_force_user_bank ? 5'(MODE_USER) : mode);
+                write_value=dbg_wdata;
+            end else if(CLKEN && wa_enable && wa_addr!=4'd15)begin
+                write_active=1;write_index=bank_index(wa_addr,effective_mode);
+            end
         end
+    end
+    always_ff @(posedge CLK)if(write_active)regs[write_index]<=write_value;
+    always_ff @(posedge CLK)begin
+        if(!nRESET)reg_valid<=0;
+        else if(write_active)reg_valid[write_index]<=1;
     end
 
     assign pc_written = wa_enable && (wa_addr == 4'd15) && nRESET && CLKEN;
@@ -180,7 +193,7 @@ module arm7tdmis_regfile
 `ifdef ARM7TDMIS_VERIFICATION
     for (genvar ver_reg = 0; ver_reg < 31;
          ver_reg = ver_reg + 1) begin : gen_ver_gpr_snapshot
-        assign VER_GPRS[(ver_reg * 32) +: 32] = regs[ver_reg];
+        assign VER_GPRS[(ver_reg * 32) +: 32] = read_physical(5'(ver_reg));
     end
 `endif
 

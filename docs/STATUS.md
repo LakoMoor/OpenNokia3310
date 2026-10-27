@@ -2,6 +2,21 @@
 
 ## October 27, 2026 — virtual CC and hardware recheck
 
+- Refactored the ARM banked register file to one physical RAM write port and
+  31 validity bits. Reset clears validity; architectural/debug/save-state and
+  verification reads still return zero for unwritten words. PC offsets, bank
+  selection and save-state/debug/CPU write priority are preserved. The 5,000-
+  cycle randomized register-file test covers all restore slots, resets, banks,
+  force-user accesses, debug while CLKEN=0 and physical snapshots. ARM/Thumb,
+  FIQ and the full 41-case RTL suite pass. Simulation register traces are masked
+  consistently; raw RAM contents after reset are not architectural state.
+  Pre-network board synthesis changes raw LUT1–4 from 15,156 to 11,814, DFF
+  from 6,199 to 5,268, RAM16SDP4 from 43 to 91 and ALU from 2,820 to 2,825.
+  New placement is running against a separate netlist snapshot. The older
+  multiplier-only placement was deliberately stopped as superseded by this
+  much smaller design; it is not recorded as a placement infeasibility proof.
+  Current-source placement/timing, original-ROM and hardware gates remain open.
+
 - Added established-call clearing for the observed phone DISCONNECT. The CC
   peer validates the mandatory Cause LV and trailing bounded TLVs, sends
   RELEASE, waits for its LAPDm ACK and the matching bare RELEASE COMPLETE,
