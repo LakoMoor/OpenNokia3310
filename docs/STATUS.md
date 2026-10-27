@@ -2,6 +2,16 @@
 
 ## October 27, 2026 — virtual CC and hardware recheck
 
+- After the user's USB reconnection, JTAG/COM6 returned and the diagnostic
+  image was reloaded into SRAM. The original ROM processed at least 135 SIM
+  commands: the observed last command changed from READ RECORD (`b2`) to
+  SELECT (`a4`), with ROM done and no reported memory/bus errors. A USB LCD
+  snapshot after dismissing the Time prompt showed Insert SIM card, but the
+  SIM counter subsequently advanced from 126 to 135. Thus the message does not
+  mean that no SIM exchange occurred; the sampled screen alone does not prove
+  persistent rejection or accepted SIM. A later screen capture blocked on
+  COM6 again; diagnosis of the eventual phone state remains open.
+
 - The SIM-diagnostic FPGA build completed routing and timing (system Fmax
   42.78 MHz, pixel 162.84 MHz); bitstream SHA256
   `f65b188f3a3f19242db5a173c9e7f55b404299b5009123a54e259976bf6afddd`.
