@@ -2,6 +2,16 @@
 
 ## October 27, 2026 — virtual CC and hardware recheck
 
+- In the running original-ROM two-call experiment, the first End now completes
+  the real clearing sequence: DISCONNECT at 763,865,917, RELEASE ACK N(R)=5 at
+  771,810,263, bare RELEASE COMPLETE (`03 2a`) at 775,784,675, RR release ACK
+  N(R)=6 at 783,726,264 and DISC at 787,697,511. This directly verifies the
+  established-call clearing path for v6.39 in the RTL model. The second call
+  and this run's final state remain pending; physical Tang signalling remains
+  disabled until the network build is qualified.
+  The [800M framebuffer](img/simulation-original-cleared.png) shows ordinary
+  001 01 / Menu standby after clearing; it is a simulation capture.
+
 - Refactored the ARM banked register file to one physical RAM write port and
   31 validity bits. Reset clears validity; architectural/debug/save-state and
   verification reads still return zero for unwritten words. PC offsets, bank
