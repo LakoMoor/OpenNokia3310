@@ -5,7 +5,7 @@ module mm_retry_tb;
     reg [4:0] uplink_length=23;
     reg [23:0] plmn=24'h00f110;
     reg [15:0] lac=1;
-    wire downlink_valid,registered,failed;
+    wire downlink_valid,registered,failed,cm_active;
     wire [183:0] downlink_frame;
     mm_registration #(.RETRY_CYCLES(8),.MAX_RETRIES(2)) dut(.*);
     always #5 clk=~clk;

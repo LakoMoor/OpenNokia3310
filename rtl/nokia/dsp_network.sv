@@ -51,6 +51,19 @@ module dsp_network #(parameter CLK_HZ=27000000,ENABLE_NETWORK=0) (
         wire rx_ack,rx_sapi3,rx_final,rx_message_valid,rx_message_sapi3;
         wire [2:0] rx_nr;
         wire [8:0] rx_message_length;
+        wire rx_message_ready,header_valid,header_sapi3,header_complete,cm_active;
+        wire [7:0] rx_read_address,rx_read_data,header_pd,header_type;
+        wire [8:0] header_length;
+        // Consume only the mode-complete message handled by the CM peer.
+        // Other L3 messages retain ownership for the forthcoming CC/SMS handler.
+        l3_header l3(.clk(clk),.reset(reset || (messages!=seen_messages && channel_valid) ||
+                (ua_done && ua_accepted && (uplink_frame[175:168] & 8'hef)==8'h2f)),
+            .message_valid(rx_message_valid),.message_sapi3(rx_message_sapi3),.message_length(rx_message_length),
+            .message_ready(rx_message_ready),.read_address(rx_read_address),.read_data(rx_read_data),
+            .header_valid(header_valid),.header_ready(cm_active && !header_sapi3 && header_complete &&
+                header_length==2 && header_pd==6 && header_type==8'h32),
+            .sapi3(header_sapi3),.has_header(header_complete),.length(header_length),
+            .discriminator(header_pd),.message_type(header_type));
         lapdm_rx receiver(.clk(clk),.reset(reset || (messages!=seen_messages && channel_valid)),
             .link_reset(ua_done && ua_accepted && (uplink_frame[175:168] & 8'hef)==8'h2f),
             .link_sapi3(uplink_frame[180:178]==3),
@@ -58,7 +71,7 @@ module dsp_network #(parameter CLK_HZ=27000000,ENABLE_NETWORK=0) (
             .frame_ready(),.frame(uplink_frame),.frame_length(uplink_length),
             .ack_valid(rx_ack),.ack_sapi3(rx_sapi3),.ack_final(rx_final),.ack_nr(rx_nr),.error(),
             .message_valid(rx_message_valid),.message_sapi3(rx_message_sapi3),.message_length(rx_message_length),
-            .message_ready(1'b0),.read_address(8'd0),.read_data());
+            .message_ready(rx_message_ready),.read_address(rx_read_address),.read_data(rx_read_data));
         logic ua_releases_channel;
         wire mm_valid,mm_ready;
         wire [183:0] mm_frame;
@@ -66,7 +79,7 @@ module dsp_network #(parameter CLK_HZ=27000000,ENABLE_NETWORK=0) (
         mm_registration #(.RETRY_CYCLES(CLK_HZ)) mm_peer(.clk(clk),.reset(reset || (messages!=seen_messages && channel_valid && channel_logch==8'h80)),
             .uplink_valid(messages!=seen_messages && uplink_valid && uplink_logch==8'h80 && dedicated_enabled),
             .uplink_frame(uplink_frame),.uplink_length(uplink_length),.plmn(24'h00f110),.lac(16'd1),
-            .downlink_ready(mm_ready),.downlink_valid(mm_valid),.downlink_frame(mm_frame),.registered(),.failed());
+            .downlink_ready(mm_ready),.downlink_valid(mm_valid),.downlink_frame(mm_frame),.registered(),.failed(),.cm_active(cm_active));
         logic [183:0] ua_frame;
         logic [7:0] ua_channel;
         wire ua_done,ua_accepted;

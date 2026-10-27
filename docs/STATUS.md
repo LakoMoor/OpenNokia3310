@@ -2,6 +2,19 @@
 
 ## October 26, 2026 — original boot investigation
 
+- Added synchronous L3 header inspection over the retained LAPDm message RAM.
+  Ownership is released only after a consumer accepts the inspected message;
+  header fields, SAPI and full 9-bit length remain stable under backpressure.
+  The CM peer now exposes its active state, allowing its handled two-byte
+  Ciphering Mode Complete to be consumed. This prevents that message from
+  blocking the next CC SETUP. Other messages remain pending for their future
+  handlers; this is not CC/SMS implementation. Header state resets on channel
+  changes and link establishment. Unit/integration coverage checks synchronous
+  read latency, short/256-byte messages, reset, mode-complete consumption and
+  retention of the following CC message. The running `cm-cipher-740M` experiment
+  predates this ownership fix; its executable is left intact until completion.
+  The complete 36-case RTL suite passes after the ownership integration.
+
 - October 27: the isolated 850M-clock v6.39 dial experiment completed with
   42,260 LCD writes and 326 virtual records. The original phone sent a SAPI-0
   SABM containing CM Service Request (`05 24`, MO call) at cycle 620,871,835.

@@ -6,15 +6,15 @@ target. A recreated menu is not a substitute for original firmware behavior.
 
 | Area | Acceptance evidence | Current state |
 | --- | --- | --- |
-| Boot | Full ROM CRC after SPI→SDRAM; repeated cold/warm boots; original standby | Blocked by corrupted ROM transfer; registered SPI CS fix awaits hardware |
-| Original UI | Original Phonebook, Settings, languages, clock and games exercised | Older hardware build reached menus; current stalled-memory simulation responds in Messages/Write messages; board regression under diagnosis |
+| Boot | Full ROM CRC after SPI→SDRAM; repeated cold/warm boots; original standby | Registered SPI CS fix verified; full ROM CRC and one flash power-cycle passed. Repeated cold/warm qualification remains open; USB currently unavailable |
+| Original UI | Original Phonebook, Settings, languages, clock and games exercised | Original Phonebook verified on hardware; v6.39 simulated standby verified after exiting Net Monitor through the original menu. Full UI/game coverage remains open |
 | Input | DS2, Windows and Android press/hold/release in original menus | DS2 previously confirmed; N4 system menu checked on Tang |
 | Display | Matching original 84×48 framebuffer on HDMI, ST7735S and apps | Framebuffer logic passes; physical ST7735 appearance not yet confirmed |
 | Audio | Original keypad, alerts, ringtone and game tones; HDMI and app playback | Register synthesis and PC playback tests pass; original ringtone not verified |
 | SIM | ATR/APDU, phonebook/SMS records, PIN lifecycle and no SIM errors | File/record and CHV/PIN lifecycle tests pass; original phone settings integration incomplete |
-| Virtual network | Original firmware registers, displays operator/signal, handles simulated outgoing/incoming calls/SMS | Not implemented; requires DCT3 DSP/baseband message modeling |
+| Virtual network | Original firmware registers, displays operator/signal, handles simulated outgoing/incoming calls/SMS | Experimental simulation delivers LU Accept/release and shows 001 01; original MO CM request observed. CM cipher exchange and L3 ownership pass directed tests. CC calls, incoming paging and SMS remain incomplete; physical network disabled |
 | Persistence | Contacts, language/settings and virtual messages survive power cycle | NOR writes are SDRAM-only |
-| Installation | One action validates FPGA+ROM, backs up 8 MiB, verifies both writes, starts FPGA | Windows backend and seven tests implemented; full hardware flow pending |
+| Installation | One action validates FPGA+ROM, backs up 8 MiB, verifies both writes, starts FPGA | Windows v0.2.3 preview packages qualified pre-CHV FPGA with ROM selection; backend has nine tests. Full combined hardware flow pending |
 | Android | OTG installation/control and screen/audio with physical Android device | Control APK built; physical OTG and installation not yet verified/implemented |
 
 ## Reference review — October 26, 2026
@@ -29,9 +29,16 @@ fallback. Nokia cannot use the GBC updater unchanged: its protocol and flash
 layout must be implemented explicitly. Likewise, GBC games and Nokia ROM are
 different payloads despite sharing the physical 0x200000 flash region.
 
-The immediate priority is verified ROM loading, then original firmware boot.
+Immediate priorities are completing virtual CM/CC/SMS against original-ROM
+traces, fitting the current CHV/network logic onto the board, and qualifying
+repeatable flash boot and installation once USB access is restored.
 Virtual RF/DSP behavior must be driven by observed original-firmware messages;
 no generated UI should be presented as proof of cellular emulation.
+
+## Implementation history
+
+The following entries record earlier stages in order. The acceptance table
+above and [verification status](STATUS.md) describe current limitations.
 
 ## Virtual-cell transport work
 

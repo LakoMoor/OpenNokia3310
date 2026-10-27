@@ -109,6 +109,16 @@ module dsp_mm_tb;
             memory['h1c8/4][15:0]=memory['h1c8/4][31:16];
         end
         if(stage!=2 || dut.network.mm_peer.registered)$fatal(1,"CM establishment sequence");
+        memory[11]=32'h071b0080;memory[12]=32'h03200906;memory[13]=32'h32000000;
+        doorbell('h100a4,27);repeat(300)@(negedge clk);
+        if(!dut.network.cm_active || dut.network.rx_message_valid || dut.network.header_valid)
+            $fatal(1,"handled mode-complete message must release receiver ownership");
+        // The next message must be accepted, but unsupported CC stays pending.
+        memory[13][15:0]=16'h071b;memory[14]=32'h00800322;memory[15]=32'h09030500;
+        doorbell('h100a4,32);repeat(300)@(negedge clk);
+        if(!dut.network.rx_message_valid || !dut.network.header_valid ||
+           dut.network.header_pd!=3 || dut.network.header_type!=5)
+            $fatal(1,"next CC message lost or consumed without a handler");
         $display("PASS DSP MM: ordered UA/LU/release and CM cipher command through queue");$finish;
     end
     initial begin #400000;$fatal(1,"DSP MM timeout");end

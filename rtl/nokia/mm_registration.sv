@@ -12,7 +12,7 @@ module mm_registration #(parameter RETRY_CYCLES=27000000,MAX_RETRIES=3) (
     input logic downlink_ready,
     output logic downlink_valid,
     output logic [183:0] downlink_frame,
-    output logic registered,failed
+    output logic registered,failed,cm_active
 );
     typedef enum logic [3:0] {IDLE,ACCEPT_OUT,ACCEPT_ACK,RELEASE_OUT,RELEASE_ACK,COMPLETE,FAILED,
         CIPHER_OUT,CIPHER_ACK,CIPHER_COMPLETE,CM_ACTIVE} state_t;
@@ -66,6 +66,7 @@ module mm_registration #(parameter RETRY_CYCLES=27000000,MAX_RETRIES=3) (
         li==9 && uplink_frame[159:144]==16'h0632;
     always_comb begin
         registered=state==COMPLETE;
+        cm_active=state==CM_ACTIVE;
         failed=state==FAILED;
         downlink_valid=state==ACCEPT_OUT || state==RELEASE_OUT || state==CIPHER_OUT;
         downlink_frame={23{8'h2b}};
