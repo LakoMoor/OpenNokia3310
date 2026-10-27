@@ -58,4 +58,14 @@ class AsyncOpenTest(unittest.TestCase):
         now[0]=6;self.assertEqual(opener.poll()[0],'timeout');gate.set()
         self.assertTrue(port.closed.wait(2))
 
+    def test_expired_result_not_accepted_if_ui_poll_was_delayed(self):
+        now=[0];opener=AsyncSerialOpen(timeout=5,clock=lambda:now[0]);port=FakePort()
+        opener.begin('COM6',lambda _:port)
+        end=time.monotonic()+2
+        while opener.result is None and time.monotonic()<end:time.sleep(.005)
+        self.assertIsNotNone(opener.result)
+        now[0]=6
+        self.assertEqual(opener.poll()[0],'timeout')
+        self.assertTrue(port.closed.wait(2));self.assertFalse(opener.pending)
+
 if __name__=='__main__':unittest.main()

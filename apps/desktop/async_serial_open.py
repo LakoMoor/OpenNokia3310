@@ -40,11 +40,13 @@ class AsyncSerialOpen:
         if result and result[0]=='connected':_close_later(result[1])
 
     def poll(self):
+        expired_result=None
         with self.lock:
             if not self.pending:return None
-            if self.result is not None:
-                result=self.result;self.result=None;self.pending=False;return result
             if self.clock()>=self.deadline:
-                self.generation+=1;self.pending=False
-                return ('timeout','USB port did not open. Reconnect Tang and retry.')
-        return None
+                self.generation+=1;self.pending=False;expired_result=self.result;self.result=None
+            elif self.result is not None:
+                result=self.result;self.result=None;self.pending=False;return result
+            else:return None
+        if expired_result and expired_result[0]=='connected':_close_later(expired_result[1])
+        return ('timeout','USB port did not open. Reconnect Tang and retry.')
