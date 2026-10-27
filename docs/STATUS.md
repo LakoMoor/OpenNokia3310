@@ -2,6 +2,14 @@
 
 ## October 27, 2026 — virtual CC and hardware recheck
 
+- Two no-network original-ROM comparisons are running with independent
+  Verilator build directories: the earlier 27M-cycle power hold and a new
+  168.75M-cycle hold matching the Tang's ten-second automatic power press.
+  This investigates a startup difference; no causal claim is established yet.
+  The first run's 350M framebuffer shows the Time prompt also observed on Tang.
+  `trace_firmware.py --build-dir` isolates generated source/object files for
+  different simultaneous configurations; each run records the build directory.
+
 - Added an explicit hardware diagnostic selector for SIM APDU completion count
   (24-bit modulo counter) and the last instruction byte, carried in the N4
   status address field only while opcode 7 bit 6 is selected. Bit 7 retains

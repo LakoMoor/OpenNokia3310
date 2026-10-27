@@ -23,9 +23,10 @@ p.add_argument("--keys",type=Path,help="Live text stimulus: absolute cycle, hexa
 p.add_argument("--reuse",action="store_true",help="Reuse an already compiled diagnostic executable")
 p.add_argument("--cpp-only",action="store_true",help="Recompile the harness without re-elaborating RTL")
 p.add_argument("--output-dir",type=Path,help="New empty run directory; default: unique build/trace-runs directory")
+p.add_argument("--build-dir",type=Path,default=Path('build/boot_trace'),help="Separate Verilator build directory for concurrent or distinct configurations")
 a=p.parse_args()
 os.chdir(ROOT)
-out=Path("build/boot_trace")
+out=a.build_dir
 out.mkdir(parents=True,exist_ok=True)
 run_dir=a.output_dir or Path('build/trace-runs')/(datetime.now(timezone.utc).strftime('%Y%m%dT%H%M%SZ')+'-'+uuid.uuid4().hex[:8])
 if run_dir.exists() and any(run_dir.iterdir()):p.error('Run directory must be empty; old evidence must not mix with a new run')
@@ -57,7 +58,7 @@ if not a.reuse:
     build_cpp([*generated_cpp(out,"nokia_core"),Path("tools/trace_firmware.cpp"),vroot/"verilated.cpp",vroot/"verilated_threads.cpp"],
               [vroot,vroot/"vltstd",out],out,exe)
     compile_record.write_text(json.dumps({**compiled,'harness_sha256':harness_hash},indent=2)+'\n')
-manifest={**compiled,'cycles':a.cycles,'hold_power_cycles':a.hold_power_cycles,
+manifest={**compiled,'cycles':a.cycles,'hold_power_cycles':a.hold_power_cycles,'build_dir':str(out.resolve()),
           'rom_sha256':hashlib.sha256((run_dir/'flash.bin').read_bytes()).hexdigest(),
           'memory_wait':os.environ.get('NOKIA_MEM_WAIT','0'),'status':'running',
           'harness_sha256':harness_hash}
