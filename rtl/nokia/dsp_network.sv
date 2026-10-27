@@ -122,15 +122,17 @@ module dsp_network #(parameter CLK_HZ=27000000,ENABLE_NETWORK=0) (
         logic [31:0] frame_phase;
         function automatic [21:0] next_ccch(input [21:0] fn,input [5:0] t3);
             reg [5:0] offset;
-            reg [22:0] candidate;
+            reg [5:0] delta;
             begin
                 if(t3<=6)offset=6;else if(t3<=12)offset=12;
                 else if(t3<=16)offset=16;else if(t3<=22)offset=22;
                 else if(t3<=26)offset=26;else if(t3<=32)offset=32;
                 else if(t3<=36)offset=36;else if(t3<=42)offset=42;
                 else if(t3<=46)offset=46;else offset=57;
-                candidate={1'b0,fn}-{17'd0,t3}+{17'd0,offset};
-                next_ccch=22'(candidate>=2715648 ? candidate-2715648 : candidate);
+                delta=offset-t3;
+                // Only the final 51-frame period can cross the hyperframe,
+                // and its next CCCH block after slot 46 is frame 6.
+                next_ccch=(fn>=2715597 && t3>46) ? 22'd6 : fn+{16'd0,delta};
             end
         endfunction
         wire byte_valid,byte_last,byte_ready,packet_done,packet_error;

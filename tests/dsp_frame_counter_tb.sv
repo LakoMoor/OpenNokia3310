@@ -16,6 +16,15 @@ module dsp_frame_counter_tb;
             $fatal(1,"frame counter drift at FN=%0d",dut.network.frame_number);
     endtask
     initial begin
+        for(integer f=0;f<2715648;f++)begin
+            integer t,off,expected;
+            t=f%51;
+            if(t<=6)off=6;else if(t<=12)off=12;else if(t<=16)off=16;
+            else if(t<=22)off=22;else if(t<=26)off=26;else if(t<=32)off=32;
+            else if(t<=36)off=36;else if(t<=42)off=42;else if(t<=46)off=46;else off=57;
+            expected=(f-t+off)%2715648;
+            if(dut.network.next_ccch(22'(f),6'(t))!==22'(expected))$fatal(1,"CCCH mismatch at %0d",f);
+        end
         repeat(4)@(negedge clk);reset=0;
         repeat(4000)begin @(posedge clk);verify();end
         // Exercise hyperframe and reduced-FN wrap without simulating 2.7M frames.

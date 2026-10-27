@@ -2,6 +2,15 @@
 
 ## October 27, 2026 — virtual CC and hardware recheck
 
+- The alternate simulated-annealing placement on the 95%-LUT network netlist
+  terminated with exit 1 during initial placement; its log has no detailed
+  error and no PNR file was produced. The CCCH next-block calculation was
+  simplified to use a six-bit delta and explicit hyperframe wrap. A test
+  compares the result to the original formula for every one of the 2,715,648
+  hyperframe positions; DSP access and call integration tests also pass.
+  Full synthesis for this change is running; resource savings and fit are
+  not yet known.
+
 - The original v6.39 ROM completed two calls in the 1.1B-cycle serial-RX
   simulation: CONNECT ACK at 656,617,583 and 958,499,543; RELEASE COMPLETE at
   775,784,675 and 1,053,830,352; both followed by DISC. Key-script hashes match.
