@@ -2,6 +2,13 @@
 
 ## October 27, 2026 — virtual CC and hardware recheck
 
+- The 19,659-LUT network placement also terminated with `Unable to find legal
+  placement for all cells`; no routed image exists. GSM fractional-frame phase
+  storage is now sized from the configured clock and increment instead of a
+  fixed 32 bits. Tests cover the exact threshold, just below it, hyperframe
+  wrap, RACH, dedicated scheduling and CC. A synthesis is running; area impact
+  has not yet been measured. More resource reduction may still be necessary.
+
 - The synchronous MDI buffer synthesized at 14,431 raw LUT1–4, 3,646 ALU
   and 119 RAM16SDP4 versus 14,438, 3,650 and 145 before the change. Placement
   of this exact netlist reports 19,659/20,736 LUT4 sites (94%) and is still

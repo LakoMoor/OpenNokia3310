@@ -119,7 +119,10 @@ module dsp_network #(parameter CLK_HZ=27000000,ENABLE_NETWORK=0) (
         logic [5:0] frame_t3;
         logic [15:0] reduced_fn;
         wire [16:0] relative_fn_sum={1'b0,reduced_fn}+{9'd0,rach_payload[23:16]};
-        logic [31:0] frame_phase;
+        // The phase stays below CLK_HZ*60; preserve room for the next
+        // increment while avoiding unused upper accumulator bits on Tang.
+        localparam integer PHASE_BITS=$clog2(CLK_HZ*60+13000+1);
+        logic [PHASE_BITS-1:0] frame_phase;
         function automatic [21:0] next_ccch(input [21:0] fn,input [5:0] t3);
             reg [5:0] offset;
             reg [5:0] delta;

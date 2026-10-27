@@ -31,6 +31,12 @@ module dsp_frame_counter_tb;
         @(negedge clk);dut.network.frame_number=2715647;dut.network.frame_t3=50;dut.network.reduced_fn=42431;
         repeat(30)begin @(posedge clk);verify();end
         if(dut.network.frame_number>10)$fatal(1,"hyperframe did not wrap");
+        @(negedge clk);dut.network.frame_phase=65000;
+        @(posedge clk);#1;
+        if(dut.network.frame_phase!==0)$fatal(1,"exact threshold must wrap to zero");
+        @(negedge clk);dut.network.frame_phase=64999;
+        @(posedge clk);#1;
+        if(dut.network.frame_phase!==77999)$fatal(1,"phase below threshold wrapped early");
         $display("PASS DSP frame counters: GSM modulo tracking and hyperframe wrap");$finish;
     end
     initial begin #100000;$fatal(1,"frame counter timeout");end
