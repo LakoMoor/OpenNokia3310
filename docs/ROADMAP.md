@@ -81,3 +81,14 @@ activity, not proof of RR acceptance or registration. Correlate it with actual
 v6.39 radio requests, decoded protocol responses and original UI before advancing
 network acceptance. Trace runs already executing use their previously compiled
 harness; the new counters apply only after recompilation.
+
+
+For a bounded protocol summary of a single isolated run:
+
+```powershell
+python tools/trace_protocol.py build/trace-runs/RUN/trace.log --output build/protocol-report.json
+```
+
+This reports captured MCU-to-DSP requests, not complete radio transactions.
+Truncated payloads and I-frame continuations must be inspected before decoding
+L3 content. RR acknowledgements alone do not qualify call/SMS service.

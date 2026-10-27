@@ -2,6 +2,17 @@
 
 ## October 26, 2026 — original boot investigation
 
+- Started an isolated 850M original v6.39 experiment that exits Net Monitor,
+  enters test number 12345 through Nokia keypad events and presses Call. It
+  runs entirely inside the virtual model; no physical cellular call is made.
+  Actual post-dial CM/CC requests still need inspection after the run advances.
+- `tools/trace_protocol.py` now summarizes observed DSP request prefixes into
+  SABM/RR/I/DISC events, sequence numbers, SAPI/PF and captured/declared lengths.
+  It explicitly marks truncated payloads, ignores stale sub values for empty
+  commands and does not classify I-frame continuations as fresh L3 messages.
+  Two parser tests pass; the saved Net Monitor trace yields the actual N(R)=1,
+  N(R)=2 and DISC sequence. Reports intentionally make no service-success claim.
+
 - Connected LAPDm I-frame reception to SEND_BLOCK and scheduled SDCCH RR output.
   Accepted segments advance N(R); duplicates are re-ACKed without duplicate L3
   delivery, including while a completed L3 message remains pending. SAPI 0/3
