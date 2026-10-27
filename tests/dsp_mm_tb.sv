@@ -84,7 +84,32 @@ module dsp_mm_tb;
         repeat(3)@(negedge clk);records=interrupts;repeat(6000)@(negedge clk);
         if(interrupts!=records || dut.network.dedicated_enabled || !dut.network.mm_peer.registered)
             $fatal(1,"DISC UA must release SDCCH without erasing MM completion");
-        $display("PASS DSP MM: SEND_BLOCK SABM -> UA -> LU Accept -> RR -> release -> RR through queue");$finish;
+        @(negedge clk);reset=1;repeat(3)@(negedge clk);
+        for(integer i=0;i<128;i++)memory[i]=0;
+        memory['h1c8/4]=32'h00800080;
+        memory[0]=32'h0c020000;memory[1]=0;memory[2]=32'h01008000;memory[3]=32'h024a0000;
+        reset=0;doorbell('h100a4,7);
+        wait(fiq0);@(negedge clk);memory['h1c8/4][15:0]=memory['h1c8/4][31:16];
+        memory[3][15:0]=16'h1c1b;memory[4]=32'h0080033f;memory[5]=32'h41052471;
+        memory[6]=32'h03301881;memory[7]=32'h08191010;memory[8]=32'h32547698;
+        memory[9]=32'h102b2b2b;memory[10]=32'h2b000000;
+        doorbell('h100a4,22);stage=0;records=0;
+        while(stage<2 && records<12)begin
+            wait(fiq0);@(negedge clk);records++;
+            cursor=memory['h1c8/4][15:0];
+            if(ring_byte(cursor,1)=='h80 && ring_byte(cursor,12)==1 && ring_byte(cursor,13)=='h73)begin
+                if(stage!=0)$fatal(1,"CM UA ordering");stage=1;
+            end
+            if(ring_byte(cursor,1)=='h80 && ring_byte(cursor,12)==3 && ring_byte(cursor,13)==0)begin
+                if(stage!=1 || ring_byte(cursor,14)!='h0d || ring_byte(cursor,15)!=6 ||
+                   ring_byte(cursor,16)!='h35 || ring_byte(cursor,17)!=1)
+                    $fatal(1,"CM cipher command missing, malformed or sent before UA");
+                stage=2;
+            end
+            memory['h1c8/4][15:0]=memory['h1c8/4][31:16];
+        end
+        if(stage!=2 || dut.network.mm_peer.registered)$fatal(1,"CM establishment sequence");
+        $display("PASS DSP MM: ordered UA/LU/release and CM cipher command through queue");$finish;
     end
-    initial begin #200000;$fatal(1,"DSP MM timeout");end
+    initial begin #400000;$fatal(1,"DSP MM timeout");end
 endmodule

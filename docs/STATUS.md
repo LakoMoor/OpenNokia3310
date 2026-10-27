@@ -2,6 +2,26 @@
 
 ## October 26, 2026 — original boot investigation
 
+- October 27: the isolated 850M-clock v6.39 dial experiment completed with
+  42,260 LCD writes and 326 virtual records. The original phone sent a SAPI-0
+  SABM containing CM Service Request (`05 24`, MO call) at cycle 620,871,835.
+  The old FPGA peer had no CM response; subsequent idle uplink blocks do not
+  establish a successful call. Input script hashes match before/after the run.
+- Added an experimental CM establishment branch: a complete CM Service Request
+  with Classmark 2 and a valid 15-digit IMSI queues `06 35 01` (A5/0 Ciphering
+  Mode Command), after the scheduler's UA gate. It retains the frame under
+  backpressure, retries missing N(R)=1 acknowledgements and accepts an ordered
+  `06 32` Mode Complete, including a piggyback ACK. It never reports location
+  registration or call completion for this exchange. CC SETUP handling, L3
+  dispatch and SMS remain unfinished. A new isolated original-ROM run is in
+  progress; its result is not yet qualified. DSP trace capture now retains up
+  to 32 payload bytes rather than 12, allowing complete SEND_BLOCK inspection.
+  All 35 RTL cases and three trace-parser tests pass. Coverage includes malformed
+  CM requests, wrong sequence numbers, stalled/retried cipher output, piggyback
+  mode-complete acknowledgements and UA-before-command DSP queue ordering.
+  This branch is not installed on the physical Tang; full CHV/network fit is
+  still unresolved and the board's USB interfaces are currently unavailable.
+
 - Tested simulated-annealing placement (seed 2) on the historical pre-network
   CHV synthesis snapshot. The process terminated during initial placement with
   no output PNR JSON and no useful terminal error in its captured log. This is
@@ -13,10 +33,10 @@
   The failed-build regression passes with nondefault options while still proving
   the old .fs is preserved separately and cannot masquerade as the new output.
 
-- Started an isolated 850M original v6.39 experiment that exits Net Monitor,
+- Completed an isolated 850M original v6.39 experiment that exits Net Monitor,
   enters test number 12345 through Nokia keypad events and presses Call. It
   runs entirely inside the virtual model; no physical cellular call is made.
-  Actual post-dial CM/CC requests still need inspection after the run advances.
+  It reached the CM Service Request described above; no CC connection completed.
 - `tools/trace_protocol.py` now summarizes observed DSP request prefixes into
   SABM/RR/I/DISC events, sequence numbers, SAPI/PF and captured/declared lengths.
   It explicitly marks truncated payloads, ignores stale sub values for empty

@@ -51,7 +51,30 @@ module mm_registration_tb;
         @(negedge clk);reset=1;@(negedge clk);if(registered || downlink_valid)$fatal(1,"MM reset");
         reset=0;uplink_frame[87:80]=5;uplink_frame[79:72]=8'hf4;
         uplink(24'h033f3d);if(!downlink_valid)$fatal(1,"valid TMSI request rejected");
-        $display("PASS MM registration peer: LU accept/LAI, ordered acknowledgements, release, invalid/reset");$finish;
+        @(negedge clk);reset=1;@(negedge clk);reset=0;
+        uplink_frame={24'h033f41,128'h05247103301881081910103254769810,32'h2b2b2b2b};
+        uplink_length=18;uplink(24'h033f41);
+        if(downlink_valid)$fatal(1,"truncated CM service accepted");
+        uplink_length=23;uplink_frame[95:92]=4'ha;uplink(24'h033f41);
+        if(downlink_valid)$fatal(1,"invalid CM IMSI accepted");
+        uplink_frame[95:92]=1;uplink(24'h033f43);
+        if(downlink_valid)$fatal(1,"segmented CM establishment accepted");
+        uplink(24'h033f41);
+        if(!downlink_valid || downlink_frame[183:136]!==48'h03000d063501)
+            $fatal(1,"CM service did not produce unencrypted cipher command");
+        repeat(4)@(negedge clk);
+        if(!downlink_valid)$fatal(1,"cipher command lost under backpressure");
+        sent();uplink(24'h030101);
+        if(dut.state!=dut.CIPHER_ACK)$fatal(1,"wrong cipher N(R) accepted");
+        uplink(24'h032101);
+        if(downlink_valid || registered || dut.state!=dut.CIPHER_COMPLETE)
+            $fatal(1,"cipher acknowledgement confused with registration/release");
+        uplink_frame[159:144]=16'h0632;uplink(24'h032209);
+        if(dut.state!=dut.CIPHER_COMPLETE)$fatal(1,"out of sequence mode complete accepted");
+        uplink(24'h032009);
+        if(dut.state!=dut.CM_ACTIVE || registered || downlink_valid)
+            $fatal(1,"cipher mode complete did not activate virtual CM connection");
+        $display("PASS MM peer: LU/LAI/release and CM cipher establishment, framing/identity/sequence/reset");$finish;
     end
     initial begin #10000;$fatal(1,"MM timeout");end
 endmodule

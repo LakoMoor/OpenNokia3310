@@ -38,6 +38,16 @@ module mm_retry_tb;
         if(downlink_frame[175:168]!=2)$fatal(1,"release retry sequence changed");
         uplink(24'h034101);
         if(!registered || failed)$fatal(1,"release ACK after retry");
+        reset=1;@(negedge clk);reset=0;
+        uplink_frame={24'h033f41,128'h05247103301881081910103254769810,32'h2b2b2b2b};
+        uplink(24'h033f41);original=downlink_frame;
+        sent();wait(downlink_valid);@(negedge clk);
+        if(downlink_frame!==original || downlink_frame[183:136]!==48'h03000d063501)
+            $fatal(1,"CM cipher retry changed frame");
+        // Cipher complete may acknowledge the queued retransmission itself.
+        uplink_frame[159:144]=16'h0632;uplink(24'h032009);
+        if(downlink_valid || failed || registered || dut.state!=dut.CM_ACTIVE)
+            $fatal(1,"piggyback mode-complete ACK failed after retry");
         $display("PASS MM retry: output stalls, identical retransmission, bounded failure, recovery");$finish;
     end
     initial begin #10000;$fatal(1,"retry timeout");end

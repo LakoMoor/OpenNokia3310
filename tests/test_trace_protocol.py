@@ -29,4 +29,14 @@ class TraceProtocolTests(unittest.TestCase):
         self.assertNotIn('initial_l3_type',events[1])
         self.assertFalse(events[1]['framing_valid']) # LI claims four bytes but only three fit
 
+    def test_complete_cm_service_packet(self):
+        payload='0080013f41052471033018810819101032547698102b2b2b2b000000'
+        event=summarize(f'DSP message=78 opcode=1b sub=0 length=28 payload={payload} cycle=620871835')['events'][0]
+        self.assertEqual(event['captured_bytes'],28)
+        self.assertFalse(event['truncated'])
+        self.assertTrue(event['framing_valid'])
+        self.assertEqual(event['initial_l3_pd'],5)
+        self.assertEqual(event['initial_l3_type'],0x24)
+        self.assertEqual(event['information_prefix'],'05247103301881081910103254769810')
+
 if __name__=='__main__':unittest.main()
