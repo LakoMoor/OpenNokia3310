@@ -10,6 +10,10 @@
   hyperframe positions; DSP access and call integration tests also pass.
   Full synthesis for this change is running; resource savings and fit are
   not yet known.
+  Synthesis subsequently completed at 14,438 raw LUT1–4 and 3,650 ALU,
+  compared with 14,470 LUT and 3,636 ALU before this specific change. A
+  separate heap placement of this snapshot and a heap seed-2 placement of the
+  preceding snapshot are running. Neither is a qualified bitstream.
 
 - The original v6.39 ROM completed two calls in the 1.1B-cycle serial-RX
   simulation: CONNECT ACK at 656,617,583 and 958,499,543; RELEASE COMPLETE at
