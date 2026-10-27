@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Tang Nano 20K board integration: original ARM ROM -> SDRAM -> MAD2 -> both displays.
 // Device-model completeness is tracked separately from FPGA board integration.
-module nokia_top (
+module nokia_top #(parameter VIRTUAL_NETWORK=0) (
     input logic sys_clk,s1,s2,uart_rx,ds_miso,flash_miso,
     output logic speaker_p,speaker_n,
     output logic uart_tx,
@@ -76,7 +76,7 @@ module nokia_top (
         if(reset)begin diagnostic_pc<=0;diagnostic_sim<=0;end
         else if(control_wr && control_opcode==7)begin diagnostic_pc<=control_data[7];diagnostic_sim<=control_data[6] && !control_data[7];end
     end
-    nokia_core #(.CLK_HZ(CLK_HZ)) u_phone (
+    nokia_core #(.CLK_HZ(CLK_HZ),.VIRTUAL_NETWORK(VIRTUAL_NETWORK)) u_phone (
         .clk(clk_sys),.resetn(!reset && boot_done),.keys(keys),
         .mem_valid(valid),.mem_write(write),.mem_code(code),.mem_addr(address),.mem_wdata(wdata),.mem_be(be),
         .mem_ready(ready),.mem_error(error),.mem_rdata(rdata),

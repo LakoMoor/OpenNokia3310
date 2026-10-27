@@ -2,6 +2,14 @@
 
 ## October 27, 2026 — virtual CC and hardware recheck
 
+- Added an explicit `nokia_top` virtual-network parameter and
+  `tools/build.py nokia_top --virtual-network` option. The default board build
+  remains network-disabled; experimental outputs and build receipts are kept
+  in `build/nokia_top_lut4_virtual_network`, separate from the diagnostic image.
+  A failure-injection test checks the parameter override, receipt and that the
+  normal image is preserved. The first full network synthesis is in progress;
+  no device-fit, timing or hardware call is claimed until those are verified.
+
 - After the user's USB reconnection, JTAG/COM6 returned and the diagnostic
   image was reloaded into SRAM. The original ROM processed at least 135 SIM
   commands: the observed last command changed from READ RECORD (`b2`) to

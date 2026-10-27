@@ -23,15 +23,17 @@ def main():
     p.add_argument("target", choices=["arm7_probe", "nokia_core", "nokia_io_top", "nokia_top", "nokia_memtest", "nokia_romtest"])
     p.add_argument("--lut4-only",action="store_true",help="Avoid wide-LUT placement clusters on crowded boards")
     p.add_argument("--synth-only", action="store_true")
+    p.add_argument("--virtual-network",action="store_true",help="Experimental virtual network on nokia_top; separate unqualified output")
     p.add_argument("--placer",choices=['heap','sa','static'],default='heap')
     p.add_argument("--seed",type=int,default=1)
     p.add_argument("--tools", default=os.environ.get("TOOLS", "E:/tools/oss-cad-suite"))
     args = p.parse_args()
+    if args.virtual_network and args.target!='nokia_top':p.error('--virtual-network is only supported for nokia_top')
     args.lut4_only = args.lut4_only or args.target=="nokia_top"
     os.chdir(ROOT)
     tools = Path(args.tools)
     os.environ["PATH"] = os.pathsep.join([str(tools / "bin"), str(tools / "lib"), os.environ["PATH"]])
-    out = Path("build") / (args.target+("_lut4" if args.lut4_only else ""))
+    out = Path("build") / (args.target+("_lut4" if args.lut4_only else "")+("_virtual_network" if args.virtual_network else ""))
     out.mkdir(parents=True, exist_ok=True)
     # A failed synthesis/placement must never leave an older image under the
     # expected output name. Preserve it separately before starting this build.
@@ -41,7 +43,7 @@ def main():
         bitstream.rename(previous)
         print('Previous image preserved:',previous,flush=True)
     receipt=out/'build-result.json'
-    options={'target':args.target,'placer':args.placer,'seed':args.seed,'lut4_only':args.lut4_only}
+    options={'target':args.target,'placer':args.placer,'seed':args.seed,'lut4_only':args.lut4_only,'virtual_network':args.virtual_network}
     receipt.write_text(json.dumps({**options,'status':'in_progress'},indent=2)+'\n')
     if args.target in ("nokia_memtest","nokia_romtest"):
         sources=["rtl/board/gowin_prims.v","rtl/board/pll_nokia.v",
@@ -61,7 +63,7 @@ def main():
     # Slang receives Yosys tokens literally; -F handles paths with spaces.
     manifest = out / "sources.f"
     manifest.write_text("\n".join('"' + str(s).replace("\\", "/") + '"' for s in sources))
-    script = (f"read_slang -I. --top {args.target} --allow-use-before-declare "
+    script = (f"read_slang -I. --top {args.target} {'-G VIRTUAL_NETWORK=1 ' if args.virtual_network else ''}--allow-use-before-declare "
               f"--ignore-assertions -f {manifest.as_posix()};\n"
               f"hierarchy -check -top {args.target};\n"
               f"synth_gowin {'-nowidelut ' if args.lut4_only else ''}-top {args.target} -family gw2a -json {out.as_posix()}/synth.json;\n"
