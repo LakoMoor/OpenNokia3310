@@ -43,6 +43,7 @@ module dsp_network #(parameter CLK_HZ=27000000,ENABLE_NETWORK=0) (
         logic dedicated_enabled,fill_pending,block_pending,dedicated_packet,block_packet;
         logic dedicated_has_fill;
         logic ua_pending,ua_packet,mm_packet,mm_allowed;
+        logic ua_releases_channel;
         wire mm_valid,mm_ready;
         wire [183:0] mm_frame;
         assign mm_ready=start && dedicated_packet && mm_packet;
@@ -109,7 +110,10 @@ module dsp_network #(parameter CLK_HZ=27000000,ENABLE_NETWORK=0) (
             .m_ready(m_ready && lock),.m_rdata(m_rdata));
         always_ff @(posedge clk)begin
             start<=0;
-            if(ua_done && ua_accepted)begin ua_frame<=ua_response;ua_channel<=uplink_logch;ua_pending<=1;mm_allowed<=0;end
+            if(ua_done && ua_accepted)begin
+                ua_frame<=ua_response;ua_channel<=uplink_logch;ua_pending<=1;mm_allowed<=0;
+                ua_releases_channel<=(uplink_frame[175:168] & 8'hef)==8'h43;
+            end
             // One GSM TDMA frame = 60/13000 seconds; preserve fractional clocks.
             if(frame_phase+13000>=CLK_HZ*60)begin
                 frame_phase<=frame_phase+13000-CLK_HZ*60;
@@ -171,6 +175,9 @@ module dsp_network #(parameter CLK_HZ=27000000,ENABLE_NETWORK=0) (
                     packets<=packets+1'b1;
                     if(dedicated_packet && !block_packet)dedicated_has_fill<=1;
                     if(dedicated_packet && ua_packet)mm_allowed<=1;
+                    if(dedicated_packet && ua_packet && ua_releases_channel)begin
+                        dedicated_enabled<=0;dedicated_has_fill<=0;fill_pending<=0;block_pending<=0;mm_allowed<=0;
+                    end
                     if(access_packet)begin
                         if(grant_packet)rach_active<=0;
                         else grant_delay<=CLK_HZ/10;
@@ -181,7 +188,7 @@ module dsp_network #(parameter CLK_HZ=27000000,ENABLE_NETWORK=0) (
             if(reset)begin
                 access_pending<=0;grant_pending<=0;access_packet<=0;grant_packet<=0;rach_active<=0;
                 access_ra<=0;access_fn<=0;grant_delay<=0;
-                ua_pending<=0;ua_packet<=0;mm_packet<=0;mm_allowed<=0;ua_frame<=0;ua_channel<=0;
+                ua_pending<=0;ua_packet<=0;mm_packet<=0;mm_allowed<=0;ua_frame<=0;ua_channel<=0;ua_releases_channel<=0;
                 dedicated_enabled<=0;dedicated_has_fill<=0;fill_pending<=0;block_pending<=0;dedicated_packet<=0;block_packet<=0;fill_fn<=0;
                 lock<=0;start<=0;pending<=0;bcch<=0;confirm_pending<=0;confirm_packet<=0;confirm_token<=0;rssi_pending<=0;rssi_packet<=0;psw_pending<=0;psw_packet<=0;psw_sent<=0;si_kind<=0;seen_messages<=0;delay_count<=0;frame_phase<=0;frame_number<=0;packets<=0;end
         end

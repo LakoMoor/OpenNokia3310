@@ -70,6 +70,20 @@ module dsp_mm_tb;
         memory[13]=32'h051b0080;memory[14]=32'h03410100;
         doorbell('h100a4,30);repeat(100)@(negedge clk);
         if(!dut.network.mm_peer.registered)$fatal(1,"MM peer completed before/without release acknowledgement");
+        memory[15]=32'h051b0080;memory[16]=32'h01530100;
+        doorbell('h100a4,34);
+        stage=0;records=0;
+        while(stage==0 && records<8)begin
+            wait(fiq0);@(negedge clk);records++;
+            cursor=memory['h1c8/4][15:0];
+            if(ring_byte(cursor,1)=='h80 && ring_byte(cursor,12)==1 &&
+               ring_byte(cursor,13)=='h73 && ring_byte(cursor,14)==1)stage=1;
+            memory['h1c8/4][15:0]=memory['h1c8/4][31:16];
+        end
+        if(stage!=1)$fatal(1,"DISC UA not delivered");
+        repeat(3)@(negedge clk);records=interrupts;repeat(6000)@(negedge clk);
+        if(interrupts!=records || dut.network.dedicated_enabled || !dut.network.mm_peer.registered)
+            $fatal(1,"DISC UA must release SDCCH without erasing MM completion");
         $display("PASS DSP MM: SEND_BLOCK SABM -> UA -> LU Accept -> RR -> release -> RR through queue");$finish;
     end
     initial begin #200000;$fatal(1,"DSP MM timeout");end

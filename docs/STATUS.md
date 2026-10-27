@@ -2,6 +2,14 @@
 
 ## October 26, 2026 — original boot investigation
 
+- Completed the modeled SDCCH release path: after a valid DISC, the scheduler
+  commits its UA before disabling dedicated fill/uplink-request events and
+  clearing pending dedicated work. MM completion is retained. The extended
+  queue integration test consumes DISC UA and verifies silence over multiple
+  following scheduling intervals; all 32 RTL tests pass. This fix is not in
+  the currently running isolated standby experiment and is not hardware-qualified.
+  Tang USB UART/JTAG interfaces were not present at the latest device check.
+
 - Original-ROM trace output is now isolated per run under `build/trace-runs/`.
   Each run records ROM/RTL/harness hashes, clock, virtual-network flag, memory
   stalls, cycle limit and terminal status. Frames and RAM are written only to
