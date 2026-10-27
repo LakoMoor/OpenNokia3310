@@ -2,6 +2,17 @@
 
 ## October 27, 2026 — virtual CC and hardware recheck
 
+- The original-ROM two-call simulation completed 1.1 billion cycles with 45,920
+  LCD writes and matching initial/final keypad script hashes. Both calls reached
+  CONNECT ACK, followed by RELEASE COMPLETE and DISC after End. This confirms
+  simulated signalling, not speech or a physical call.
+- The optimized pre-network build routed and passed timing (system 33.02 MHz,
+  pixel 141.08 MHz). Its bitstream SHA256 is
+  `69ce105501a1560d11854b0ebee9e79222ba98c165f12f1a61d46f8146d8e5eb`.
+  It was loaded into Tang SRAM and executed the ROM without reported memory or
+  bus errors, but the original UI still displayed Insert SIM card. It was not
+  written to flash or qualified for the installer; SIM diagnosis remains open.
+
 - In the running original-ROM two-call experiment, the first End now completes
   the real clearing sequence: DISCONNECT at 763,865,917, RELEASE ACK N(R)=5 at
   771,810,263, bare RELEASE COMPLETE (`03 2a`) at 775,784,675, RR release ACK
