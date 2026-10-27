@@ -49,4 +49,13 @@ class AsyncOpenTest(unittest.TestCase):
         while opener.result is None and time.monotonic()<end:time.sleep(.005)
         opener.cancel();self.assertTrue(port.closed.wait(2));self.assertIsNone(opener.poll())
 
+    def test_input_buffer_reset_can_stall_without_blocking_timeout(self):
+        now=[0];gate=threading.Event();entered=threading.Event()
+        class Port(FakePort):
+            def reset_input_buffer(self):entered.set();gate.wait(2)
+        port=Port();opener=AsyncSerialOpen(timeout=5,clock=lambda:now[0])
+        opener.begin('COM6',lambda _:port);self.assertTrue(entered.wait(1))
+        now[0]=6;self.assertEqual(opener.poll()[0],'timeout');gate.set()
+        self.assertTrue(port.closed.wait(2))
+
 if __name__=='__main__':unittest.main()
