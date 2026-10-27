@@ -2,6 +2,16 @@
 
 ## October 26, 2026 — original boot investigation
 
+- Added a standalone minimal MM location-update peer for an established SAPI-0
+  link: a recognized LU request in SABM queues a seven-byte Location Updating
+  Accept with the configured PLMN/LAC, waits for N(R)=1, then queues Channel
+  Release and waits for N(R)=2. Tests verify output backpressure, latched LAI,
+  wrong/duplicate/early acknowledgements, SAPI/protocol/segmentation guards and
+  reset. The tests pass. The module is not connected to the DSP downlink yet;
+  its completion output is only a model-state result, not verified phone
+  registration. It omits retransmission, authentication, complete request parsing,
+  I-frame reassembly, MM Information and call/SMS service.
+
 - The dedicated-scheduling original v6.39 trace emits real SEND_BLOCK `1B`
   requests with SABM data, including prefix `0080013f4905087000f110ff...`.
   Their DSP payload length is 28 bytes, so the decoder now accepts ROM6 padding
