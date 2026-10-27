@@ -21,19 +21,21 @@ def main():
     cases = {
         "lapdm_rx": ["rtl/nokia/lapdm_rx.sv"],
         "lapdm_tx": ["rtl/nokia/lapdm_tx.sv"],
+        "cc_voice": ["rtl/nokia/lapdm_tx.sv","rtl/nokia/cc_voice.sv"],
         "l3_header": ["rtl/nokia/l3_header.sv"],
         "mm_iframe_ack": ["rtl/nokia/mm_registration.sv"],
         "mm_retry": ["rtl/nokia/mm_registration.sv"],
         "mm_registration": ["rtl/nokia/mm_registration.sv"],
         "lapdm_ua": ["rtl/nokia/lapdm_ua.sv"],
         "virtual_dedicated": ["rtl/nokia/virtual_dedicated.sv"],
-        "dsp_access": ["rtl/nokia/dsp_service.sv","rtl/nokia/dsp_network.sv","rtl/nokia/lapdm_ua.sv","rtl/nokia/lapdm_rx.sv","rtl/nokia/l3_header.sv","rtl/nokia/mm_registration.sv","rtl/nokia/virtual_access.sv","rtl/nokia/virtual_dedicated.sv","rtl/nokia/virtual_cell.sv","rtl/nokia/mdi_injector.sv"],
-        "dsp_dedicated": ["rtl/nokia/dsp_service.sv","rtl/nokia/dsp_network.sv","rtl/nokia/lapdm_ua.sv","rtl/nokia/lapdm_rx.sv","rtl/nokia/l3_header.sv","rtl/nokia/mm_registration.sv","rtl/nokia/virtual_access.sv","rtl/nokia/virtual_dedicated.sv","rtl/nokia/virtual_cell.sv","rtl/nokia/mdi_injector.sv"],
-        "dsp_link_reset": ["rtl/nokia/dsp_service.sv","rtl/nokia/dsp_network.sv","rtl/nokia/lapdm_ua.sv","rtl/nokia/lapdm_rx.sv","rtl/nokia/l3_header.sv","rtl/nokia/mm_registration.sv","rtl/nokia/virtual_access.sv","rtl/nokia/virtual_dedicated.sv","rtl/nokia/virtual_cell.sv","rtl/nokia/mdi_injector.sv"],
-        "dsp_mm": ["rtl/nokia/dsp_service.sv","rtl/nokia/dsp_network.sv","rtl/nokia/lapdm_ua.sv","rtl/nokia/lapdm_rx.sv","rtl/nokia/l3_header.sv","rtl/nokia/mm_registration.sv","rtl/nokia/virtual_access.sv","rtl/nokia/virtual_dedicated.sv","rtl/nokia/virtual_cell.sv","rtl/nokia/mdi_injector.sv"],
-        "dsp_rx": ["rtl/nokia/dsp_service.sv","rtl/nokia/dsp_network.sv","rtl/nokia/lapdm_ua.sv","rtl/nokia/lapdm_rx.sv","rtl/nokia/l3_header.sv","rtl/nokia/mm_registration.sv","rtl/nokia/virtual_access.sv","rtl/nokia/virtual_dedicated.sv","rtl/nokia/virtual_cell.sv","rtl/nokia/mdi_injector.sv"],
+        "dsp_access": ["rtl/nokia/dsp_service.sv","rtl/nokia/dsp_network.sv","rtl/nokia/lapdm_ua.sv","rtl/nokia/lapdm_rx.sv","rtl/nokia/l3_header.sv","rtl/nokia/lapdm_tx.sv","rtl/nokia/cc_voice.sv","rtl/nokia/mm_registration.sv","rtl/nokia/virtual_access.sv","rtl/nokia/virtual_dedicated.sv","rtl/nokia/virtual_cell.sv","rtl/nokia/mdi_injector.sv"],
+        "dsp_dedicated": ["rtl/nokia/dsp_service.sv","rtl/nokia/dsp_network.sv","rtl/nokia/lapdm_ua.sv","rtl/nokia/lapdm_rx.sv","rtl/nokia/l3_header.sv","rtl/nokia/lapdm_tx.sv","rtl/nokia/cc_voice.sv","rtl/nokia/mm_registration.sv","rtl/nokia/virtual_access.sv","rtl/nokia/virtual_dedicated.sv","rtl/nokia/virtual_cell.sv","rtl/nokia/mdi_injector.sv"],
+        "dsp_link_reset": ["rtl/nokia/dsp_service.sv","rtl/nokia/dsp_network.sv","rtl/nokia/lapdm_ua.sv","rtl/nokia/lapdm_rx.sv","rtl/nokia/l3_header.sv","rtl/nokia/lapdm_tx.sv","rtl/nokia/cc_voice.sv","rtl/nokia/mm_registration.sv","rtl/nokia/virtual_access.sv","rtl/nokia/virtual_dedicated.sv","rtl/nokia/virtual_cell.sv","rtl/nokia/mdi_injector.sv"],
+        "dsp_mm": ["rtl/nokia/dsp_service.sv","rtl/nokia/dsp_network.sv","rtl/nokia/lapdm_ua.sv","rtl/nokia/lapdm_rx.sv","rtl/nokia/l3_header.sv","rtl/nokia/lapdm_tx.sv","rtl/nokia/cc_voice.sv","rtl/nokia/mm_registration.sv","rtl/nokia/virtual_access.sv","rtl/nokia/virtual_dedicated.sv","rtl/nokia/virtual_cell.sv","rtl/nokia/mdi_injector.sv"],
+        "dsp_cc": ["rtl/nokia/dsp_service.sv","rtl/nokia/dsp_network.sv","rtl/nokia/lapdm_ua.sv","rtl/nokia/lapdm_rx.sv","rtl/nokia/l3_header.sv","rtl/nokia/lapdm_tx.sv","rtl/nokia/cc_voice.sv","rtl/nokia/mm_registration.sv","rtl/nokia/virtual_access.sv","rtl/nokia/virtual_dedicated.sv","rtl/nokia/virtual_cell.sv","rtl/nokia/mdi_injector.sv"],
+        "dsp_rx": ["rtl/nokia/dsp_service.sv","rtl/nokia/dsp_network.sv","rtl/nokia/lapdm_ua.sv","rtl/nokia/lapdm_rx.sv","rtl/nokia/l3_header.sv","rtl/nokia/lapdm_tx.sv","rtl/nokia/cc_voice.sv","rtl/nokia/mm_registration.sv","rtl/nokia/virtual_access.sv","rtl/nokia/virtual_dedicated.sv","rtl/nokia/virtual_cell.sv","rtl/nokia/mdi_injector.sv"],
         "virtual_access": ["rtl/nokia/virtual_access.sv"],
-        "dsp_network": ["rtl/nokia/dsp_service.sv","rtl/nokia/dsp_network.sv","rtl/nokia/lapdm_ua.sv","rtl/nokia/lapdm_rx.sv","rtl/nokia/l3_header.sv","rtl/nokia/mm_registration.sv","rtl/nokia/virtual_access.sv","rtl/nokia/virtual_dedicated.sv","rtl/nokia/virtual_cell.sv","rtl/nokia/mdi_injector.sv"],
+        "dsp_network": ["rtl/nokia/dsp_service.sv","rtl/nokia/dsp_network.sv","rtl/nokia/lapdm_ua.sv","rtl/nokia/lapdm_rx.sv","rtl/nokia/l3_header.sv","rtl/nokia/lapdm_tx.sv","rtl/nokia/cc_voice.sv","rtl/nokia/mm_registration.sv","rtl/nokia/virtual_access.sv","rtl/nokia/virtual_dedicated.sv","rtl/nokia/virtual_cell.sv","rtl/nokia/mdi_injector.sv"],
         "sim_chv": ["rtl/nokia/sim_chv.sv"],
         "virtual_cell": ["rtl/nokia/virtual_cell.sv"],
         "mdi_injector": ["rtl/nokia/virtual_cell.sv","rtl/nokia/mdi_injector.sv"],
@@ -64,7 +66,7 @@ def main():
     for name, sources in cases.items():
         if "rtl/nokia/sim_card.sv" in sources:sources=["rtl/nokia/sim_chv.sv",*sources]
         if "rtl/nokia/nokia_core.sv" in sources:
-            sources=["rtl/nokia/dsp_network.sv","rtl/nokia/lapdm_ua.sv","rtl/nokia/lapdm_rx.sv","rtl/nokia/l3_header.sv","rtl/nokia/mm_registration.sv","rtl/nokia/virtual_access.sv","rtl/nokia/virtual_dedicated.sv","rtl/nokia/virtual_cell.sv","rtl/nokia/mdi_injector.sv",*sources]
+            sources=["rtl/nokia/dsp_network.sv","rtl/nokia/lapdm_ua.sv","rtl/nokia/lapdm_rx.sv","rtl/nokia/l3_header.sv","rtl/nokia/lapdm_tx.sv","rtl/nokia/cc_voice.sv","rtl/nokia/mm_registration.sv","rtl/nokia/virtual_access.sv","rtl/nokia/virtual_dedicated.sv","rtl/nokia/virtual_cell.sv","rtl/nokia/mdi_injector.sv",*sources]
         if a.case and name not in a.case:
             continue
         output = Path("build/tests") / name

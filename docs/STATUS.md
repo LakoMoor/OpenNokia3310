@@ -1,5 +1,35 @@
 # Verification status
 
+## October 27, 2026 — virtual CC and hardware recheck
+
+- Tang USB is available again: FTDI serial 2023030621B on COM6; JTAG detects
+  Gowin ID 0x81b. Without rewriting FPGA or ROM, UART reports SDRAM ready,
+  ROM done, PLL locked, increasing LCD writes, no memory/bus errors and no LCD
+  overflow. Thirteen live LCD frames were captured after the user's replug.
+  The original Time prompt responds to C, then shows **Insert SIM card**.
+  [Actual board LCD over USB](img/hardware-coldboot-sim-required.png) is an
+  enlarged framebuffer, not HDMI capture. This verifies flash boot/control,
+  not accepted SIM or a fully working phone. The installed image still needs
+  SIM qualification; newer CHV/network logic has not been installed.
+- Connected an experimental MO speech CC handler to retained L3 RAM and the
+  reliable SAPI-0 transmitter. It parses bounded SETUP TLVs, a speech bearer
+  and called-party BCD, sends CALL PROCEEDING / ALERTING / CONNECT with ordered
+  LAPDm acknowledgements, and marks a call active only after the matching
+  original-transaction CONNECT ACK. Unsupported/malformed requests stay
+  retained; no connection is claimed on link timeout or wrong transaction ID.
+  DSP-queue tests cover original v6.39 SETUP for 12345, CM mode-complete buffer
+  release, all three replies, piggyback CONNECT ACK and link/reset cleanup.
+  The parser also checks duplicate/missing IEs, invalid/filler BCD, unsupported
+  data bearer/address extension, truncated and 256/257-byte bounds.
+  This is signalling only: incoming calls, CC disconnect/release, speech audio
+  and SMS are unfinished. The new isolated `cc-connect-820M` ROM run is in
+  progress; its final phone response has not yet been qualified.
+  All 39 RTL cases and four trace-parser tests pass after this integration.
+- The previous ownership-fix run completed 700M clocks with 33,908 LCD writes,
+  215 virtual records and matching keypad-script hashes. SETUP is followed by
+  idle uplink blocks rather than the former repeated SETUP; no CC response
+  existed in that run, so it does not establish a connected call.
+
 ## October 26, 2026 — original boot investigation
 
 - The isolated `cm-cipher-740M` v6.39 run completed: 740M clocks, 36,602 LCD
@@ -53,7 +83,8 @@
   CM requests, wrong sequence numbers, stalled/retried cipher output, piggyback
   mode-complete acknowledgements and UA-before-command DSP queue ordering.
   This branch is not installed on the physical Tang; full CHV/network fit is
-  still unresolved and the board's USB interfaces are currently unavailable.
+  still unresolved. USB was unavailable during that check; it was restored in
+  the October 27 hardware recheck above.
 
 - Tested simulated-annealing placement (seed 2) on the historical pre-network
   CHV synthesis snapshot. The process terminated during initial placement with

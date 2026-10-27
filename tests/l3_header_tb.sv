@@ -3,6 +3,7 @@ module l3_header_tb;
     reg clk=0,reset=1,message_valid=0,message_sapi3=0,header_ready=0;
     reg [8:0] message_length=2;
     reg [7:0] read_data=0;
+    reg [7:0] consumer_read_address=0;
     wire message_ready,header_valid,sapi3,has_header;
     wire [7:0] read_address,discriminator,message_type;
     wire [8:0] length;
@@ -22,6 +23,9 @@ module l3_header_tb;
             $fatal(1,"synchronous header read/metadata");
         repeat(8)@(negedge clk);
         if(!header_valid || message_ready || releases!=0)$fatal(1,"unaccepted message released");
+        memory[42]='hab;consumer_read_address=42;repeat(2)@(negedge clk);
+        if(read_address!=42 || read_data!='hab || discriminator!=6 || message_type!='h32)
+            $fatal(1,"consumer payload read corrupted retained header");
         header_ready=1;repeat(3)@(negedge clk);header_ready=0;
         if(releases!=1 || header_valid)$fatal(1,"release handshake repeated/lost");
         message_sapi3=1;message_length=256;memory[0]=9;memory[1]=1;message_valid=1;

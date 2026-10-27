@@ -6,6 +6,7 @@ module l3_header (
     input logic [8:0] message_length,
     output wire message_ready,
     output wire [7:0] read_address,
+    input logic [7:0] consumer_read_address,
     input logic [7:0] read_data,
     output wire header_valid,
     input logic header_ready,
@@ -15,7 +16,8 @@ module l3_header (
 );
     typedef enum logic [2:0] {IDLE,WAIT_PD,GET_PD,WAIT_TYPE,GET_TYPE,OFFER,RELEASE} state_t;
     state_t state;
-    assign read_address=(state==WAIT_TYPE || state==GET_TYPE) ? 8'd1 : 8'd0;
+    assign read_address=state==OFFER ? consumer_read_address :
+        (state==WAIT_TYPE || state==GET_TYPE) ? 8'd1 : 8'd0;
     assign header_valid=state==OFFER;
     assign message_ready=state==RELEASE;
     always_ff @(posedge clk)begin

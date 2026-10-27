@@ -35,7 +35,7 @@ os.environ["PATH"]=os.pathsep.join([str(Path(a.tools)/"bin"),str(Path(a.tools)/"
 vroot=Path(a.tools)/"share/verilator/include"
 os.environ["VERILATOR_ROOT"]=str(vroot.parent)
 sources=cpu_sources()+["rtl/nokia/keypad_3310.sv","rtl/nokia/sim_chv.sv","rtl/nokia/sim_card.sv", "rtl/nokia/mad2_mmio.sv","rtl/nokia/nor_bus.sv","rtl/nokia/dsp_service.sv","rtl/nokia/nokia_sound.sv", "rtl/nokia/nokia_core.sv"]
-sources += ["rtl/nokia/dsp_network.sv","rtl/nokia/lapdm_ua.sv","rtl/nokia/lapdm_rx.sv","rtl/nokia/l3_header.sv","rtl/nokia/mm_registration.sv","rtl/nokia/virtual_access.sv","rtl/nokia/virtual_dedicated.sv","rtl/nokia/virtual_cell.sv","rtl/nokia/mdi_injector.sv"]
+sources += ["rtl/nokia/dsp_network.sv","rtl/nokia/lapdm_ua.sv","rtl/nokia/lapdm_rx.sv","rtl/nokia/l3_header.sv","rtl/nokia/lapdm_tx.sv","rtl/nokia/cc_voice.sv","rtl/nokia/mm_registration.sv","rtl/nokia/virtual_access.sv","rtl/nokia/virtual_dedicated.sv","rtl/nokia/virtual_cell.sv","rtl/nokia/mdi_injector.sv"]
 fingerprint=hashlib.sha256()
 for source in sorted({Path(x) for x in sources} | set(Path('rtl/nokia').glob('*.svh')) | set(Path('rtl/nokia').glob('*.hex')) | set(Path('third_party/arm7tdmi-sv').rglob('*.svh'))):
     fingerprint.update(str(source).encode());fingerprint.update(source.read_bytes())
