@@ -2,6 +2,21 @@
 
 ## October 27, 2026 — virtual CC and hardware recheck
 
+- The incremental GSM frame counters synthesize at 14,470 raw LUT1–4 and
+  3,636 ALU, down from 14,517 and 3,997 in the preceding variant. The device
+  placer reported 19,900/20,736 LUT4 sites (95%) but terminated with `Unable
+  to find legal placement for all cells`; no routable network image resulted.
+  Further area reduction remains necessary. Independently, the original-ROM
+  serial-RX run reached CONNECT ACK and the first End's RELEASE COMPLETE,
+  RR ACK and DISC; its second-call/final result remains pending.
+- The desktop remote now opens and initializes its serial port on a daemon
+  thread. A five-second timeout or user cancellation leaves the Tk event loop
+  responsive and disposes of a port that opens late; installer disconnect also
+  invalidates pending opens. Tests cover blocked, failed, cancelled and late
+  opens plus the desktop polling path. An operating-system driver can still
+  retain a stuck COM handle, and writes/close are not isolated by this change;
+  real reconnect behavior remains unverified.
+
 - The first serial-RX network placement reported 21,463/20,736 LUT4 sites
   (103%); that experiment was stopped as over capacity before placement
   completed. Replaced the variable-byte selector in the dedicated-frame

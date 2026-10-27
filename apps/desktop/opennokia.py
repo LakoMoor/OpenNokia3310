@@ -13,12 +13,14 @@ import serial
 from serial.tools import list_ports
 from firmware_ui import FirmwarePage
 from pc_audio import Audio
+from async_serial_open import AsyncSerialOpen
 
 
 class Remote:
     def __init__(self,root):
         self.root=root
         self.port=None
+        self.opening=AsyncSerialOpen()
         self.mask=0
         self.pressed_at={};self.key_versions={}
         self.lock=threading.Lock()
@@ -107,14 +109,15 @@ class Remote:
 
     def connect(self):
         if self.firmware.busy:return
+        if self.opening.pending:
+            self.opening.cancel();self.info.set('Connection attempt cancelled.');return
         if self.port:self.release();self.send(command(5,0));self.disconnect();return
-        try:
-            self.port=serial.Serial(self.device.get(),115200,timeout=.05,write_timeout=.3)
-            self.port.reset_input_buffer();self.send(keys(0)+command(5,1));self.info.set('Connected · requesting live LCD')
-            self.start_audio()
-        except (serial.SerialException,OSError) as e:messagebox.showerror('USB connection',str(e))
+        device=self.device.get()
+        if self.opening.begin(device,lambda name:serial.Serial(name,115200,timeout=.05,write_timeout=.3)):
+            self.info.set('Connecting to '+device+'… Click again to cancel.')
 
     def disconnect(self):
+        self.opening.cancel()
         self.audio.stop()
         port=self.port;self.port=None;self.mask=0
         if port:
@@ -137,6 +140,13 @@ class Remote:
 
     def poll(self):
         if self.stopping:return
+        opened=self.opening.poll()
+        if opened:
+            kind,value=opened
+            if kind=='connected':
+                self.port=value;self.send(keys(0)+command(5,1));self.info.set('Connected · requesting live LCD');self.start_audio()
+            else:
+                self.info.set(value);messagebox.showerror('USB connection',value)
         while not self.events.empty():
             kind,body=self.events.get_nowait()
             if kind==1 and len(body)==504:
