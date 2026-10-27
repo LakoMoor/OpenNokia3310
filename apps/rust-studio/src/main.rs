@@ -245,6 +245,7 @@ struct Studio {
     tx: mpsc::Sender<String>,
     installing: Arc<AtomicBool>,
     ports: Vec<String>,
+    page: u8,
     audio: Arc<Mutex<audio::State>>,
     audio_test: Arc<AtomicBool>,
 }
@@ -269,6 +270,7 @@ impl Default for Studio {
             tx,
             installing: Arc::new(AtomicBool::new(false)),
             ports: Vec::new(),
+            page: 0,
             audio: Arc::new(Mutex::new(audio::State::default())),
             audio_test: Arc::new(AtomicBool::new(false)),
         }
@@ -392,8 +394,34 @@ impl eframe::App for Studio {
         ctx.request_repaint_after(Duration::from_millis(50));
         egui::CentralPanel::default().show(ctx, |ui| {
             egui::ScrollArea::vertical().show(ui, |ui| {
-                ui.heading("Open Nokia Studio");
-                ui.label("Experimental desktop remote and installer · Tang Nano 20K");
+                ui.add_space(14.);
+                ui.horizontal(|ui| {
+                    ui.vertical(|ui| {
+                        ui.label(egui::RichText::new("OPEN NOKIA  /  STUDIO").size(14.).strong().color(Color32::from_rgb(184, 217, 143)));
+                        ui.label(egui::RichText::new("A little phone. A bigger idea.").size(26.).strong());
+                        ui.label(egui::RichText::new("TANG NANO 20K    •    EXPERIMENTAL BUILD").size(11.).color(Color32::from_gray(150)));
+                    });
+                    ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                        let (label, color) = if self.installing.load(Ordering::Relaxed) { ("INSTALLING", Color32::from_rgb(224,184,100)) } else if self.serial_busy.load(Ordering::Relaxed) { ("CONNECTED / OPENING", Color32::from_rgb(184,217,143)) } else { ("DISCONNECTED", Color32::from_gray(165)) };
+                        ui.label(egui::RichText::new(label).size(12.).color(color));
+                    });
+                });
+                ui.add_space(20.);
+                ui.horizontal(|ui| {
+                    for (index, label) in [(0, "  Remote  "), (1, "  Install  "), (2, "  Activity  ")] {
+                        if ui.selectable_label(self.page == index, label).clicked() {
+                            self.page = index;
+                            self.keys.store(0, Ordering::Relaxed);
+                            self.key_until = [None; 17];
+                        }
+                    }
+                });
+                ui.add_space(12.); ui.separator(); ui.add_space(18.);
+                if self.page == 0 {
+                ui.label(egui::RichText::new("YOUR DEVICE").size(11.).color(Color32::from_gray(145)));
+                ui.heading("Remote control");
+                ui.label(egui::RichText::new("Connect your Tang to see and control the original phone screen.").color(Color32::from_gray(165)));
+                ui.add_space(12.);
                 ui.horizontal(|ui| {
                     ui.label("UART port");
                     ui.text_edit_singleline(&mut self.port);
@@ -441,25 +469,29 @@ impl eframe::App for Studio {
                         self.audio_test.store(true, Ordering::Relaxed);
                     }
                 });
-                let (rect, _) = ui.allocate_exact_size(Vec2::new(420., 240.), Sense::hover());
+                ui.add_space(14.);
+                ui.label(egui::RichText::new("LIVE DISPLAY  /  84 × 48").size(11.).color(Color32::from_gray(145)));
+                    let scale = (ui.available_width() / 84.).clamp(2., 4.);
+                let (rect, _) = ui.allocate_exact_size(Vec2::new(84.*scale, 48.*scale), Sense::hover());
                 ui.painter()
                     .rect_filled(rect, 0., Color32::from_rgb(190, 206, 145));
                 for y in 0..48 {
                     for x in 0..84 {
                         if self.lcd[(y / 8) * 84 + x] & (1 << (y % 8)) != 0 {
-                            let min = rect.min + Vec2::new(x as f32 * 5., y as f32 * 5.);
+                            let min = rect.min + Vec2::new(x as f32 * scale, y as f32 * scale);
                             ui.painter().rect_filled(
-                                egui::Rect::from_min_size(min, Vec2::splat(5.)),
+                                egui::Rect::from_min_size(min, Vec2::splat(scale)),
                                 0.,
                                 Color32::from_rgb(35, 52, 29),
                             );
                         }
                     }
                 }
+                ui.add_space(14.); ui.label(egui::RichText::new("KEYPAD").size(11.).color(Color32::from_gray(145)));
                 let mut pressed = 0u32;
                 for row in [
-                    [("1", 1), ("2", 2), ("3", 3), ("↑", 14)],
-                    [("4", 4), ("5", 5), ("6", 6), ("↓", 15)],
+                        [("1", 1), ("2", 2), ("3", 3), ("Up", 14)],
+                        [("4", 4), ("5", 5), ("6", 6), ("Down", 15)],
                     [("7", 7), ("8", 8), ("9", 9), ("OK", 12)],
                     [("*", 10), ("0", 0), ("#", 11), ("C", 13)],
                 ] {
@@ -494,9 +526,12 @@ impl eframe::App for Studio {
                     }
                 }
                 self.keys.store(pressed, Ordering::Relaxed);
-                ui.separator();
-                ui.heading("Complete installation");
-                ui.label("Choose local files. Flash is backed up and both writes are verified.");
+                } else if self.page == 1 {
+                ui.label(egui::RichText::new("FIRMWARE  /  FLASH").size(11.).color(Color32::from_gray(145)));
+                ui.heading("Install your phone");
+                ui.label(egui::RichText::new("One guided operation: back up, write and verify.").color(Color32::from_gray(165)));
+                ui.add_space(18.);
+                ui.label("Choose your local files and backup destination.");
                 for (label, value) in [
                     ("openFPGALoader", &mut self.loader),
                     ("FPGA .fs", &mut self.fpga),
@@ -549,11 +584,17 @@ impl eframe::App for Studio {
                 ui.label(
                     "Disconnect UART before programming. Experimental image; keep the backup.",
                 );
+                } else {
+                ui.label(egui::RichText::new("SESSION LOG").size(11.).color(Color32::from_gray(145)));
+                ui.heading("Activity");
+                ui.label(egui::RichText::new("Connection and installation messages appear here.").color(Color32::from_gray(165)));
+                ui.add_space(12.);
                 egui::ScrollArea::vertical()
-                    .max_height(150.)
+                    .max_height(450.)
                     .show(ui, |ui| {
                         ui.monospace(&self.log);
                     });
+                }
             });
         });
     }
@@ -604,9 +645,28 @@ fn main() -> eframe::Result {
         "Open Nokia Studio",
         eframe::NativeOptions {
             renderer: eframe::Renderer::Wgpu,
+            viewport: egui::ViewportBuilder::default()
+                .with_inner_size([900., 900.])
+                .with_min_inner_size([480., 480.]),
             ..Default::default()
         },
-        Box::new(|_| Ok(Box::<Studio>::default())),
+        Box::new(|cc| {
+            let mut visuals = egui::Visuals::dark();
+            visuals.panel_fill = Color32::from_rgb(16, 21, 18);
+            visuals.override_text_color = Some(Color32::from_rgb(226, 235, 219));
+            visuals.window_fill = Color32::from_rgb(25, 32, 26);
+            visuals.extreme_bg_color = Color32::from_rgb(21, 28, 22);
+            visuals.widgets.inactive.bg_fill = Color32::from_rgb(38, 48, 39);
+            visuals.widgets.hovered.bg_fill = Color32::from_rgb(58, 73, 55);
+            visuals.widgets.active.bg_fill = Color32::from_rgb(95, 121, 71);
+            visuals.selection.bg_fill = Color32::from_rgb(81, 110, 54);
+            cc.egui_ctx.set_visuals(visuals);
+            cc.egui_ctx.style_mut(|style| {
+                style.spacing.item_spacing = Vec2::new(10., 9.);
+                style.spacing.button_padding = Vec2::new(14., 9.);
+            });
+            Ok(Box::<Studio>::default())
+        }),
     )
 }
 
