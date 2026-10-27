@@ -37,6 +37,9 @@ module dsp_network #(parameter CLK_HZ=27000000,ENABLE_NETWORK=0) (
     assign m_be=net_lock ? net_be : service_be;
     generate if(ENABLE_NETWORK)begin: network
         logic lock,start,pending,bcch;
+        logic dedicated_enabled,fill_pending,block_pending,dedicated_packet,block_packet;
+        logic dedicated_has_fill;
+        logic [21:0] fill_fn;
         logic access_pending,grant_pending,access_packet,grant_packet,rach_active;
         logic [7:0] access_ra;
         logic [21:0] access_fn;
@@ -67,19 +70,22 @@ module dsp_network #(parameter CLK_HZ=27000000,ENABLE_NETWORK=0) (
             end
         endfunction
         wire byte_valid,byte_last,byte_ready,packet_done,packet_error;
-        wire cell_valid,cell_last,access_valid,access_last;
-        wire [7:0] cell_data,access_data;
-        assign byte_valid=access_packet ? access_valid : cell_valid;
-        assign byte_last=access_packet ? access_last : cell_last;
-        assign byte_data=access_packet ? access_data : cell_data;
+        wire cell_valid,cell_last,access_valid,access_last,ded_valid,ded_last;
+        wire [7:0] cell_data,access_data,ded_data;
+        assign byte_valid=dedicated_packet ? ded_valid : access_packet ? access_valid : cell_valid;
+        assign byte_last=dedicated_packet ? ded_last : access_packet ? access_last : cell_last;
+        assign byte_data=dedicated_packet ? ded_data : access_packet ? access_data : cell_data;
+        virtual_dedicated dedicated_source(.clk(clk),.reset(reset),.start(start && dedicated_packet),
+            .request_block(block_packet),.frame_number(fill_fn),.arfcn(10'd586),.bsic(6'd0),
+            .ready(byte_ready && dedicated_packet),.valid(ded_valid),.last(ded_last),.data(ded_data),.busy(),.done());
         virtual_access access_source(.clk(clk),.reset(reset),.start(start && access_packet),.grant(grant_packet),
             .ra(access_ra),.request_fn(access_fn),.block_fn(next_ccch(frame_number)),.arfcn(10'd586),.bsic(6'd0),
             .ready(byte_ready && access_packet),.valid(access_valid),.last(access_last),.data(access_data),.busy(),.done());
         wire [7:0] byte_data;
         assign net_lock=lock;
-        virtual_cell cell_source(.clk(clk),.reset(reset),.start(start && !access_packet),.bcch(bcch),.channel_confirm(confirm_packet),.confirm_token(confirm_token),.all_rssi(rssi_packet),.no_psw(psw_packet),.si_kind(si_kind),.plmn(24'h00f110),
+        virtual_cell cell_source(.clk(clk),.reset(reset),.start(start && !access_packet && !dedicated_packet),.bcch(bcch),.channel_confirm(confirm_packet),.confirm_token(confirm_token),.all_rssi(rssi_packet),.no_psw(psw_packet),.si_kind(si_kind),.plmn(24'h00f110),
             .lac(16'h0001),.cell_id(16'h0001),.arfcn(10'd586),.bsic(6'd0),.frame_number(frame_number),
-            .ready(byte_ready && !access_packet),.valid(cell_valid),.last(cell_last),.data(cell_data),.busy(),.done());
+            .ready(byte_ready && !access_packet && !dedicated_packet),.valid(cell_valid),.last(cell_last),.data(cell_data),.busy(),.done());
         mdi_injector injector(.clk(clk),.reset(reset),.in_valid(byte_valid),.in_last(byte_last),.in_data(byte_data),
             .in_ready(byte_ready),.busy(),.done(packet_done),.error(packet_error),.fiq0(net_fiq),
             .m_valid(net_valid),.m_write(net_write),.m_address(net_address),.m_wdata(net_data),.m_be(net_be),
@@ -89,6 +95,10 @@ module dsp_network #(parameter CLK_HZ=27000000,ENABLE_NETWORK=0) (
             // One GSM TDMA frame = 60/13000 seconds; preserve fractional clocks.
             if(frame_phase+13000>=CLK_HZ*60)begin
                 frame_phase<=frame_phase+13000-CLK_HZ*60;
+                if(dedicated_enabled)begin
+                    if(frame_number%51==50)begin fill_pending<=1;fill_fn<=frame_number==2715647 ? 22'd0 : frame_number+1'b1;end
+                    if(frame_number%51==14 && dedicated_has_fill)block_pending<=1;
+                end
                 frame_number<=frame_number==2715647 ? 22'd0 : frame_number+1'b1;
             end else frame_phase<=frame_phase+13000;
             if(messages!=seen_messages)begin
@@ -105,6 +115,9 @@ module dsp_network #(parameter CLK_HZ=27000000,ENABLE_NETWORK=0) (
                 end
                 if(channel_valid)begin
                     confirm_pending<=1;confirm_token<=channel_token;
+                    dedicated_enabled<=channel_logch==8'h80;
+                    dedicated_has_fill<=0;
+                    if(channel_logch!=8'h80)begin fill_pending<=0;block_pending<=0;end
                     if(channel_logch==8'h50 && !psw_sent)begin psw_pending<=1;psw_sent<=1;end
                 end
             end
@@ -116,8 +129,10 @@ module dsp_network #(parameter CLK_HZ=27000000,ENABLE_NETWORK=0) (
                 delay_count<=delay_count-1'b1;
                 if(delay_count==1)pending<=1;
             end
-            if((pending || confirm_pending || rssi_pending || psw_pending || access_pending || grant_pending) && !lock && !service_busy && !event_valid && messages==seen_messages)begin
+            if((pending || confirm_pending || rssi_pending || psw_pending || access_pending || grant_pending || fill_pending || block_pending) && !lock && !service_busy && !event_valid && messages==seen_messages)begin
                 lock<=1;start<=1;
+                dedicated_packet<=!access_pending && !grant_pending && !psw_pending && !confirm_pending && !rssi_pending && (fill_pending || block_pending);
+                block_packet<=!fill_pending && block_pending;
                 access_packet<=access_pending || grant_pending;grant_packet<=!access_pending && grant_pending;
                 psw_packet<=psw_pending;confirm_packet<=!psw_pending && confirm_pending;rssi_packet<=!psw_pending && !confirm_pending && rssi_pending;
                 if(access_pending)access_pending<=0;
@@ -125,22 +140,26 @@ module dsp_network #(parameter CLK_HZ=27000000,ENABLE_NETWORK=0) (
                 else if(psw_pending)psw_pending<=0;
                 else if(confirm_pending)confirm_pending<=0;
                 else if(rssi_pending)rssi_pending<=0;
+                else if(fill_pending)fill_pending<=0;
+                else if(block_pending)block_pending<=0;
                 else pending<=0;
             end
             if(packet_done || packet_error)begin
                 lock<=0;
                 if(!packet_error)begin
                     packets<=packets+1'b1;
+                    if(dedicated_packet && !block_packet)dedicated_has_fill<=1;
                     if(access_packet)begin
                         if(grant_packet)rach_active<=0;
                         else grant_delay<=CLK_HZ/10;
                     end
-                    if(!access_packet && !confirm_packet && !rssi_packet && !psw_packet)begin bcch<=1;if(bcch)si_kind<=si_kind==2 ? 2'd0 : si_kind+1'b1;delay_count<=CLK_HZ/4;end
+                    if(!dedicated_packet && !access_packet && !confirm_packet && !rssi_packet && !psw_packet)begin bcch<=1;if(bcch)si_kind<=si_kind==2 ? 2'd0 : si_kind+1'b1;delay_count<=CLK_HZ/4;end
                 end
             end
             if(reset)begin
                 access_pending<=0;grant_pending<=0;access_packet<=0;grant_packet<=0;rach_active<=0;
                 access_ra<=0;access_fn<=0;grant_delay<=0;
+                dedicated_enabled<=0;dedicated_has_fill<=0;fill_pending<=0;block_pending<=0;dedicated_packet<=0;block_packet<=0;fill_fn<=0;
                 lock<=0;start<=0;pending<=0;bcch<=0;confirm_pending<=0;confirm_packet<=0;confirm_token<=0;rssi_pending<=0;rssi_packet<=0;psw_pending<=0;psw_packet<=0;psw_sent<=0;si_kind<=0;seen_messages<=0;delay_count<=0;frame_phase<=0;frame_number<=0;packets<=0;end
         end
     end else begin: disabled

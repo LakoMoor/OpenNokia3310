@@ -2,6 +2,20 @@
 
 ## October 26, 2026 — original boot investigation
 
+- Added experimental SDCCH scheduling after a real logical-channel `80` request.
+  It emits MDI RECEIVED_BLOCK with an empty LAPDm UI frame on each 51-frame
+  boundary, followed by MDI `86` uplink-block request at frame offset 15 after
+  the first fill has completed. The generator, DSP queue/FIQ integration, frame
+  alignment and stopping dedicated events on channel change pass directed tests.
+  The integration clock is 10 kHz: at 1 kHz the deliberately stalled bus consumes
+  more than a scheduling interval and a receiver must drain extra queued fills.
+  All 27 RTL cases pass. A 400M-clock original-ROM experiment is running to
+  check actual SEND_BLOCK/uplink behavior. LAPDm acknowledgement, location update,
+  call control and SMS are not implemented by this idle/request generator.
+- The preceding corrected RACH/CCCH experiment completed 400M clocks with 17,324
+  LCD writes, 81 virtual records and 167 receive-consumer changes. Its trace/RAM
+  are archived before enabling dedicated scheduling; it does not prove service.
+
 - The first integrated-RACH v6.39 experiment reaches an SDCCH configuration:
   opcode `02`, payload `04000000027101808000024a...`, at cycle 266,399,223.
   It completes 400M clocks with 17,324 LCD writes, 80 virtual records and 165
