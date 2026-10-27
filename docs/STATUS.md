@@ -2,6 +2,18 @@
 
 ## October 26, 2026 — original boot investigation
 
+- The isolated 600M standby run completed with 25,406 LCD writes, 146 virtual
+  records and 300 MCU consumer changes. Main-screen repeated fields may be a
+  Net Monitor diagnostic page (index 03), rather than damaged glyph rendering;
+  this is a hypothesis, not yet proven. Its final frame is a readable Phonebook
+  Search/Add name/Erase menu. Late live edits to the key script did not provide
+  a controlled Net Monitor exit test, so a new static-script 600M experiment
+  is running through original menu input without firmware RAM patches.
+- Trace harness now logs actual KEY mask transitions with their applied cycle;
+  run manifests retain both initial and final stimulus hashes and save the final
+  script. A 100-cycle smoke run confirms the cycle-0 key log and matching input
+  hashes. These diagnostics are not phone-boot or registration evidence.
+
 - LU recognition now validates mandatory structure and Mobile Identity rather
   than accepting a two-byte MM header. Supported identities are a 15-digit
   decimal IMSI or a correctly sized TMSI; LI/identity lengths and LU type must

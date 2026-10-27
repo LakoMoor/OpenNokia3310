@@ -74,5 +74,10 @@ try:
 except (subprocess.CalledProcessError,subprocess.TimeoutExpired) as error:
     manifest.update(status='failed',error=str(error));raise
 else:manifest['status']='completed'
-finally:record.write_text(json.dumps(manifest,indent=2)+'\n')
+finally:
+    if a.keys:
+        final_keys=a.keys.read_bytes()
+        manifest['final_keys_sha256']=hashlib.sha256(final_keys).hexdigest()
+        (run_dir/'final-keys.txt').write_bytes(final_keys)
+    record.write_text(json.dumps(manifest,indent=2)+'\n')
 print((run_dir/'trace.log').read_text())

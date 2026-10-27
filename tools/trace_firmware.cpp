@@ -60,12 +60,15 @@ int main(int argc,char **argv) {
         // Reload a local stimulus file at bounded intervals, allowing continued
         // UI debugging without restarting the original ROM for each key press.
         if(argc>4 && cycle%1000000==0) {
+            const uint32_t previous_keys=scripted_keys;
             std::ifstream keys_file(argv[4]);
             uint32_t at,mask;
             while(keys_file>>std::dec>>at>>std::hex>>mask) {
                 if(at>cycle) break;
                 scripted_keys=mask & 0x1ffffu;
             }
+            if(previous_keys!=scripted_keys)
+                std::cout<<"KEY mask="<<std::hex<<scripted_keys<<std::dec<<" cycle="<<cycle<<"\n"<<std::flush;
         }
         if(cycle && cycle%25000000==0) {
             save_frame(output_dir+"/frame-"+std::to_string(cycle)+".pgm");
