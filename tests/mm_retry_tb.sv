@@ -1,7 +1,7 @@
 `timescale 1ns/1ps
 module mm_retry_tb;
     reg clk=0,reset=1,uplink_valid=0,downlink_ready=0;
-    reg [183:0] uplink_frame={23{8'h2b}};
+    reg [183:0] uplink_frame={24'h033f49,144'h05087000f110ffff33080910103254769810,16'h2b2b};
     reg [4:0] uplink_length=23;
     reg [23:0] plmn=24'h00f110;
     reg [15:0] lac=1;
@@ -19,7 +19,7 @@ module mm_retry_tb;
     reg [183:0] original;
     initial begin
         repeat(4)@(negedge clk);reset=0;
-        uplink_frame[159:144]=16'h0508;uplink(24'h033f09);
+        uplink_frame[159:144]=16'h0508;uplink(24'h033f49);
         original=downlink_frame;
         repeat(30)@(negedge clk);
         if(failed || !downlink_valid || downlink_frame!==original)$fatal(1,"output stalls must not start ACK timeout");
@@ -30,7 +30,7 @@ module mm_retry_tb;
         sent();wait(failed);@(negedge clk);
         if(registered || downlink_valid)$fatal(1,"retry exhaustion claimed completion");
         reset=1;@(negedge clk);reset=0;
-        uplink(24'h033f09);sent();wait(downlink_valid);@(negedge clk);
+        uplink(24'h033f49);sent();wait(downlink_valid);@(negedge clk);
         // Delayed ACK cancels a queued retry without waiting for another slot.
         uplink(24'h032101);
         if(!downlink_valid || downlink_frame[175:168]!=2)$fatal(1,"recovery after dropped ACK");

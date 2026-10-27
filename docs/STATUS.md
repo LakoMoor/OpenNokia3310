@@ -2,6 +2,18 @@
 
 ## October 26, 2026 — original boot investigation
 
+- LU recognition now validates mandatory structure and Mobile Identity rather
+  than accepting a two-byte MM header. Supported identities are a 15-digit
+  decimal IMSI or a correctly sized TMSI; LI/identity lengths and LU type must
+  agree. Tests cover a full request, BCD errors, truncated/header-only requests,
+  identity-length mismatch and a valid TMSI. DSP/MM integration fixtures now use
+  a full 18-byte LU request. All 32 RTL cases pass. This is format validation,
+  not subscriber authentication or complete MM parsing.
+- The isolated standby run reached frame 425M after scripted C presses. Visual
+  inspection shows a readable Menu softkey but repeated/corrupt main text;
+  normal standby UI and operator display are still not verified. The protocol
+  exchange alone must not be described as a completed phone implementation.
+
 - Completed the modeled SDCCH release path: after a valid DISC, the scheduler
   commits its UA before disabling dedicated fill/uplink-request events and
   clearing pending dedicated work. MM completion is retained. The extended

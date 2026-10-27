@@ -42,8 +42,8 @@ module dsp_mm_tb;
         repeat(4)@(negedge clk);reset=0;
         doorbell('h100a4,7);
         wait(fiq0);@(negedge clk);memory['h1c8/4][15:0]=memory['h1c8/4][31:16];
-        memory[3][15:0]=16'h1c1b;memory[4]=32'h0080033f;memory[5]=32'h0d050811;
-        for(integer i=6;i<11;i++)memory[i]=32'h2b2b2b2b;
+        memory[3][15:0]=16'h1c1b;memory[4]=32'h0080033f;memory[5]=32'h49050870;memory[6]=32'h00f110ff;memory[7]=32'hff330809;
+        memory[8]=32'h10103254;memory[9]=32'h7698102b;memory[10]=32'h2b000000;
         doorbell('h100a4,22);
         while(stage<3 && records<12)begin
             wait(fiq0);@(negedge clk);records++;

@@ -30,10 +30,23 @@ module mm_registration #(parameter RETRY_CYCLES=27000000,MAX_RETRIES=3) (
     wire iframe_ack=uplink_valid && valid_length && sapi0 && !ctrl[0] && li[0] &&
         li[7:2]<=20 && {1'b0,uplink_length}>={1'b0,li[7:2]}+7'd3;
     wire acknowledgement=rr || iframe_ack;
+    wire [7:0] identity_length=uplink_frame[87:80];
+    wire [7:0] identity_first=uplink_frame[79:72];
+    logic valid_identity;
+    always_comb begin
+        valid_identity=0;
+        if(identity_first[2:0]==1 && identity_length==8 && identity_first[3] && identity_first[7:4]<=9)begin
+            valid_identity=1;
+            for(integer i=0;i<7;i++)
+                if(uplink_frame[71-i*8-:4]>9 || uplink_frame[67-i*8-:4]>9)valid_identity=0;
+        end
+        if(identity_first==8'hf4 && identity_length==5)valid_identity=1;
+    end
     wire lu_sabm=uplink_valid && valid_length && sapi0 && (ctrl & 8'hef)==8'h2f &&
-        li[1:0]==1 && li[7:2]>=2 && li[7:2]<=20 &&
+        li[1:0]==1 && li[7:2]>=15 && li[7:2]<=20 &&
         {1'b0,uplink_length}>={1'b0,li[7:2]}+7'd3 &&
-        uplink_frame[155:152]==5 && uplink_frame[151:144]==8;
+        uplink_frame[159:152]==5 && uplink_frame[151:144]==8 &&
+        uplink_frame[137:136]!=3 && {2'd0,li[7:2]}==identity_length+8'd10 && valid_identity;
     always_comb begin
         registered=state==COMPLETE;
         failed=state==FAILED;

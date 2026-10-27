@@ -1,7 +1,7 @@
 `timescale 1ns/1ps
 module mm_registration_tb;
     reg clk=0,reset=1,uplink_valid=0,downlink_ready=0;
-    reg [183:0] uplink_frame={23{8'h2b}};
+    reg [183:0] uplink_frame={24'h033f49,144'h05087000f110ffff33080910103254769810,16'h2b2b};
     reg [4:0] uplink_length=23;
     reg [23:0] plmn=24'h00f110;
     reg [15:0] lac=1;
@@ -18,14 +18,21 @@ module mm_registration_tb;
     endtask
     initial begin
         repeat(4)@(negedge clk);reset=0;
+        uplink(24'h033f09);if(downlink_valid)$fatal(1,"two-byte LU header is not a complete request");
+        uplink_frame[71:68]=4'ha;
+        uplink(24'h033f49);if(downlink_valid)$fatal(1,"invalid IMSI digit accepted");
+        uplink_frame[71:68]=1;
+        uplink_frame[87:80]=7;
+        uplink(24'h033f49);if(downlink_valid)$fatal(1,"identity length mismatch accepted");
+        uplink_frame[87:80]=8;
         uplink_frame[159:144]=16'h0508;
         uplink_frame[159:144]=16'h0608;
-        uplink(24'h033f09);if(downlink_valid)$fatal(1,"wrong protocol discriminator accepted");
+        uplink(24'h033f49);if(downlink_valid)$fatal(1,"wrong protocol discriminator accepted");
         uplink_frame[159:144]=16'h0508;
-        uplink(24'h033f0b);if(downlink_valid)$fatal(1,"segmented establishment accepted");
-        uplink(24'h0f3f09);if(downlink_valid)$fatal(1,"wrong SAPI accepted");
-        uplink_length=4;uplink(24'h033f09);if(downlink_valid)$fatal(1,"truncated LU accepted");
-        uplink_length=23;uplink(24'h033f09);
+        uplink(24'h033f4b);if(downlink_valid)$fatal(1,"segmented establishment accepted");
+        uplink(24'h0f3f49);if(downlink_valid)$fatal(1,"wrong SAPI accepted");
+        uplink_length=4;uplink(24'h033f49);if(downlink_valid)$fatal(1,"truncated LU accepted");
+        uplink_length=23;uplink(24'h033f49);
         if(!downlink_valid || registered || downlink_frame[183:104]!==80'h03001d050200f1100001)
             $fatal(1,"LU accept identity/frame");
         plmn=0;lac=0;
@@ -42,6 +49,8 @@ module mm_registration_tb;
         sent();uplink(24'h032101);if(registered)$fatal(1,"duplicate acknowledgement advanced");
         uplink(24'h034101);if(!registered || downlink_valid)$fatal(1,"release acknowledgement");
         @(negedge clk);reset=1;@(negedge clk);if(registered || downlink_valid)$fatal(1,"MM reset");
+        reset=0;uplink_frame[87:80]=5;uplink_frame[79:72]=8'hf4;
+        uplink(24'h033f3d);if(!downlink_valid)$fatal(1,"valid TMSI request rejected");
         $display("PASS MM registration peer: LU accept/LAI, ordered acknowledgements, release, invalid/reset");$finish;
     end
     initial begin #10000;$fatal(1,"MM timeout");end
