@@ -9,6 +9,11 @@
   The first run's 350M framebuffer shows the Time prompt also observed on Tang.
   `trace_firmware.py --build-dir` isolates generated source/object files for
   different simultaneous configurations; each run records the build directory.
+  At 400M cycles the first run (27M power hold, network disabled) displays the
+  original Net Monitor 03 standby and Menu, after the scripted C presses. Thus
+  disabling the virtual network alone does not reproduce the board's observed
+  Insert SIM screen under these simulation conditions. The ten-second hold and
+  actual board diagnostic remain necessary to identify the difference.
 
 - Added an explicit hardware diagnostic selector for SIM APDU completion count
   (24-bit modulo counter) and the last instruction byte, carried in the N4
