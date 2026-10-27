@@ -2,6 +2,11 @@
 
 ## October 28, 2026 — SIM recheck and DSP message pulse
 
+- Replacing the DSP heartbeat less-than test with equality passed transport,
+  MM and CC tests, including a new blocked-ring saturation and release test.
+  Its netlist packed to 19,525 LUT sites versus 19,494 before; placement is
+  running. The comparator change was reverted to avoid the observed increase;
+  the heartbeat test remains and passes with the original comparison.
 - A reduced-width SIM byte-pacing counter passed all RTL cases, including a
   new test for exact first and second ATR byte intervals at the Tang clock.
   Its network synthesis packed to 19,530 LUT sites versus 19,494 before,

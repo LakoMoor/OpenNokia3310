@@ -103,6 +103,14 @@ module dsp_tb;
             if(get_byte('h116+i)!==expected_byte)
                 $fatal(1,"long security reply byte %0d",i);
         end
+        // The heartbeat must saturate while its outgoing ring is blocked,
+        // then resume only after the MCU releases the ring.
+        wait(dut.heartbeat==4000);
+        repeat(100) @(negedge clk);
+        if(dut.heartbeat!==4000 || !busy) $fatal(1,"heartbeat must remain at deadline while ring is occupied");
+        memory['h1c8/4]=32'h00a500a5;
+        wait(!busy);
+        if(dut.heartbeat==4000) $fatal(1,"heartbeat did not clear after reply");
         $display("PASS DSP: wait-state transport, M2D parse, D2M wrap, cursor ownership, MSID seed");$finish;
     end
     initial begin #100000;$fatal(1,"DSP timeout");end
