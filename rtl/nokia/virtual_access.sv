@@ -21,10 +21,19 @@ module virtual_access (
     logic [5:0] bsic_q;
     wire [2:0] tsc_q=bsic_q[2:0];
     logic [5:0] index;
-    wire [4:0] t1=5'(fn_q/1326);
-    wire [5:0] t3=6'(fn_q%51);
-    wire [4:0] t2=5'(fn_q%26);
-    assign valid=busy;
+    // Compute the three request-reference fields iteratively. Constant-wide
+    // divide/modulo hardware is expensive on Tang; a grant may wait 22 clocks
+    // before its first byte without changing GSM frame numbering.
+    logic calculate;
+    logic [4:0] calc_step,t1;
+    logic [21:0] fn_shift;
+    logic [10:0] remainder1326;
+    logic [5:0] t3;
+    logic [4:0] t2;
+    wire [11:0] next1326={remainder1326,fn_shift[21]};
+    wire [6:0] next51={t3,fn_shift[21]};
+    wire [5:0] next26={t2,fn_shift[21]};
+    assign valid=busy && !calculate;
     assign last=busy && index==(grant_q ? 34 : 9);
     always_comb begin
         data=0;
@@ -60,10 +69,19 @@ module virtual_access (
         if(start && !busy)begin
             busy<=1;index<=0;grant_q<=grant;ra_q<=ra;fn_q<=request_fn;block_q<=block_fn;
             arfcn_q<=arfcn;bsic_q<=bsic;
-        end else if(busy && ready)begin
+            calculate<=grant;calc_step<=0;fn_shift<=request_fn;remainder1326<=0;t1<=0;t2<=0;t3<=0;
+        end else if(calculate)begin
+            fn_shift<={fn_shift[20:0],1'b0};calc_step<=calc_step+1'b1;
+            if(next1326>=1326)begin remainder1326<=11'(next1326-1326);t1<={t1[3:0],1'b1};end
+            else begin remainder1326<=next1326[10:0];t1<={t1[3:0],1'b0};end
+            t3<=next51>=51 ? 6'(next51-51) : next51[5:0];
+            t2<=next26>=26 ? 5'(next26-26) : next26[4:0];
+            if(calc_step==21)calculate<=0;
+        end else if(valid && ready)begin
             if(last)begin busy<=0;done<=1;end
             else index<=index+1'b1;
         end
-        if(reset)begin busy<=0;done<=0;index<=0;grant_q<=0;ra_q<=0;fn_q<=0;block_q<=0;arfcn_q<=0;bsic_q<=0;end
+        if(reset)begin busy<=0;done<=0;index<=0;grant_q<=0;ra_q<=0;fn_q<=0;block_q<=0;arfcn_q<=0;bsic_q<=0;
+            calculate<=0;calc_step<=0;fn_shift<=0;remainder1326<=0;t1<=0;t2<=0;t3<=0;end
     end
 endmodule

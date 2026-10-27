@@ -20,6 +20,7 @@ module virtual_access_tb;
         saved_ra=ra;saved_fn=request_fn;saved_arfcn=arfcn;saved_bsic=bsic;
         @(negedge clk);start=1;@(negedge clk);start=0;
         ra=0;request_fn=0;arfcn=0;bsic=0; // in-flight fields must be latched
+        while(!valid)@(negedge clk);
         for(integer i=0;i<length;i++)begin
             ready=0;held=data;
             repeat(3)begin @(posedge clk);#1;if(!valid || data!==held)$fatal(1,"stalled access packet changed");end
@@ -47,9 +48,16 @@ module virtual_access_tb;
         // One complete reduced-FN period must preserve the request-reference IE.
         request_fn=12345+42432;packet(35);
         if({captured[20],captured[21]}!==16'h4875)$fatal(1,"reduced FN wrap");
+        for(integer i=0;i<32;i++)begin
+            reg [15:0] expected_reference;
+            request_fn=i==31 ? 22'h3fffff : 22'((i*114329+12345)%2715648);
+            expected_reference=16'((((request_fn/1326)&31)<<11)|((request_fn%51)<<5)|(request_fn%26));
+            packet(35);
+            if({captured[20],captured[21]}!==expected_reference)$fatal(1,"FN reference %0d",request_fn);
+        end
         @(negedge clk);start=1;@(negedge clk);start=0;reset=1;
         @(negedge clk);if(busy || valid || done)$fatal(1,"access reset");
         $display("PASS virtual access: RA_INFO, correlated Immediate Assignment, reduced FN, stalls");$finish;
     end
-    initial begin #20000;$fatal(1,"access timeout");end
+    initial begin #300000;$fatal(1,"access timeout");end
 endmodule

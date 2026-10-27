@@ -36,7 +36,7 @@ module virtual_dedicated (
                 12,13:data=3;14:data=1; // LAPDm idle UI, empty information field
                 default:if(index>=15)data=8'h2b;
             endcase
-            if(custom_q && index>=12)data=frame_q[183-(index-12)*8-:8];
+            if(custom_q && index>=12)data=frame_q[183:176];
         end
     end
     always_ff @(posedge clk)begin
@@ -44,6 +44,7 @@ module virtual_dedicated (
         if(start && !busy)begin
             busy<=1;index<=0;request_q<=request_block;custom_q<=custom_frame;frame_q<=frame;logch_q<=logch;fn_q<=frame_number;arfcn_q<=arfcn;bsic_q<=bsic;
         end else if(busy && ready)begin
+            if(!request_q && custom_q && index>=12)frame_q<={frame_q[175:0],8'd0};
             if(last)begin busy<=0;done<=1;end
             else index<=index+1'b1;
         end

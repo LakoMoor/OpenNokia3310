@@ -2,6 +2,25 @@
 
 ## October 27, 2026 — virtual CC and hardware recheck
 
+- The first serial-RX network placement reported 21,463/20,736 LUT4 sites
+  (103%); that experiment was stopped as over capacity before placement
+  completed. Replaced the variable-byte selector in the dedicated-frame
+  generator with a backpressure-safe shift register: its synthesis reduces
+  raw LUT1–4 from 14,809 to 14,747 and ALU from 4,774 to 4,770. Also replaced
+  wide request-FN division/modulo with a 22-clock iterative calculation; it
+  holds the packet until fields are ready. Tests cover full custom frames,
+  stalls, 32 request FNs including the 22-bit maximum, RA correlation and
+  DSP access/CC integration. Full synthesis with both changes completed at
+  14,517 raw LUT1–4, 3,997 ALU, 145 RAM16SDP4 and 15 DPX9B. This saves 230
+  raw LUT and 773 ALU compared with the frame-shift-only synthesis. Placement
+  of this exact network netlist reported 20,335/20,736 LUT4 sites (98%) and
+  terminated with `Unable to find legal placement for all cells`; it produced
+  no qualified bitstream. A further optimization maintains FN mod 51 and mod
+  42432 counters incrementally instead of wide combinational modulo. Tests
+  verify frame-counter tracking, hyperframe wrap, relative RACH correlation,
+  dedicated channel timing and CC/RX integration. Synthesis with the counters
+  is in progress; no updated device-fit or timing claim is made yet.
+
 - Initial full-network synthesis completed but is far beyond Tang capacity:
   111,678 raw LUT1–4 cells, including approximately 93,164 associated with
   the LAPDm receiver's 20 simultaneous byte writes. This is synthesis evidence,

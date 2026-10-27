@@ -28,9 +28,9 @@ module dsp_access_tb;
         wait(!busy);repeat(2) @(negedge clk);
     endtask
     initial begin
-        if(dut.network.next_ccch(22'd102)!=108 || dut.network.next_ccch(22'd108)!=108 ||
-           dut.network.next_ccch(22'd109)!=114 || dut.network.next_ccch(22'd152)!=159 ||
-           dut.network.next_ccch(22'd2715647)!=6)$fatal(1,"CCCH block alignment/hyperframe wrap");
+        if(dut.network.next_ccch(22'd102,6'd0)!=108 || dut.network.next_ccch(22'd108,6'd6)!=108 ||
+           dut.network.next_ccch(22'd109,6'd7)!=114 || dut.network.next_ccch(22'd152,6'd50)!=159 ||
+           dut.network.next_ccch(22'd2715647,6'd50)!=6)$fatal(1,"CCCH block alignment/hyperframe wrap");
         for(integer i=0;i<128;i++)memory[i]=0;
         memory['h1c8/4]=32'h00e000e0;
         memory[0]=32'h060c0001;memory[1]=32'h16003039;
@@ -51,8 +51,12 @@ module dsp_access_tb;
         memory['h1c8/4]=32'h00930093;
         memory[2]=32'h060c0000;memory[3]=32'h166c0000;
         force dut.network.frame_number=22'd42420;
+        force dut.network.reduced_fn=16'd42420;
+        force dut.network.frame_t3=6'd39;
         doorbell('h100a4,8);
         release dut.network.frame_number;
+        release dut.network.reduced_fn;
+        release dut.network.frame_t3;
         wait(memory['h1c8/4][31:16]==16'h98);repeat(4)@(negedge clk);
         if(memory['h124/4][15:0]!==16'h0884 || memory['h128/4]!==32'h16000060)
             $fatal(1,"relative RACH FN must wrap 42420+108 to 96");

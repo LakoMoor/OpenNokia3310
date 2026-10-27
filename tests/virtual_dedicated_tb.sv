@@ -31,6 +31,12 @@ module virtual_dedicated_tb;
            {captured[8],captured[9]}!==16'd586 ||
            {captured[12],captured[13],captured[14]}!==24'h030301)$fatal(1,"SDCCH idle envelope");
         for(integer i=15;i<35;i++)if(captured[i]!='h2b)$fatal(1,"idle padding");
+        custom_frame=1;logch='h82;
+        for(integer i=0;i<23;i++)frame[183-i*8-:8]=8'(i*11+3);
+        packet(35);
+        if(captured[2]!='h82)$fatal(1,"custom logical channel");
+        for(integer i=0;i<23;i++)if(captured[12+i]!==8'(i*11+3))$fatal(1,"custom frame byte %0d",i);
+        custom_frame=0;
         request_block=1;packet(3);
         if({captured[0],captured[1],captured[2]}!==24'h018680)$fatal(1,"uplink block request");
         $display("PASS dedicated: SDCCH idle fill, frame/carrier, block request, stalls");$finish;

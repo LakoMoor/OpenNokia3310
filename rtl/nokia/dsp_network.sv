@@ -114,13 +114,16 @@ module dsp_network #(parameter CLK_HZ=27000000,ENABLE_NETWORK=0) (
         assign network_packets=packets;
         logic [25:0] delay_count;
         logic [21:0] frame_number;
+        // GSM hyperframe is divisible by both 51 and 42432. Maintain the
+        // reduced frame counters directly instead of wide modulo operators.
+        logic [5:0] frame_t3;
+        logic [15:0] reduced_fn;
+        wire [16:0] relative_fn_sum={1'b0,reduced_fn}+{9'd0,rach_payload[23:16]};
         logic [31:0] frame_phase;
-        function automatic [21:0] next_ccch(input [21:0] fn);
-            reg [5:0] t3;
+        function automatic [21:0] next_ccch(input [21:0] fn,input [5:0] t3);
             reg [5:0] offset;
             reg [22:0] candidate;
             begin
-                t3=6'(fn%51);
                 if(t3<=6)offset=6;else if(t3<=12)offset=12;
                 else if(t3<=16)offset=16;else if(t3<=22)offset=22;
                 else if(t3<=26)offset=26;else if(t3<=32)offset=32;
@@ -140,7 +143,7 @@ module dsp_network #(parameter CLK_HZ=27000000,ENABLE_NETWORK=0) (
             .request_block(block_packet),.custom_frame(ua_packet || rr_packet || mm_packet),.frame(rr_packet ? rr_frame : mm_packet ? (mm_valid ? mm_frame : cc_frame) : ua_frame),.logch((mm_packet || rr_packet) ? 8'h80 : ua_channel),.frame_number(fill_fn),.arfcn(10'd586),.bsic(6'd0),
             .ready(byte_ready && dedicated_packet),.valid(ded_valid),.last(ded_last),.data(ded_data),.busy(),.done());
         virtual_access access_source(.clk(clk),.reset(reset),.start(start && access_packet),.grant(grant_packet),
-            .ra(access_ra),.request_fn(access_fn),.block_fn(next_ccch(frame_number)),.arfcn(10'd586),.bsic(6'd0),
+            .ra(access_ra),.request_fn(access_fn),.block_fn(next_ccch(frame_number,frame_t3)),.arfcn(10'd586),.bsic(6'd0),
             .ready(byte_ready && access_packet),.valid(access_valid),.last(access_last),.data(access_data),.busy(),.done());
         wire [7:0] byte_data;
         assign net_lock=lock;
@@ -164,10 +167,12 @@ module dsp_network #(parameter CLK_HZ=27000000,ENABLE_NETWORK=0) (
             if(frame_phase+13000>=CLK_HZ*60)begin
                 frame_phase<=frame_phase+13000-CLK_HZ*60;
                 if(dedicated_enabled)begin
-                    if(frame_number%51==50)begin fill_pending<=1;fill_fn<=frame_number==2715647 ? 22'd0 : frame_number+1'b1;end
-                    if(frame_number%51==14 && dedicated_has_fill)block_pending<=1;
+                    if(frame_t3==50)begin fill_pending<=1;fill_fn<=frame_number==2715647 ? 22'd0 : frame_number+1'b1;end
+                    if(frame_t3==14 && dedicated_has_fill)block_pending<=1;
                 end
                 frame_number<=frame_number==2715647 ? 22'd0 : frame_number+1'b1;
+                frame_t3<=frame_t3==50 ? 0 : frame_t3+1'b1;
+                reduced_fn<=reduced_fn==42431 ? 0 : reduced_fn+1'b1;
             end else frame_phase<=frame_phase+13000;
             if(messages!=seen_messages)begin
                 seen_messages<=messages;
@@ -179,7 +184,7 @@ module dsp_network #(parameter CLK_HZ=27000000,ENABLE_NETWORK=0) (
                     // Cancel an unsent grant and report the updated reference.
                     grant_pending<=0;grant_delay<=0;
                     access_fn<=rach_payload[39:32]==1 ? {6'd0,rach_payload[15:0]} :
-                        22'((frame_number+{14'd0,rach_payload[23:16]})%42432);
+                        22'(relative_fn_sum>=42432 ? relative_fn_sum-17'd42432 : relative_fn_sum);
                 end
                 if(channel_valid)begin
                     confirm_pending<=1;confirm_token<=channel_token;
@@ -246,7 +251,7 @@ module dsp_network #(parameter CLK_HZ=27000000,ENABLE_NETWORK=0) (
                 rr_pending<=0;rr_packet<=0;rr_frame<=0;rr_nr[0]<=0;rr_nr[1]<=0;rr_final<=0;
                 ua_pending<=0;ua_packet<=0;mm_packet<=0;mm_allowed<=0;ua_frame<=0;ua_channel<=0;ua_releases_channel<=0;
                 dedicated_enabled<=0;dedicated_has_fill<=0;fill_pending<=0;block_pending<=0;dedicated_packet<=0;block_packet<=0;fill_fn<=0;
-                lock<=0;start<=0;pending<=0;bcch<=0;confirm_pending<=0;confirm_packet<=0;confirm_token<=0;rssi_pending<=0;rssi_packet<=0;psw_pending<=0;psw_packet<=0;psw_sent<=0;si_kind<=0;seen_messages<=0;delay_count<=0;frame_phase<=0;frame_number<=0;packets<=0;end
+                lock<=0;start<=0;pending<=0;bcch<=0;confirm_pending<=0;confirm_packet<=0;confirm_token<=0;rssi_pending<=0;rssi_packet<=0;psw_pending<=0;psw_packet<=0;psw_sent<=0;si_kind<=0;seen_messages<=0;delay_count<=0;frame_phase<=0;frame_number<=0;frame_t3<=0;reduced_fn<=0;packets<=0;end
         end
     end else begin: disabled
         assign net_lock=0;assign net_valid=0;assign net_write=0;assign net_fiq=0;
