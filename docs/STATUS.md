@@ -12,6 +12,8 @@
   DSP reassembly and complete outgoing call/clearing tests pass. A new full
   network synthesis and a two-call original-ROM simulation are running;
   resource fit and firmware equivalence are not yet established.
+  An additional directed test verifies all 256 reassembled bytes, sequence
+  number wrap and rejection of a further byte beyond the message limit.
 
 - Added an explicit `nokia_top` virtual-network parameter and
   `tools/build.py nokia_top --virtual-network` option. The default board build

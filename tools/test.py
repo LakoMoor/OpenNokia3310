@@ -22,6 +22,7 @@ def main():
         "regfile": cpu_sources(),
         "multiplier": ["third_party/arm7tdmi-sv/rtl/datapath/arm7tdmis_multiplier.sv"],
         "lapdm_rx": ["rtl/nokia/lapdm_rx.sv"],
+        "lapdm_rx_capacity": ["rtl/nokia/lapdm_rx.sv"],
         "lapdm_tx": ["rtl/nokia/lapdm_tx.sv"],
         "cc_voice": ["rtl/nokia/lapdm_tx.sv","rtl/nokia/cc_voice.sv"],
         "l3_header": ["rtl/nokia/l3_header.sv"],
