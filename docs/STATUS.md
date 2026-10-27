@@ -2,6 +2,19 @@
 
 ## October 26, 2026 — original boot investigation
 
+- Connected the minimal MM peer to actual SEND_BLOCK decoding and scheduled
+  SDCCH downlink. LU Accept is gated until UA is committed; pending MM I-frames
+  replace later idle fills and advance only on received RR acknowledgements.
+  A full DSP-queue integration test drives padded SABM, verifies UA then the
+  configured LU Accept, injects N(R)=1, verifies Channel Release and injects
+  N(R)=2. All 30 RTL cases pass. The peer-complete state is test evidence only,
+  not proof that original Nokia firmware registered.
+- The UA-connected original-ROM experiment completed 400M clocks with 17,324
+  LCD writes, 147 virtual records and 299 consumer changes. Later SEND_BLOCK
+  payloads are idle `00800103012b...` rather than repeated SABM. Its trace/RAM
+  are archived before a new 500M experiment with MM responses. Original-firmware
+  LU acceptance/release and actual registration remain unverified.
+
 - Added a standalone minimal MM location-update peer for an established SAPI-0
   link: a recognized LU request in SABM queues a seven-byte Location Updating
   Accept with the configured PLMN/LAC, waits for N(R)=1, then queues Channel

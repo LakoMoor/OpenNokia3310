@@ -42,7 +42,14 @@ module dsp_network #(parameter CLK_HZ=27000000,ENABLE_NETWORK=0) (
         logic lock,start,pending,bcch;
         logic dedicated_enabled,fill_pending,block_pending,dedicated_packet,block_packet;
         logic dedicated_has_fill;
-        logic ua_pending,ua_packet;
+        logic ua_pending,ua_packet,mm_packet,mm_allowed;
+        wire mm_valid,mm_ready;
+        wire [183:0] mm_frame;
+        assign mm_ready=start && dedicated_packet && mm_packet;
+        mm_registration mm_peer(.clk(clk),.reset(reset || (messages!=seen_messages && channel_valid && channel_logch==8'h80)),
+            .uplink_valid(messages!=seen_messages && uplink_valid && uplink_logch==8'h80 && dedicated_enabled),
+            .uplink_frame(uplink_frame),.uplink_length(uplink_length),.plmn(24'h00f110),.lac(16'd1),
+            .downlink_ready(mm_ready),.downlink_valid(mm_valid),.downlink_frame(mm_frame),.registered());
         logic [183:0] ua_frame;
         logic [7:0] ua_channel;
         wire ua_done,ua_accepted;
@@ -86,7 +93,7 @@ module dsp_network #(parameter CLK_HZ=27000000,ENABLE_NETWORK=0) (
         assign byte_last=dedicated_packet ? ded_last : access_packet ? access_last : cell_last;
         assign byte_data=dedicated_packet ? ded_data : access_packet ? access_data : cell_data;
         virtual_dedicated dedicated_source(.clk(clk),.reset(reset),.start(start && dedicated_packet),
-            .request_block(block_packet),.custom_frame(ua_packet),.frame(ua_frame),.logch(ua_channel),.frame_number(fill_fn),.arfcn(10'd586),.bsic(6'd0),
+            .request_block(block_packet),.custom_frame(ua_packet || mm_packet),.frame(mm_packet ? mm_frame : ua_frame),.logch(mm_packet ? 8'h80 : ua_channel),.frame_number(fill_fn),.arfcn(10'd586),.bsic(6'd0),
             .ready(byte_ready && dedicated_packet),.valid(ded_valid),.last(ded_last),.data(ded_data),.busy(),.done());
         virtual_access access_source(.clk(clk),.reset(reset),.start(start && access_packet),.grant(grant_packet),
             .ra(access_ra),.request_fn(access_fn),.block_fn(next_ccch(frame_number)),.arfcn(10'd586),.bsic(6'd0),
@@ -102,7 +109,7 @@ module dsp_network #(parameter CLK_HZ=27000000,ENABLE_NETWORK=0) (
             .m_ready(m_ready && lock),.m_rdata(m_rdata));
         always_ff @(posedge clk)begin
             start<=0;
-            if(ua_done && ua_accepted)begin ua_frame<=ua_response;ua_channel<=uplink_logch;ua_pending<=1;end
+            if(ua_done && ua_accepted)begin ua_frame<=ua_response;ua_channel<=uplink_logch;ua_pending<=1;mm_allowed<=0;end
             // One GSM TDMA frame = 60/13000 seconds; preserve fractional clocks.
             if(frame_phase+13000>=CLK_HZ*60)begin
                 frame_phase<=frame_phase+13000-CLK_HZ*60;
@@ -145,6 +152,7 @@ module dsp_network #(parameter CLK_HZ=27000000,ENABLE_NETWORK=0) (
                 dedicated_packet<=!access_pending && !grant_pending && !psw_pending && !confirm_pending && !rssi_pending && (fill_pending || block_pending);
                 block_packet<=!fill_pending && block_pending;
                 ua_packet<=ua_pending && fill_pending;
+                mm_packet<=!ua_pending && mm_allowed && mm_valid && fill_pending;
                 if(!access_pending && !grant_pending && !psw_pending && !confirm_pending && !rssi_pending && fill_pending && ua_pending)ua_pending<=0;
                 access_packet<=access_pending || grant_pending;grant_packet<=!access_pending && grant_pending;
                 psw_packet<=psw_pending;confirm_packet<=!psw_pending && confirm_pending;rssi_packet<=!psw_pending && !confirm_pending && rssi_pending;
@@ -162,6 +170,7 @@ module dsp_network #(parameter CLK_HZ=27000000,ENABLE_NETWORK=0) (
                 if(!packet_error)begin
                     packets<=packets+1'b1;
                     if(dedicated_packet && !block_packet)dedicated_has_fill<=1;
+                    if(dedicated_packet && ua_packet)mm_allowed<=1;
                     if(access_packet)begin
                         if(grant_packet)rach_active<=0;
                         else grant_delay<=CLK_HZ/10;
@@ -172,7 +181,7 @@ module dsp_network #(parameter CLK_HZ=27000000,ENABLE_NETWORK=0) (
             if(reset)begin
                 access_pending<=0;grant_pending<=0;access_packet<=0;grant_packet<=0;rach_active<=0;
                 access_ra<=0;access_fn<=0;grant_delay<=0;
-                ua_pending<=0;ua_packet<=0;ua_frame<=0;ua_channel<=0;
+                ua_pending<=0;ua_packet<=0;mm_packet<=0;mm_allowed<=0;ua_frame<=0;ua_channel<=0;
                 dedicated_enabled<=0;dedicated_has_fill<=0;fill_pending<=0;block_pending<=0;dedicated_packet<=0;block_packet<=0;fill_fn<=0;
                 lock<=0;start<=0;pending<=0;bcch<=0;confirm_pending<=0;confirm_packet<=0;confirm_token<=0;rssi_pending<=0;rssi_packet<=0;psw_pending<=0;psw_packet<=0;psw_sent<=0;si_kind<=0;seen_messages<=0;delay_count<=0;frame_phase<=0;frame_number<=0;packets<=0;end
         end
