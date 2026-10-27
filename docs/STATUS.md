@@ -2,6 +2,16 @@
 
 ## October 27, 2026 — virtual CC and hardware recheck
 
+- The SIM-diagnostic FPGA build completed routing and timing (system Fmax
+  42.78 MHz, pixel 162.84 MHz); bitstream SHA256
+  `f65b188f3a3f19242db5a173c9e7f55b404299b5009123a54e259976bf6afddd`.
+  SRAM load succeeded, but `read_sim_status.py COM6` blocked inside serial
+  access without returning a packet. Windows still enumerated COM6/FTDI;
+  subsequent standard open returned access denied. Termination was requested
+  for the identified diagnostic process, which remained listed; no SIM count
+  can be inferred. USB reconnection is needed before reloading this volatile
+  diagnostic image and retrying. Flash was not written.
+
 - Two no-network original-ROM comparisons are running with independent
   Verilator build directories: the earlier 27M-cycle power hold and a new
   168.75M-cycle hold matching the Tang's ten-second automatic power press.
