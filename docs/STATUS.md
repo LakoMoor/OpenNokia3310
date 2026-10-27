@@ -2,6 +2,22 @@
 
 ## October 27, 2026 — virtual CC and hardware recheck
 
+- The original v6.39 ROM has now sent CONNECT ACK (`03 0f`) at cycle
+  656,617,583 in `cc-connect-820M`, after N(R)=2/3/4 confirmations for the CC
+  handshake. Its 675M framebuffer shows the original **Call 1 / End** screen:
+  [simulated connected call](img/simulation-original-connected.png). This proves
+  the outgoing signalling transition in the virtual RTL model, not speech
+  transport or a call on the physical Tang. The running experiment uses the
+  pre-multiplier-optimization executable. To observe clearing next, the live
+  script was extended before cycle 760M with End at 760M/release at 765M; its
+  original script is preserved separately and the harness records the final
+  script/hash and actual KEY events. The run is not yet complete.
+  End was observed exactly at cycle 760,000,000; the phone sent DISCONNECT
+  `03 65 02 e0 90` at cycle 763,865,917 (N(S)=3, N(R)=4), carrying normal-call
+  clearing cause 16. The next missing implementation is the virtual peer's
+  RELEASE / RELEASE COMPLETE / RR channel-release exchange; current CC retains
+  this request and must not claim that the call was cleanly cleared.
+
 - Replaced the ARM multiplier's replicated-sign 64x64 expression with an exact
   signed 33x33 product (conditional sign bits) truncated to 64 bits before
   accumulation. All 512 boundary and 20,000 deterministic random comparisons
@@ -34,7 +50,7 @@
   data bearer/address extension, truncated and 256/257-byte bounds.
   This is signalling only: incoming calls, CC disconnect/release, speech audio
   and SMS are unfinished. The new isolated `cc-connect-820M` ROM run is in
-  progress; its final phone response has not yet been qualified.
+  progress; CONNECT ACK has since been observed above, with clearing pending.
   All 39 RTL cases and four trace-parser tests pass after this integration.
 - The previous ownership-fix run completed 700M clocks with 33,908 LCD writes,
   215 virtual records and matching keypad-script hashes. SETUP is followed by
