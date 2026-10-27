@@ -81,10 +81,24 @@ module mdi_injector_tb;
             expected=k==0 ? 16'ha28b : {8'(2*k-2),8'(2*k-1)};
             if(actual!==expected)$fatal(1,"long record word %0d %h != %h",k,actual,expected);
         end
+        // Maximum accepted record occupies 98 of the 100 ring words.
+        memory['h1c8/4]=32'h00800080;expected_producer=16'he2;
+        send(194,0);send('h91,0);
+        for(integer i=0;i<194;i++)send(8'(i),i==193);
+        wait(done);repeat(3)@(negedge clk);
+        if(writes!=205 || interrupts!=4 || memory['h1c8/4]!==32'h00e20080)$fatal(1,"maximum packet ownership/count");
+        for(integer k=0;k<98;k++)begin
+            integer slot;
+            reg [15:0] actual,expected;
+            slot='h80+k;
+            actual=slot%2 ? memory[(slot*2)/4][15:0] : memory[(slot*2)/4][31:16];
+            expected=k==0 ? 16'hc291 : {8'(2*k-2),8'(2*k-1)};
+            if(actual!==expected)$fatal(1,"maximum record word %0d %h != %h",k,actual,expected);
+        end
         // Oversized framing is drained, never committed into the finite ring.
         send(195,0);for(integer i=1;i<196;i++)send(0,0);send(0,1);
         repeat(5)@(negedge clk);
-        if(errors!=2 || writes!=106)$fatal(1,"oversized record accepted");
+        if(errors!=2 || writes!=205)$fatal(1,"oversized record accepted");
         send(1,0);@(negedge clk);reset=1;@(negedge clk);reset=0;
         if(busy || m_valid || fiq0)$fatal(1,"reset did not discard partial record");
         $display("PASS MDI injector: empty-ring ownership, wait states, wrap, odd byte, commit/FIQ ordering, invalid/reset");$finish;

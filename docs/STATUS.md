@@ -2,6 +2,15 @@
 
 ## October 27, 2026 — virtual CC and hardware recheck
 
+- The synchronous MDI buffer synthesized at 14,431 raw LUT1–4, 3,646 ALU
+  and 119 RAM16SDP4 versus 14,438, 3,650 and 145 before the change. Placement
+  of this exact netlist reports 19,659/20,736 LUT4 sites (94%) and is still
+  running; routing and timing are unverified. The 820M original-ROM run
+  completed with matching key-script hashes and again observed CONNECT ACK,
+  RELEASE COMPLETE and DISC at the previously verified cycle points. All 43
+  RTL cases passed; an additional maximum-size 196-byte MDI record test checks
+  all 98 words, producer ownership, and oversized-record rejection.
+
 - Both recent heap placement attempts ended with `Unable to find legal
   placement for all cells`, including CCCH-delta at 19,880/20,736 reported
   LUT sites. No PNR image was produced. The MDI injector now splits its record
