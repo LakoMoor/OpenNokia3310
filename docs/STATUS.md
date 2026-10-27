@@ -2,6 +2,12 @@
 
 ## October 27, 2026 — virtual CC and hardware recheck
 
+- The fractional-timer netlist heap/seed-2 placement terminated with `Unable to
+  find legal placement for all cells`; no PNR image was produced. A separate
+  200,000-clock test at the actual Tang system clock of 16.875 MHz verifies
+  the GSM phase and frame count against an independent 64-bit reference across
+  multiple frame boundaries. This validates the timer arithmetic, not board fit.
+
 - The fractional timer width change synthesized to 14,441 raw LUT1–4 and
   3,637 ALU versus 14,431 and 3,646 beforehand: the trade saves 9 ALU but
   adds 10 raw LUT. Heap seed 2 placement is running on the new netlist; no
