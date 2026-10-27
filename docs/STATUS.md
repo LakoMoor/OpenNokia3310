@@ -2,6 +2,23 @@
 
 ## October 26, 2026 — original boot investigation
 
+- The repeated main-screen fields are now identified as Net Monitor, not a font
+  rendering defect. In the isolated original v6.39 run, Menu -> Up reached the
+  original Net monitor item; selecting it, entering test 0 and confirming returned
+  to a normal standby LCD showing numeric network `001 01` and the Menu softkey
+  by cycle 525M. No MCU RAM or framebuffer was patched. This is RTL simulation
+  evidence, not an HDMI/Tang capture; stable service, calls/SMS and the same exit
+  on hardware still need qualification.
+
+![Original v6.39 standby after Net Monitor test 0 — RTL simulation](img/simulation-netmon-off-standby.png)
+
+- Added a standalone LAPDm I-frame receiver with independent SAPI 0/3 sequence
+  and reassembly buffers. Directed tests cover interleaved segments, duplicates
+  without duplicate delivery, out-of-order/invalid frames, bounded overflow,
+  message backpressure, link reset and N(S) modulo-8 wrap. All 34 RTL tests pass.
+  The receiver is not connected to SEND_BLOCK or L3 dispatch yet; acknowledgements,
+  rejection signaling and complete call/SMS transactions remain integration work.
+
 - Fixed stale LAPDm responses across channel boundaries. UA decoding now requires
   an active SDCCH; every channel reconfiguration clears pending UA and MM-output
   eligibility. A DSP-queue test sends unsolicited SABM before channel setup,

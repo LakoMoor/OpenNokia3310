@@ -102,3 +102,10 @@ qualified image. Run flasher tests with
 `--smoke-test output.json` to construct/check both UI pages without USB writes.
 `--audio-smoke-test output.json` plays a one-second local diagnostic tone and
 reports actual audio callback frames. Audio tests: `python tests/test_pc_audio.py`.
+
+
+If the original phone standby shows numbered diagnostics and repeated `x` fields,
+it may be running Nokia Net Monitor. In the current v6.39 RTL simulation, opening
+**Menu -> Net monitor**, selecting **test 0** and confirming restores normal
+standby. This uses the phone's own menu; it does not change the LCD renderer.
+See the verification log for the simulation capture and hardware limitations.
