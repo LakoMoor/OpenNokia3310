@@ -2,6 +2,15 @@
 
 ## October 26, 2026 — original boot investigation
 
+- Added a standalone `virtual_access` RACH response builder. It emits MDI `84`
+  RA_INFO and an MDI `80` CCCH Immediate Assignment using the same captured
+  RA/request frame. Directed tests check the request-reference T1'/T3/T2 tuple,
+  the 42,432-frame reduced-FN period, SDCCH channel description, byte lengths,
+  padding, stalled output, latched inputs and reset cancellation. These pass.
+  The block is not connected to the DSP scheduler yet: request-FN decoding,
+  RA_INFO-before-grant sequencing and original-ROM acceptance remain required.
+  It does not establish registration, a call or SMS.
+
 - The NO_PSW experiment advances beyond repeated search: v6.39 configures CCCH
   (`02`, payload `040000000000001a6000024a...`) at cycle 261,129,071 and emits
   RACH request opcode `0C`, payload `0000166c00000000`, at 261,375,575. This is
