@@ -3,6 +3,21 @@ from concurrent.futures import ThreadPoolExecutor
 import hashlib
 from pathlib import Path
 import subprocess
+import re
+
+
+def generated_cpp(output, top):
+    """Use the current Verilator manifest, excluding obsolete generated files."""
+    output=Path(output)
+    manifest=(output/f'V{top}_classes.mk').read_text()
+    result=[]
+    for section in re.finditer(r'^VM_(?:CLASSES|SUPPORT)_(?:FAST|SLOW)[ \t]*\+=[ \t]*\\[ \t]*\n((?:[ \t]+\w+[ \t]*\\[ \t]*\n)*)',manifest,re.M):
+        for name in re.findall(r'^[ \t]*(\w+)[ \t]*\\[ \t]*$',section.group(1),re.M):
+            source=output/(name+'.cpp')
+            if not source.is_file():raise FileNotFoundError(source)
+            result.append(source)
+    if not result:raise ValueError('No generated classes in Verilator manifest')
+    return result
 
 
 def build_cpp(sources, includes, output, exe):

@@ -5,7 +5,7 @@ from pathlib import Path
 import subprocess
 import shutil
 from build import cpu_sources
-from sim_build import build_cpp
+from sim_build import build_cpp,generated_cpp
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -79,7 +79,7 @@ def main():
                         *sources, f"tests/{name}_tb.sv"], check=True,
                        stdout=subprocess.DEVNULL, stderr=(output/"lint.log").open("w"))
         exe = output / ("test.exe" if os.name == "nt" else "test")
-        cpp = [str(x) for x in output.glob("*.cpp")]
+        cpp = [str(x) for x in generated_cpp(output,name+"_tb")]
         build_cpp([*map(Path,cpp),vroot/"verilated.cpp",vroot/"verilated_timing.cpp",vroot/"verilated_threads.cpp"],
                   [vroot,vroot/"vltstd",output],output,exe)
         subprocess.run([str(exe.resolve())], check=True, timeout=30)

@@ -10,7 +10,7 @@ import uuid
 from datetime import datetime,timezone
 from build import ROOT, cpu_sources
 from prepare_firmware import prepare
-from sim_build import build_cpp
+from sim_build import build_cpp,generated_cpp
 
 p=argparse.ArgumentParser(description=__doc__)
 p.add_argument("firmware",type=Path)
@@ -54,7 +54,7 @@ if not a.reuse and not a.cpp_only:
                     "--top-module","nokia_core","--Mdir",str(out),*sources],check=True,stdout=log,stderr=log)
 exe=out/("trace.exe" if os.name=="nt" else "trace")
 if not a.reuse:
-    build_cpp([*out.glob("*.cpp"),Path("tools/trace_firmware.cpp"),vroot/"verilated.cpp",vroot/"verilated_threads.cpp"],
+    build_cpp([*generated_cpp(out,"nokia_core"),Path("tools/trace_firmware.cpp"),vroot/"verilated.cpp",vroot/"verilated_threads.cpp"],
               [vroot,vroot/"vltstd",out],out,exe)
     compile_record.write_text(json.dumps({**compiled,'harness_sha256':harness_hash},indent=2)+'\n')
 manifest={**compiled,'cycles':a.cycles,'hold_power_cycles':a.hold_power_cycles,
