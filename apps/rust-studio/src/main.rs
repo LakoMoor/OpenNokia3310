@@ -240,7 +240,7 @@ struct Studio {
     key_until: [Option<std::time::Instant>; 17],
     stop: Option<Arc<AtomicBool>>,
     serial_busy: Arc<AtomicBool>,
-    rx: Option<mpsc::Receiver<(Vec<u8>, bool)>>,
+    rx: Option<mpsc::Receiver<(Vec<u8>, bool, Option<u8>)>>,
     gray: bool,
     events: mpsc::Receiver<String>,
     tx: mpsc::Sender<String>,
@@ -334,6 +334,7 @@ impl Studio {
             let mut buf = Vec::new();
             let mut lcd = [0; 504];
             let mut gray = false;
+            let mut board_volume = None;
             let mut last = std::time::Instant::now() - Duration::from_secs(1);
             while !end.load(Ordering::Relaxed) {
                 while let Ok(command) = command_rx.try_recv() {
@@ -366,12 +367,13 @@ impl Studio {
                         if decode_with(&mut buf, &mut lcd, |kind, payload| {
                             if kind == 2 && payload.len() >= 10 {
                                 gray = payload[8] & 2 != 0;
+                                board_volume = Some(payload[7].min(10));
                             }
                             if let Ok(mut state) = audio.lock() {
                                 state.packet(kind, payload);
                             }
                         }) {
-                            let _ = frame_tx.try_send((lcd.to_vec(), gray));
+                            let _ = frame_tx.try_send((lcd.to_vec(), gray, board_volume));
                         }
                     }
                     Err(e) if e.kind() == std::io::ErrorKind::TimedOut => {}
@@ -407,9 +409,14 @@ impl eframe::App for Studio {
             self.log.push('\n');
         }
         if let Some(rx) = &self.rx {
-            while let Ok((v, gray)) = rx.try_recv() {
+            while let Ok((v, gray, volume)) = rx.try_recv() {
                 self.lcd.copy_from_slice(&v);
                 self.gray = gray;
+                if !ctx.input(|i| i.pointer.any_down()) {
+                    if let Some(volume) = volume {
+                        self.volume = volume;
+                    }
+                }
             }
         }
         ctx.request_repaint_after(Duration::from_millis(50));
@@ -663,6 +670,13 @@ fn main() -> eframe::Result {
         }
         return Ok(());
     }
+    if args.len() == 3 && args[1] == "--probe-palette" {
+        if let Err(error) = probe_palette(&args[2]) {
+            eprintln!("Palette probe failed: {error}");
+            std::process::exit(1);
+        }
+        return Ok(());
+    }
     if args.len() == 2 && args[1] == "--list-tang" {
         match serialport::available_ports() {
             Ok(ports) => {
@@ -704,6 +718,57 @@ fn main() -> eframe::Result {
             Ok(Box::<Studio>::default())
         }),
     )
+}
+
+fn read_palette(
+    port: &mut dyn serialport::SerialPort,
+    wanted: Option<bool>,
+    timeout: Duration,
+) -> Result<bool, String> {
+    let mut buf = Vec::new();
+    let mut lcd = [0; 504];
+    let start = std::time::Instant::now();
+    while start.elapsed() < timeout {
+        let mut bytes = [0; 1024];
+        match port.read(&mut bytes) {
+            Ok(n) => {
+                buf.extend_from_slice(&bytes[..n]);
+                let mut palette = None;
+                decode_with(&mut buf, &mut lcd, |kind, body| {
+                    if kind == 2 && body.len() >= 10 {
+                        palette = Some(body[8] & 2 != 0);
+                    }
+                });
+                if let Some(value) = palette {
+                    if wanted.is_none() || wanted == Some(value) {
+                        return Ok(value);
+                    }
+                }
+            }
+            Err(e) if e.kind() == std::io::ErrorKind::TimedOut => (),
+            Err(e) => return Err(e.to_string()),
+        }
+    }
+    Err("No matching N4 palette status received".into())
+}
+fn probe_palette(name: &str) -> Result<(), String> {
+    let mut port = serialport::new(name, 115200)
+        .timeout(Duration::from_millis(100))
+        .open()
+        .map_err(|e| e.to_string())?;
+    let original = read_palette(&mut *port, None, Duration::from_secs(4))?;
+    port.write_all(&packet(7, u8::from(!original)))
+        .map_err(|e| e.to_string())?;
+    let observed = read_palette(&mut *port, Some(!original), Duration::from_secs(4));
+    let restore_write = port
+        .write_all(&packet(7, u8::from(original)))
+        .map_err(|e| e.to_string());
+    let restore = restore_write
+        .and_then(|_| read_palette(&mut *port, Some(original), Duration::from_secs(4)).map(|_| ()));
+    restore.map_err(|e| format!("Could not confirm restoring original palette: {e}"))?;
+    observed?;
+    println!("Tang palette switched and original palette was restored and confirmed on {name}.");
+    Ok(())
 }
 
 fn probe_audio(name: &str) -> Result<(), String> {

@@ -28,7 +28,10 @@ the Windows output and received the FPGA 1 kHz test state; actual audibility
 has not been confirmed. Closing the app window is cancelled during installation;
 unexpected process termination or power loss can still interrupt a flash write.
 The remote also offers system-menu, palette and volume commands; the LCD uses
-the palette reported by the board. These new controls await hardware verification.
+the palette reported by the board and the slider tracks reported volume. On
+Windows, `--probe-palette COM6` switched the connected Tang palette and verified
+the changed N4 status, then restored and verified the original setting. Physical
+display color, menu and volume controls still need separate hardware checks.
 
 ## Android (USB-C OTG)
 
