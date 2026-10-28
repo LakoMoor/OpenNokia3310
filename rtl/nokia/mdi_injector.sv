@@ -20,8 +20,10 @@ module mdi_injector (
     logic [7:0] even_q,odd_q,declared_length;
     logic [7:0] count,bytes_count;
     logic [6:0] word_index;
-    logic [15:0] cursor;
-    wire [15:0] following=cursor==16'he3 ? 16'h80 : cursor+1'b1;
+    // The ring admission check accepts only 0080..00e3. Every subsequent
+    // increment wraps inside that range, so the upper byte is always zero.
+    logic [7:0] cursor;
+    wire [7:0] following=cursor==8'he3 ? 8'h80 : cursor+1'b1;
     wire [7:0] byte_index={word_index,1'b0};
     wire [15:0] word_data={even_q,byte_index+1<bytes_count ? odd_q : 8'd0};
     always_ff @(posedge clk)begin
@@ -55,17 +57,17 @@ module mdi_injector (
                 m_valid<=0;
                 // High half is the DSP producer; low half belongs to the MCU.
                 if(m_rdata[31:16]==m_rdata[15:0] && m_rdata[15:0]>=16'h80 && m_rdata[15:0]<16'he4)begin
-                    cursor<=m_rdata[31:16];word_index<=0;state<=WORD_PREP;
+                    cursor<=m_rdata[23:16];word_index<=0;state<=WORD_PREP;
                 end else state<=RING;
             end
             WORD_PREP:state<=WORD;
-            WORD:if(cursor[0])request(1,32'h10000+{15'b0,cursor,1'b0},{16'b0,word_data},3,WAIT_WORD);
-                 else request(1,32'h10000+{15'b0,cursor,1'b0},{word_data,16'b0},12,WAIT_WORD);
+            WORD:if(cursor[0])request(1,32'h10000+{23'b0,cursor,1'b0},{16'b0,word_data},3,WAIT_WORD);
+                 else request(1,32'h10000+{23'b0,cursor,1'b0},{word_data,16'b0},12,WAIT_WORD);
             WAIT_WORD:if(m_ready)begin
                 m_valid<=0;cursor<=following;word_index<=word_index+1'b1;
                 state<=({word_index,1'b0}+2>=bytes_count) ? COMMIT : WORD_PREP;
             end
-            COMMIT:request(1,32'h101c8,{cursor,16'b0},12,WAIT_COMMIT);
+            COMMIT:request(1,32'h101c8,{8'b0,cursor,16'b0},12,WAIT_COMMIT);
             WAIT_COMMIT:if(m_ready)begin m_valid<=0;state<=FINISH;end
             FINISH:begin fiq0<=1;done<=1;state<=COLLECT;end
             default:state<=COLLECT;
