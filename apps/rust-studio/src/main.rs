@@ -617,6 +617,7 @@ impl eframe::App for Studio {
                 egui::Frame::new().fill(Color32::from_rgb(29, 37, 44))
                     .stroke(egui::Stroke::new(1_f32, Color32::from_rgb(65, 77, 84)))
                     .corner_radius(28).inner_margin(28.).show(ui, |ui| {
+                ui.with_layout(egui::Layout::top_down(egui::Align::LEFT), |ui| {
                 ui.set_width(340.);
                 ui.vertical_centered(|ui| {
                     ui.label(egui::RichText::new("N O K I A").size(20.).strong().color(Color32::from_rgb(223, 230, 234)));
@@ -668,6 +669,7 @@ impl eframe::App for Studio {
                     self.key_until[16] =
                         Some(std::time::Instant::now() + Duration::from_millis(150));
                 }
+                });
                 });
                 });
                 let now = std::time::Instant::now();

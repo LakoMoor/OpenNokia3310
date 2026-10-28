@@ -79,3 +79,17 @@ zero, half and full PUP gain and disabled-generator checks. This source change
 has not yet been routed or loaded on Tang; the previous hardware image is
 unchanged. Android debug assembly succeeded after the companion-side change;
 Python audio tests pass 4/4 and Rust tests pass 6/6.
+
+#### Original-ROM boot audio observation
+
+The local `audio-register-boot` run completed 400,000,000 cycles using the
+v6.39 PPM-W image, virtual network, 16,875,000 Hz and eight memory wait cycles.
+Its 30 accepted audio-region byte writes contain no nonzero DSP frequency,
+DSP amplitude, buzzer divider or buzzer volume. PUP control was only 0x00 or
+0x08, so bit 0x20 (buzzer enable) was not asserted. The observed screen during
+this no-key run was the stock Time prompt. This establishes that boot alone
+did not request sound, not that ringtone playback works or fails.
+
+A separate `audio-keypad-gain` run uses the existing virtual-call key script
+and the updated RTL. Its outcome is pending; the key-script manifest must be
+checked at completion before interpreting its events.

@@ -21,3 +21,12 @@ packets and 595 MDI consumer changes. DSP message 119 contains
 This is simulation evidence only: it does not prove speech, SMS, FPGA resource
 fit, or physical network operation. The network-enabled bitstream remains
 unqualified.
+
+## Layout correction
+
+An inherited horizontal egui layout originally placed the logo, display and
+keypad in one overflowing row. The phone frame now explicitly uses a top-down
+layout. The rebuilt Windows application was opened and inspected at its default
+1120 by 940 client size: display and keypad remain inside the centered enclosure.
+Scrolling was also checked in the running window; the `* 0 # C` row and Power
+button are fully accessible. No board connection was made for this visual check.
