@@ -276,6 +276,7 @@ struct Studio {
     serial_busy: Arc<AtomicBool>,
     rx: Option<mpsc::Receiver<(Vec<u8>, bool, Option<u8>)>>,
     gray: bool,
+    last_frame: Option<std::time::Instant>,
     events: mpsc::Receiver<String>,
     tx: mpsc::Sender<String>,
     installing: Arc<AtomicBool>,
@@ -304,6 +305,7 @@ impl Default for Studio {
             serial_busy: Arc::new(AtomicBool::new(false)),
             rx: None,
             gray: false,
+            last_frame: None,
             events,
             tx,
             installing: Arc::new(AtomicBool::new(false)),
@@ -324,6 +326,7 @@ impl Studio {
             stop.store(true, Ordering::Relaxed);
         }
         self.rx = None;
+        self.last_frame = None;
         self.commands = None;
     }
     fn connect(&mut self) {
@@ -446,6 +449,7 @@ impl eframe::App for Studio {
             while let Ok((v, gray, volume)) = rx.try_recv() {
                 self.lcd.copy_from_slice(&v);
                 self.gray = gray;
+                self.last_frame = Some(std::time::Instant::now());
                 if !ctx.input(|i| i.pointer.any_down()) {
                     if let Some(volume) = volume {
                         self.volume = volume;
@@ -464,7 +468,8 @@ impl eframe::App for Studio {
                         ui.label(egui::RichText::new("TANG NANO 20K    •    EXPERIMENTAL BUILD").size(11.).color(Color32::from_gray(150)));
                     });
                     ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                        let (label, color) = if self.installing.load(Ordering::Relaxed) { ("INSTALLING", Color32::from_rgb(224,184,100)) } else if self.serial_busy.load(Ordering::Relaxed) { ("CONNECTED / OPENING", Color32::from_rgb(184,217,143)) } else { ("DISCONNECTED", Color32::from_gray(165)) };
+                        let live = self.last_frame.is_some_and(|time| time.elapsed() < Duration::from_secs(2));
+                        let (label, color) = if self.installing.load(Ordering::Relaxed) { ("INSTALLING", Color32::from_rgb(224,184,100)) } else if self.serial_busy.load(Ordering::Relaxed) && live { ("LIVE", Color32::from_rgb(184,217,143)) } else if self.serial_busy.load(Ordering::Relaxed) { ("WAITING FOR DEVICE DATA", Color32::from_rgb(224,184,100)) } else { ("DISCONNECTED", Color32::from_gray(165)) };
                         ui.label(egui::RichText::new(label).size(12.).color(color));
                     });
                 });
