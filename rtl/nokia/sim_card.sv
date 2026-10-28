@@ -231,7 +231,14 @@ module sim_card #(parameter CLK_HZ=27_000_000) (
                 if(offset+index<ef_size(selected)) files[ef_base(selected)+12'(offset+index)]<=payload_q;
                 index<=index+1'b1;state<=index+1'b1==length ? SW1 : UPDATE_PREP;
             end
-            SW1:begin state<=SW2;end
+            SW1:begin
+`ifdef NOKIA_TRACE
+                // Synthetic card metadata only; never print PIN/PUK or file
+                // contents. Log at completion, when CHV status is final too.
+                $display("SIM RESULT ins=%02x fid=%04x sw=%02x%02x length=%0d offset=%0d",ins,selected,status1,status2,length,offset);
+`endif
+                state<=SW2;
+            end
             SW2:begin state<=IDLE;end
             default:state<=IDLE;
         endcase
