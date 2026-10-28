@@ -2,6 +2,13 @@
 
 ## October 28, 2026 — SIM recheck and DSP message pulse
 
+- The board image with both UART fairness and audio-reconnect fixes completed
+  routing and timing: system Fmax 35.89 MHz and pixel Fmax 143.45 MHz, above
+  the required 16.875/27 MHz. SHA256:
+  `24f8bbe47ee02c1eacee47b84bca97406d4e6c7bc46f08f7a2d5f36d90bd3077`.
+  Loading again failed before writing at FTDI USB reset. Both fixes therefore
+  remain unverified on hardware. A new SIM-address trace is running with the
+  board's 168.75M-cycle power hold and corrected SELECT metadata.
 - The SIM-result run completed 400M cycles with unchanged key-script hashes,
   network disabled, 127 SIM completions and the same six SELECT refusals.
   Its final `lcd.pgm` shows Net Monitor 03 and Menu, rather than Insert SIM
