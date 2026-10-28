@@ -2,6 +2,11 @@
 
 ## October 28, 2026 — SIM recheck and DSP message pulse
 
+- A later SIM-status read on the combined USB-fix SRAM image blocked without
+  output; interruption was requested for that diagnostic process. HDMI capture
+  at that point showed a blank green LCD area. The successful initial USB
+  probes therefore do not establish sustained operation. The cause and final
+  driver/process state remain unresolved; flash was not written.
 - JTAG became available and the combined USB-fix image (`24f8bbe4…90bd3077`)
   loaded successfully into SRAM. Rust received 21 checksum-valid LCD frames;
   menu and palette probes confirmed toggles and restoration. Flash was not
