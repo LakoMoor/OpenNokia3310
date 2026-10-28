@@ -2,6 +2,11 @@
 
 ## October 28, 2026 — SIM recheck and DSP message pulse
 
+- The SIM-result run completed 400M cycles with unchanged key-script hashes,
+  network disabled, 127 SIM completions and the same six SELECT refusals.
+  Its final `lcd.pgm` shows Net Monitor 03 and Menu, rather than Insert SIM
+  card. Thus this simulated startup does not reproduce the hardware rejection;
+  the SELECT failures alone do not explain that difference.
 - The SIM-result trace reached 300M cycles with 127 completed commands:
   88 responses `9000`, 11 `9f22`, 22 `9f0f`, and six SELECT responses `9404`.
   Phonebook and SMS record reads completed successfully, and the framebuffer
