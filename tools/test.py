@@ -48,6 +48,7 @@ def main():
         "controls": ["rtl/nokia/nokia_controls.sv"],
         "link": ["rtl/nokia/nokia_overlay.sv", "rtl/nokia/nokia_link.sv"],
         "link_fair": ["rtl/nokia/nokia_overlay.sv", "rtl/nokia/nokia_link.sv"],
+        "link_resume": ["rtl/nokia/nokia_overlay.sv", "rtl/nokia/nokia_link.sv"],
         "pcd8544": ["rtl/nokia/pcd8544.sv"],
         "keypad": ["rtl/nokia/keypad_3310.sv", "rtl/nokia/pad_3310.sv"],
         "mad2": ["rtl/nokia/keypad_3310.sv", "rtl/nokia/sim_card.sv", "rtl/nokia/mad2_mmio.sv"],

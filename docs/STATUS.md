@@ -2,6 +2,11 @@
 
 ## October 28, 2026 — SIM recheck and DSP message pulse
 
+- A host reconnect could miss unchanged audio state: the previous RTL timed out
+  in a reconnect regression, while the new RTL sends the current oscillator
+  state after streaming is enabled and passes that test, the packet-framing
+  test and the continuous-audio fairness test. This later change is not in the
+  already-running FPGA build, and has not been tested on the board.
 - A later HDMI capture on the diagnostic board showed the original firmware's
   `Insert SIM card` screen; COM6 opened but delivered no N4 status in two
   reads. This remains an unresolved SIM/USB issue: the screen alone does not
