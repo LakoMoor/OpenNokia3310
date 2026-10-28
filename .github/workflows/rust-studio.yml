@@ -1,0 +1,40 @@
+name: Rust Studio
+on:
+  push:
+    paths: ['apps/rust-studio/**', '.github/workflows/rust-studio.yml']
+  pull_request:
+    paths: ['apps/rust-studio/**', '.github/workflows/rust-studio.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  desktop:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, ubuntu-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 40
+    defaults:
+      run:
+        working-directory: apps/rust-studio
+    steps:
+      - uses: actions/checkout@v4
+      - name: Linux native dependencies
+        if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y libasound2-dev libudev-dev libxkbcommon-dev libwayland-dev libx11-dev libxi-dev libxcursor-dev libxrandr-dev
+      - name: Toolchain
+        run: rustup update stable --no-self-update
+      - name: Format
+        run: cargo +stable fmt -- --check
+      - name: Test
+        run: cargo +stable test --locked
+      - name: Build
+        run: cargo +stable build --locked
+      - uses: actions/upload-artifact@v4
+        with:
+          name: open-nokia-studio-${{ runner.os }}-debug
+          path: |
+            apps/rust-studio/target/debug/open-nokia-studio.exe
+            apps/rust-studio/target/debug/open-nokia-studio
+          if-no-files-found: error
