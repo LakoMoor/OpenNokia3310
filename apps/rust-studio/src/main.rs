@@ -218,6 +218,12 @@ where
     let backup = folder.join(format!("tang-flash-{stamp}.bin"));
     let prepared = folder.join(format!("nokia-rom-{stamp}.bin"));
     fs::write(&prepared, &data).map_err(|e| e.to_string())?;
+    // Freeze and revalidate the image before the potentially long backup.
+    // A source rebuild must not silently replace the file we later program.
+    let staged_fpga = folder.join(format!("nokia-fpga-{stamp}.fs"));
+    fs::copy(&fpga, &staged_fpga).map_err(|e| e.to_string())?;
+    validate(&staged_fpga, &prepared, None)?;
+    let fpga = staged_fpga.to_str().ok_or("Invalid FPGA path")?;
     let b = backup.to_str().ok_or("Invalid backup path")?;
     let p = prepared.to_str().ok_or("Invalid ROM path")?;
     program(
@@ -1058,7 +1064,9 @@ mod tests {
                 assert_eq!(&calls[2][..2], ["-f", "--verify"]);
             }
             if calls.len() > 3 {
-                assert_eq!(calls[3], vec![fpga.to_str().unwrap().to_string()]);
+                assert_eq!(calls[3].len(), 1);
+                assert_ne!(calls[3][0], fpga.to_str().unwrap());
+                assert_eq!(fs::read(&calls[3][0]).unwrap(), fs::read(&fpga).unwrap());
             }
         }
         let mut calls = 0;
