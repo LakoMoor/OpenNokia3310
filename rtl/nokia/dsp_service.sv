@@ -39,12 +39,13 @@ module dsp_service #(parameter CLK_HZ=27_000_000) (
     logic [7:0] byte_value;
     logic [2:0] kind;
     logic [7:0] reply_length,reply_index;
-    logic [15:0] rx_cursor;
+    // RING_WAIT admits only 0080..00e3; the upper cursor byte stays zero.
+    logic [7:0] rx_cursor;
     logic [15:0] cb_value;
     logic [7:0] cb_block;
     logic [8:0] cb_delay;
     logic [27:0] heartbeat;
-    wire [15:0] next_cursor=rx_cursor==16'he3 ? 16'h80 : rx_cursor+1'b1;
+    wire [7:0] next_cursor=rx_cursor==8'he3 ? 8'h80 : rx_cursor+1'b1;
     wire [191:0] unlocked_record=192'hffffffffff0f0000009800000000000000000000087c0000;
     // A reply contains at most 52 bytes. Nine bits also cover every byte
     // address produced by the full eight-bit reply_index without truncation.
@@ -156,18 +157,18 @@ module dsp_service #(parameter CLK_HZ=27_000_000) (
             RING_WAIT:if(m_ready) begin
                 m_valid<=0;
                 if(m_rdata[31:16]==m_rdata[15:0] && m_rdata[15:0]>=16'h80 && m_rdata[15:0]<16'he4) begin
-                    rx_cursor<=m_rdata[31:16];reply_index<=0;state<=REPLY_ISSUE;
+                    rx_cursor<=m_rdata[23:16];reply_index<=0;state<=REPLY_ISSUE;
                 end else state<=RING_ISSUE;
             end
             REPLY_ISSUE:begin
-                if(rx_cursor[0]) request(1,32'h10000+{15'b0,rx_cursor,1'b0},{16'b0,reply_word},3,REPLY_WAIT);
-                else request(1,32'h10000+{15'b0,rx_cursor,1'b0},{reply_word,16'b0},12,REPLY_WAIT);
+                if(rx_cursor[0]) request(1,32'h10000+{23'b0,rx_cursor,1'b0},{16'b0,reply_word},3,REPLY_WAIT);
+                else request(1,32'h10000+{23'b0,rx_cursor,1'b0},{reply_word,16'b0},12,REPLY_WAIT);
             end
             REPLY_WAIT:if(m_ready) begin
                 m_valid<=0;rx_cursor<=next_cursor;reply_index<=reply_index+1'b1;
                 state<=reply_index==({1'b0,reply_length}+1)/2 ? COMMIT : REPLY_ISSUE;
             end
-            COMMIT:request(1,32'h101c8,{rx_cursor,16'b0},12,COMMIT_WAIT);
+            COMMIT:request(1,32'h101c8,{8'b0,rx_cursor,16'b0},12,COMMIT_WAIT);
             COMMIT_WAIT:if(m_ready) begin
                 m_valid<=0;fiq0<=1;heartbeat<=0;state<=IDLE;
                 if(kind==1) selftest_done<=1;
