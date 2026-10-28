@@ -41,6 +41,8 @@ module nokia_sound #(parameter CLK_HZ=16_875_000) (
 );
     wire [15:0] f1=control[72:57],f2=control[56:41],amp=control[40:25],divider=control[24:9];
     wire enabled=control[0];
+    // PUP volume is 0..255; four fractional amplitude bits avoid a multiplier.
+    wire signed [15:0] buzzer_level=$signed({4'b0,control[8:1],4'b0});
     logic [17:0] p1,p2,pt;
     logic [24:0] tick13;
     logic [15:0] buzzer_count;
@@ -57,12 +59,12 @@ module nokia_sound #(parameter CLK_HZ=16_875_000) (
             if(f1!=0) mixed=mixed+(p1<96000 ? 16'sd2048 : -16'sd2048);
             if(f2!=0) mixed=mixed+(p2<96000 ? 16'sd2048 : -16'sd2048);
         end
-        if(enabled && divider!=0) mixed=mixed+(buzzer_count<(divider>>1) ? 16'sd4096 : -16'sd4096);
+        if(enabled && divider!=0) mixed=mixed+(buzzer_count<(divider>>1) ? buzzer_level : -buzzer_level);
         if(test_on) mixed=mixed+(pt<96000 ? 16'sd4096 : -16'sd4096);
         scaled=$signed(mixed)*$signed({1'b0,volume});
         sample=16'(scaled>>>4);
-        speaker_p=volume!=0 && (amp!=0 || enabled || test_on) ? delta[16] : 1'b0;
-        speaker_n=volume!=0 && (amp!=0 || enabled || test_on) ? ~delta[16] : 1'b0;
+        speaker_p=volume!=0 && (amp!=0 || (enabled && divider!=0 && control[8:1]!=0) || test_on) ? delta[16] : 1'b0;
+        speaker_n=volume!=0 && (amp!=0 || (enabled && divider!=0 && control[8:1]!=0) || test_on) ? ~delta[16] : 1'b0;
     end
     always_ff @(posedge clk) begin
         // DSP tones are sampled at codec rate. Quarter-Hz phase units give

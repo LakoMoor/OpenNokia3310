@@ -71,3 +71,11 @@ Its buzzer oscillator uses a square wave and applies the phone volume byte
 checks pitch, waveform polarity, zero phone volume and disable. Actual
 original-ROM ringtone audibility remains unverified. The register interpretation
 is consistent with [the reference buzzer model](https://github.com/bialasik/nokia-3310-emulator/blob/main/crates/emucore/src/buzzer.rs).
+
+The FPGA sound mixer now applies PUP volume to its buzzer path too. It uses
+`volume_byte << 4` amplitude (0..4080), keeping a small fixed-point gain
+approximation without another multiplier. The sound RTL regression passes
+zero, half and full PUP gain and disabled-generator checks. This source change
+has not yet been routed or loaded on Tang; the previous hardware image is
+unchanged. Android debug assembly succeeded after the companion-side change;
+Python audio tests pass 4/4 and Rust tests pass 6/6.
