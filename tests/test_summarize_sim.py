@@ -19,5 +19,9 @@ class SimSummaryTest(unittest.TestCase):
         self.assertEqual(result['completions'], 0)
         self.assertIsNone(result['last_response'])
 
+    def test_addressing_parameters_are_preserved(self):
+        result = summarize('SIM RESULT ins=B2 fid=6F3C sw=9402 length=176 offset=1760 p1=0B p2=04 p3=B0')
+        self.assertEqual(result['non_success_responses'][0]['parameters'], dict(p1='0b', p2='04', p3='b0'))
+
 if __name__ == '__main__':
     unittest.main()
