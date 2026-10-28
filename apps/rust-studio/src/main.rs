@@ -110,7 +110,31 @@ fn validate(fpga: &Path, rom: &Path, ee: Option<&Path>) -> Result<Vec<u8>, Strin
 }
 fn run(loader: &str, args: &[&str], log: &mpsc::Sender<String>) -> Result<(), String> {
     log.send(format!("Programmer: {}", args.join(" "))).ok();
-    let mut child = Command::new(loader)
+    let mut command = Command::new(loader);
+    // Bundled Windows programmers load DLLs from bin and the sibling lib.
+    // Preserve the user's PATH for system-installed tools on every platform.
+    if let Some(base) = Path::new(loader)
+        .parent()
+        .filter(|p| !p.as_os_str().is_empty())
+    {
+        let mut paths = vec![
+            base.to_path_buf(),
+            base.parent().unwrap_or(base).join("lib"),
+        ];
+        if let Some(existing) = std::env::var_os("PATH") {
+            paths.extend(std::env::split_paths(&existing));
+        }
+        command.env(
+            "PATH",
+            std::env::join_paths(paths).map_err(|e| e.to_string())?,
+        );
+    }
+    #[cfg(windows)]
+    {
+        use std::os::windows::process::CommandExt;
+        command.creation_flags(0x08000000); // CREATE_NO_WINDOW
+    }
+    let mut child = command
         .arg("-b")
         .arg("tangnano20k")
         .args(args)
@@ -126,10 +150,14 @@ fn run(loader: &str, args: &[&str], log: &mpsc::Sender<String>) -> Result<(), St
     ] {
         let log = log.clone();
         thread::spawn(move || {
-            let mut text = String::new();
-            let _ = pipe.read_to_string(&mut text);
-            if !text.trim().is_empty() {
-                let _ = log.send(text);
+            let mut chunk = [0u8; 4096];
+            loop {
+                match pipe.read(&mut chunk) {
+                    Ok(0) | Err(_) => break,
+                    Ok(n) => {
+                        let _ = log.send(String::from_utf8_lossy(&chunk[..n]).into_owned());
+                    }
+                }
             }
         });
     }
