@@ -2,6 +2,13 @@
 
 ## October 28, 2026 — SIM recheck and DSP message pulse
 
+- The SIM-result trace reached 300M cycles with 127 completed commands:
+  88 responses `9000`, 11 `9f22`, 22 `9f0f`, and six SELECT responses `9404`.
+  Phonebook and SMS record reads completed successfully, and the framebuffer
+  showed the original Time prompt. This run predates the correction that logs
+  the requested FID on failed SELECT; the FIDs of its failures are therefore
+  stale selected-file values and must not be interpreted as requested files.
+  It has not reproduced the board's eventual SIM rejection at this point.
 - The fairness-fix board build completed routing and timing: system Fmax
   41.22 MHz (required 16.875 MHz), pixel Fmax 140.21 MHz (required 27 MHz).
   Bitstream SHA256 is
