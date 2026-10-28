@@ -93,3 +93,33 @@ did not request sound, not that ringtone playback works or fails.
 A separate `audio-keypad-gain` run uses the existing virtual-call key script
 and the updated RTL. Its outcome is pending; the key-script manifest must be
 checked at completion before interpreting its events.
+
+Use `python tools/render_audio_trace.py TRACE OUTPUT.wav --end CYCLE` to
+render AUDIO-W events to 24kHz mono PCM. `--start`, `--clock-hz` and `--volume`
+select the interval and host gain. This reconstructs known oscillators only;
+it is not captured hardware audio or a PCM speech decoder. Two tests verify
+register timing, 1kHz pitch, square-wave levels, phone mute and interval checks.
+The completed boot trace renders 568,888 silent samples, consistent with its
+zero active sound-register states.
+
+#### Completed keypad audio and restored hardware stream
+
+The `audio-keypad-gain` simulation completed 640,000,000 cycles with matching
+initial/final key-script hashes. It contains 164 sound-region byte writes,
+including nonzero DSP tones, but no PUP divider/volume writes. Rendering cycles
+400,000,000 through 640,000,000 produces 341,333 PCM samples. The earlier
+400,000,000..470,000,000 segment has 10,184 nonzero samples and peak 2200.
+This confirms simulated menu/key tone commands, not original ringtone playback.
+
+The gain-adjusted non-network hardware image was routed with final clock maxima
+35.17MHz system and 139.78MHz pixel (required 16.875MHz and 27MHz), SHA256
+`7f18a70718dfedaff36b2f4ddf1b732dfcc9ffb759fc435fad7be7921d157f38`.
+It was loaded into SRAM, with flash unchanged. Initially Studio received no
+frames. After temporarily loading I/O diagnostics and restoring the phone image,
+a raw read found 61 N4 headers, then `link_remote.py` received 13 LCD frames and
+one silent audio state in three seconds. Studio subsequently displayed the phone's
+Insert SIM card screen. The recovery mechanism is not established; this does not
+prove reliable reconnects or SIM acceptance. The app now retries the idempotent
+stream-enable command when LCD data is absent and labels its waiting state.
+The controls regression confirms repeated stream enables preserve menu state
+and do not reset the phone.

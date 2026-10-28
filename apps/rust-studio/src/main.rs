@@ -377,8 +377,20 @@ impl Studio {
             let mut gray = false;
             let mut board_volume = None;
             let mut last_audio_packet: Option<Vec<u8>> = None;
+            let mut last_lcd = std::time::Instant::now();
+            let mut stream_request = std::time::Instant::now();
             let mut last = std::time::Instant::now() - Duration::from_secs(1);
             while !end.load(Ordering::Relaxed) {
+                if last_lcd.elapsed() > Duration::from_secs(2)
+                    && stream_request.elapsed() > Duration::from_secs(1)
+                {
+                    // Idempotent stream enable: no menu toggle or phone reset.
+                    if let Err(error) = p.write_all(&packet(5, 1)) {
+                        let _ = tx.send(format!("Stream request failed: {error}"));
+                        break;
+                    }
+                    stream_request = std::time::Instant::now();
+                }
                 while let Ok(command) = command_rx.try_recv() {
                     if let Err(error) = p.write_all(&command) {
                         let _ = tx.send(format!("Command failed: {error}"));
@@ -426,6 +438,7 @@ impl Studio {
                                 }
                             }
                         }) {
+                            last_lcd = std::time::Instant::now();
                             let _ = frame_tx.try_send((lcd.to_vec(), gray, board_volume));
                         }
                     }
@@ -639,6 +652,15 @@ impl eframe::App for Studio {
                             );
                         }
                     }
+                }
+                if !self.last_frame.is_some_and(|time| time.elapsed() < Duration::from_secs(2)) {
+                    let message = if self.serial_busy.load(Ordering::Relaxed) {
+                        "Waiting for device data"
+                    } else {
+                        "Connect Tang to view its screen"
+                    };
+                    ui.painter().text(rect.center(), egui::Align2::CENTER_CENTER, message,
+                        egui::FontId::proportional(15.), dark);
                 }
                 ui.add_space(14.); ui.label(egui::RichText::new("KEYPAD").size(11.).color(Color32::from_gray(145)));
                 for row in [

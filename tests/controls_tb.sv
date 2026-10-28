@@ -17,7 +17,15 @@ module controls_tb;
     endtask
     initial begin
         repeat(4)@(negedge clk);reset=0;
+        repeat(3) begin
+            command(5,1);
+            if(!stream_enabled || menu_open || reset_request)$fatal(1,"stream retry must not toggle menu or reset");
+        end
         command(5,3);if(!stream_enabled || !menu_open)$fatal(1,"app stream/menu command");
+        repeat(3) begin
+            command(5,1);
+            if(!stream_enabled || !menu_open || reset_request)$fatal(1,"stream retry must preserve open menu");
+        end
         key(15);if(menu_row!=1)$fatal(1,"down");
         key(6);if(volume!=6)$fatal(1,"volume right");
         key(4);if(volume!=5)$fatal(1,"volume left");
