@@ -2,6 +2,14 @@
 
 ## October 28, 2026 — SIM recheck and DSP message pulse
 
+- The 400M-cycle SIM-address run with a 168.75M-cycle power hold completed,
+  with identical initial/final stimulus hashes. Its final framebuffer again
+  shows Net Monitor 03 and Menu. Matching the board's Power duration therefore
+  did not reproduce Insert SIM card under these simulated conditions.
+- The narrowed MDI cursor passes queue wrap/ownership tests and DSP access/CC
+  integration. The current network netlist packs to 19,450/20,736 LUT sites
+  (93%); its placement is running. This count includes the recent USB changes
+  too, so it is not an isolated measurement of the cursor edit.
 - `nokia_top --virtual-network` does not place on the Tang Nano 20K after
   the 8-bit MDI cursor change (`726aa2f`): nextpnr (`heap`, seed 1) reports no
   legal placement at 19,450/20,736 LUT4 (93%), 7,763 DFF, 24/46 BSRAM; `sa`
