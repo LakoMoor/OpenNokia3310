@@ -52,6 +52,9 @@ module mdi_injector_tb;
         send(3,0);send('h80,0);send('haa,0);send('hbb,0);send('hcc,1);
         repeat(100)@(negedge clk);
         if(writes || fiq0 || !busy)$fatal(1,"nonempty queue overwritten");
+        memory['h1c8/4]=32'h01e301e3;
+        repeat(100)@(negedge clk);
+        if(writes || fiq0 || !busy)$fatal(1,"high-byte cursor alias accepted");
         memory['h1c8/4]=32'h00e300e3;
         wait(done);repeat(3)@(negedge clk);
         if(writes!=4 || interrupts!=1 || memory['h1c4/4][15:0]!==16'h0380 ||

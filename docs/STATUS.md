@@ -6,8 +6,8 @@
   full-width admission checks. DSP transport/wrap, network delivery and CC
   integration tests pass. The combined netlist packs to 19,486/20,736 LUT
   sites, compared with 19,450 for the MDI-only change; the smaller register
-  width did not reduce packed area. Placement of the combined netlist is
-  running; there is no hardware-qualified network image.
+  width did not reduce packed area. Heap/seed-1 placement of the combined
+  netlist failed to find a legal placement; there is no network image.
 - The 400M-cycle SIM-address run with a 168.75M-cycle power hold completed,
   with identical initial/final stimulus hashes. Its final framebuffer again
   shows Net Monitor 03 and Menu. Matching the board's Power duration therefore
