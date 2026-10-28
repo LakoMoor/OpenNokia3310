@@ -458,13 +458,65 @@ impl eframe::App for Studio {
             }
         }
         ctx.request_repaint_after(Duration::from_millis(50));
+        egui::SidePanel::left("navigation")
+            .resizable(false)
+            .exact_width(174.)
+            .show(ctx, |ui| {
+                ui.add_space(24.);
+                ui.label(
+                    egui::RichText::new("OPEN NOKIA")
+                        .size(19.)
+                        .strong()
+                        .color(Color32::from_rgb(184, 217, 143)),
+                );
+                ui.label(
+                    egui::RichText::new("S T U D I O")
+                        .size(11.)
+                        .color(Color32::from_gray(145)),
+                );
+                ui.add_space(34.);
+                for (index, title, detail) in [
+                    (0, "Remote", "Display & controls"),
+                    (1, "Install", "Firmware & backup"),
+                    (2, "Activity", "Session history"),
+                ] {
+                    let selected = self.page == index;
+                    let button = egui::Button::new(egui::RichText::new(title).size(16.))
+                        .fill(if selected {
+                            Color32::from_rgb(48, 65, 47)
+                        } else {
+                            Color32::TRANSPARENT
+                        })
+                        .min_size(Vec2::new(148., 42.));
+                    if ui.add(button).clicked() {
+                        self.page = index;
+                        self.keys.store(0, Ordering::Relaxed);
+                        self.key_until = [None; 17];
+                    }
+                    ui.label(
+                        egui::RichText::new(detail)
+                            .size(11.)
+                            .color(Color32::from_gray(135)),
+                    );
+                    ui.add_space(16.);
+                }
+                ui.with_layout(egui::Layout::bottom_up(egui::Align::LEFT), |ui| {
+                    ui.add_space(16.);
+                    ui.label(
+                        egui::RichText::new("Experimental hardware")
+                            .size(11.)
+                            .color(Color32::from_gray(125)),
+                    );
+                    ui.label(egui::RichText::new("TANG NANO 20K").size(11.).strong());
+                });
+            });
         egui::CentralPanel::default().show(ctx, |ui| {
             egui::ScrollArea::vertical().show(ui, |ui| {
                 ui.add_space(14.);
                 ui.horizontal(|ui| {
                     ui.vertical(|ui| {
                         ui.label(egui::RichText::new("OPEN NOKIA  /  STUDIO").size(14.).strong().color(Color32::from_rgb(184, 217, 143)));
-                        ui.label(egui::RichText::new("A little phone. A bigger idea.").size(26.).strong());
+                        ui.label(egui::RichText::new("Your phone, reimagined.").size(26.).strong());
                         ui.label(egui::RichText::new("TANG NANO 20K    •    EXPERIMENTAL BUILD").size(11.).color(Color32::from_gray(150)));
                     });
                     ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
@@ -474,16 +526,7 @@ impl eframe::App for Studio {
                     });
                 });
                 ui.add_space(20.);
-                ui.horizontal(|ui| {
-                    for (index, label) in [(0, "  Remote  "), (1, "  Install  "), (2, "  Activity  ")] {
-                        if ui.selectable_label(self.page == index, label).clicked() {
-                            self.page = index;
-                            self.keys.store(0, Ordering::Relaxed);
-                            self.key_until = [None; 17];
-                        }
-                    }
-                });
-                ui.add_space(12.); ui.separator(); ui.add_space(18.);
+                ui.separator(); ui.add_space(18.);
                 if self.page == 0 {
                 ui.label(egui::RichText::new("YOUR DEVICE").size(11.).color(Color32::from_gray(145)));
                 ui.heading("Remote control");
@@ -551,7 +594,18 @@ impl eframe::App for Studio {
                         if let Some(tx) = &self.commands { let _ = tx.send(packet(6, self.volume)); }
                     }
                 });
-                ui.add_space(14.);
+                let mut pressed = 0u32;
+                ui.add_space(20.);
+                ui.horizontal(|ui| {
+                ui.add_space(((ui.available_width() - 396.) / 2.).max(0.));
+                egui::Frame::new().fill(Color32::from_rgb(29, 37, 44))
+                    .stroke(egui::Stroke::new(1_f32, Color32::from_rgb(65, 77, 84)))
+                    .corner_radius(28).inner_margin(28.).show(ui, |ui| {
+                ui.set_width(340.);
+                ui.vertical_centered(|ui| {
+                    ui.label(egui::RichText::new("N O K I A").size(20.).strong().color(Color32::from_rgb(223, 230, 234)));
+                });
+                ui.add_space(16.);
                 ui.label(egui::RichText::new("LIVE DISPLAY  /  84 × 48").size(11.).color(Color32::from_gray(145)));
                     let scale = (ui.available_width() / 84.).clamp(2., 4.);
                 let (rect, _) = ui.allocate_exact_size(Vec2::new(84.*scale, 48.*scale), Sense::hover());
@@ -570,7 +624,6 @@ impl eframe::App for Studio {
                     }
                 }
                 ui.add_space(14.); ui.label(egui::RichText::new("KEYPAD").size(11.).color(Color32::from_gray(145)));
-                let mut pressed = 0u32;
                 for row in [
                         [("1", 1), ("2", 2), ("3", 3), ("Up", 14)],
                         [("4", 4), ("5", 5), ("6", 6), ("Down", 15)],
@@ -580,7 +633,7 @@ impl eframe::App for Studio {
                     ui.horizontal(|ui| {
                         for (name, bit) in row {
                             let response =
-                                ui.add(egui::Button::new(name).min_size(Vec2::new(45., 30.)));
+                                ui.add(egui::Button::new(name).min_size(Vec2::new(77., 42.)));
                             if response.is_pointer_button_down_on() {
                                 pressed |= 1 << bit;
                             }
@@ -599,6 +652,8 @@ impl eframe::App for Studio {
                     self.key_until[16] =
                         Some(std::time::Instant::now() + Duration::from_millis(150));
                 }
+                });
+                });
                 let now = std::time::Instant::now();
                 for (bit, deadline) in self.key_until.iter_mut().enumerate() {
                     if deadline.is_some_and(|until| now < until) {
@@ -742,8 +797,8 @@ fn main() -> eframe::Result {
         eframe::NativeOptions {
             renderer: eframe::Renderer::Wgpu,
             viewport: egui::ViewportBuilder::default()
-                .with_inner_size([900., 900.])
-                .with_min_inner_size([480., 480.]),
+                .with_inner_size([1120., 940.])
+                .with_min_inner_size([700., 600.]),
             ..Default::default()
         },
         Box::new(|cc| {
