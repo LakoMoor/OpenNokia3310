@@ -2,6 +2,12 @@
 
 ## October 28, 2026 — SIM recheck and DSP message pulse
 
+- Following the UART reopen failure, a later read-only JTAG detection also
+  failed with `ftdi_usb_reset failed`; a bounded COM6 status subprocess exceeded
+  its eight-second timeout. Both USB interfaces are now affected, so the
+  observed problem is not isolated to N4 parsing. No FPGA/flash write was
+  attempted in this check. Physical USB reconnection is needed before further
+  hardware investigation; the ROM regression continues independently.
 - A single-open 60-second UART observation completed successfully on the
   combined USB-fix SRAM image; the last logged LCD count was 60,128, with no
   reported memory/bus error. Reopening COM6 then received no status within
