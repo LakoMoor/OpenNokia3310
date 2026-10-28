@@ -104,14 +104,16 @@ module dsp_network #(parameter CLK_HZ=27000000,ENABLE_NETWORK=0) (
         logic access_pending,grant_pending,access_packet,grant_packet,rach_active;
         logic [7:0] access_ra;
         logic [21:0] access_fn;
-        logic [25:0] grant_delay;
+        localparam integer GRANT_BITS=(CLK_HZ/10 >= (1<<26)) ? 26 : ((CLK_HZ/10==0) ? 1 : $clog2(CLK_HZ/10+1));
+        logic [GRANT_BITS-1:0] grant_delay;
         logic confirm_pending,confirm_packet,rssi_pending,rssi_packet;
         logic [7:0] confirm_token;
         logic psw_pending,psw_packet,psw_sent;
         logic [1:0] si_kind;
         logic [31:0] packets;
         assign network_packets=packets;
-        logic [25:0] delay_count;
+        localparam integer SEARCH_BITS=(CLK_HZ/4 >= (1<<26)) ? 26 : ((CLK_HZ/4==0) ? 1 : $clog2(CLK_HZ/4+1));
+        logic [SEARCH_BITS-1:0] delay_count;
         logic [21:0] frame_number;
         // GSM hyperframe is divisible by both 51 and 42432. Maintain the
         // reduced frame counters directly instead of wide modulo operators.

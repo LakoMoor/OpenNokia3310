@@ -4,8 +4,9 @@
 
 - A separate simulated-annealing/seed-1 placement is running on the exact
   19,486-site combined-cursor netlist, after its heap placement failed. The
-  snapshot is isolated under `build/network-both-cursors-sa`; neither routing
-  nor timing nor hardware network operation is established by this attempt.
+  snapshot is isolated under `build/network-both-cursors-sa`. The process
+  crashed during initial placement (Windows exit code 0xc0000005); no routed
+  design or timing result was produced.
 - Both MDI and DSP reply cursors now use eight bits after their unchanged
   full-width admission checks. DSP transport/wrap, network delivery and CC
   integration tests pass. The combined netlist packs to 19,486/20,736 LUT
