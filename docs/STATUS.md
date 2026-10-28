@@ -2,6 +2,12 @@
 
 ## October 28, 2026 — SIM recheck and DSP message pulse
 
+- JTAG and COM6 were available again. The existing timing-qualified diagnostic
+  image was loaded into SRAM; flash was untouched. The Rust menu probe observed
+  a system-menu status toggle and verified restoration. HDMI captures then
+  showed the original time-entry field before and after the Rust key probe:
+  digit 1 appeared after its press and release. Other keys and menu paths are
+  not covered by this observation.
 - The experimental heartbeat placement and reduced-width SIM ROM simulation
   were interrupted: their process handles disappeared, no corresponding OS
   processes remained, and neither log contained a terminal result. Do not

@@ -19,9 +19,10 @@ use a simulated programmer and cover step failures and incomplete backups;
 the full Rust installation flow has not yet been tested on hardware.
 The refresh button selects an FT2232 candidate only if exactly one matches;
 when multiple candidates are present the user must choose the UART port.
-The Windows Rust enumerator identified the attached Tang as COM6. A key probe
-sent digit 1 followed by release and observed a subsequent LCD change; this
-observation alone does not prove that the key caused that change.
+The Windows Rust enumerator identified the attached Tang as COM6. On the real
+board, HDMI capture showed the original firmware's empty time-entry field;
+after `--probe-key COM6` sent digit 1 and release, the next capture showed 1
+in that field. This verifies that digit in that state, not the entire keypad.
 Rust audio synthesizes the N4 device oscillator state on the default output and
 falls silent after 700 ms without valid packets. `--probe-audio COM6` opened
 the Windows output and received the FPGA 1 kHz test state; actual audibility
@@ -32,8 +33,9 @@ the palette reported by the board and the slider tracks reported volume. On
 Windows, `--probe-palette COM6` switched the connected Tang palette and verified
 the changed N4 status, then restored and verified the original setting. Physical
 display color, menu and volume controls still need separate hardware checks.
-The new menu probe could open COM6 but received no N4 status; an independent
-reader also received no status. Its hardware result is therefore inconclusive.
+After reloading the previously timing-qualified diagnostic image into SRAM,
+`--probe-menu COM6` confirmed the menu status toggle and restored the original
+menu state. This checks the system overlay, not every original firmware menu.
 
 ## Android (USB-C OTG)
 
