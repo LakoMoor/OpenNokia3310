@@ -8,7 +8,8 @@
   did not reproduce Insert SIM card under these simulated conditions.
 - The narrowed MDI cursor passes queue wrap/ownership tests and DSP access/CC
   integration. The current network netlist packs to 19,450/20,736 LUT sites
-  (93%); its placement is running. This count includes the recent USB changes
+  (93%); heap/seed-1 placement failed to find a legal placement and produced
+  no image. This count includes the recent USB changes
   too, so it is not an isolated measurement of the cursor edit.
 - `nokia_top --virtual-network` does not place on the Tang Nano 20K after
   the 8-bit MDI cursor change (`726aa2f`): nextpnr (`heap`, seed 1) reports no
