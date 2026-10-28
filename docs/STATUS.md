@@ -2,6 +2,13 @@
 
 ## October 28, 2026 — SIM recheck and DSP message pulse
 
+- JTAG became available and the combined USB-fix image (`24f8bbe4…90bd3077`)
+  loaded successfully into SRAM. Rust received 21 checksum-valid LCD frames;
+  menu and palette probes confirmed toggles and restoration. Flash was not
+  changed. These checks do not yet verify sustained USB behavior or SIM acceptance.
+- Heap/seed-1 placement of the 19,461-site delay-width netlist failed to find
+  legal placement. No network bitstream was produced. Its separate original-ROM
+  regression is still running.
 - Network grant/search delay counters are sized for their configured reloads.
   DSP access, network delivery, dedicated-channel and CC tests pass; the Tang
   clock test additionally verifies reload preservation, decrement and terminal
