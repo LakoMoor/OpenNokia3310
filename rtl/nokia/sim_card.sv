@@ -235,7 +235,7 @@ module sim_card #(parameter CLK_HZ=27_000_000) (
 `ifdef NOKIA_TRACE
                 // Synthetic card metadata only; never print PIN/PUK or file
                 // contents. Log at completion, when CHV status is final too.
-                $display("SIM RESULT ins=%02x fid=%04x sw=%02x%02x length=%0d offset=%0d",ins,selected,status1,status2,length,offset);
+                $display("SIM RESULT ins=%02x fid=%04x sw=%02x%02x length=%0d offset=%0d",ins,ins==8'ha4 ? select_fid : selected,status1,status2,length,offset);
 `endif
                 state<=SW2;
             end
