@@ -2,6 +2,16 @@
 
 ## October 28, 2026 — SIM recheck and DSP message pulse
 
+- `nokia_top --virtual-network` does not place on the Tang Nano 20K after
+  the 8-bit MDI cursor change (`726aa2f`): nextpnr (`heap`, seed 1) reports no
+  legal placement at 19,450/20,736 LUT4 (93%), 7,763 DFF, 24/46 BSRAM; `sa`
+  seed 2 aborts during initial placement. No image was produced. The full RTL
+  suite still passes. Per-module yosys LUT4 counts put the network blocks at
+  only about 1,000 LUT4 (`dsp_service` 310, `virtual_cell` 150, `mdi_injector`
+  127, `mm_registration` 116, `sim_chv` 112, `virtual_access` 77), so the
+  limit is overall density, not one oversized block. Network on the board
+  remains unverified.
+
 - Corrected SELECT metadata in the hardware-power-hold simulation identifies
   six `9404` responses for requested FIDs `7f40`, `6f14`, `7f40`, `6f16`,
   `6f48`, and `7f43`, all with P1/P2 zero and P3 two. The firmware proceeds
