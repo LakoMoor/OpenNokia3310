@@ -2,6 +2,13 @@
 
 ## Rust desktop preview
 
+The [three-platform CI run](https://github.com/LakoMoor/OpenNokia3310/actions/runs/40647054400)
+passed formatting, tests and compilation on Windows, Linux and macOS. Its
+Artifacts section contains debug executables for each runner platform; these
+are development builds, without a bundled programmer or Nokia ROM. This
+verifies compilation and automated tests, not graphical or USB hardware
+operation on Linux/macOS.
+
 `rust-studio/` is an experimental cross-platform Rust desktop application using
 egui and wgpu. Build with `cargo run --manifest-path apps/rust-studio/Cargo.toml`.
 It supports the N4 live LCD and on-screen keypad, and invokes an installed
