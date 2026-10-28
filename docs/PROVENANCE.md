@@ -34,3 +34,15 @@ Required RTL dependencies are vendored in `third_party/`; ARM `files.f` paths
 are adapted to that directory. Proprietary Nokia ROMs, backups and local build
 logs are not part of this repository. Nokia and other product names remain
 the trademarks of their respective owners.
+# Upstream recheck — October 28, 2026
+
+The current Open Pocket GBC repository was rechecked at revision
+`865574cf0c5d9c5dfb2b850a8019dd04cab8979f` (October 26, 2026).
+Its companion applications live in `apps/android` and an Electron-style
+`apps/studio` with main/preload/renderer sources. Its `flash.sh` uses
+openFPGALoader with read-back verification for persistent writes, placing
+menu firmware at `0x100000` and games at `0x200000`. OpenNokia3310 uses a
+different flash layout: Nokia ROM at `0x200000`, and requires a complete
+backup before persistent installation. The upstream script must not be used
+unchanged to install Nokia firmware. This recheck did not update vendored RTL.
+
