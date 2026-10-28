@@ -2,6 +2,11 @@
 
 ## October 28, 2026 — SIM recheck and DSP message pulse
 
+- Corrected SELECT metadata in the hardware-power-hold simulation identifies
+  six `9404` responses for requested FIDs `7f40`, `6f14`, `7f40`, `6f16`,
+  `6f48`, and `7f43`, all with P1/P2 zero and P3 two. The firmware proceeds
+  to successful phonebook record reads. This partial run does not establish
+  whether those missing files cause a later rejection; it is still running.
 - The board image with both UART fairness and audio-reconnect fixes completed
   routing and timing: system Fmax 35.89 MHz and pixel Fmax 143.45 MHz, above
   the required 16.875/27 MHz. SHA256:
