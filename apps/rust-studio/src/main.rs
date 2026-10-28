@@ -376,6 +376,7 @@ impl Studio {
             let mut lcd = [0; 504];
             let mut gray = false;
             let mut board_volume = None;
+            let mut last_audio_packet: Option<Vec<u8>> = None;
             let mut last = std::time::Instant::now() - Duration::from_secs(1);
             while !end.load(Ordering::Relaxed) {
                 while let Ok(command) = command_rx.try_recv() {
@@ -411,17 +412,17 @@ impl Studio {
                                 board_volume = Some(payload[7].min(10));
                             }
                             if let Ok(mut state) = audio.lock() {
-                                let previous = (state.frequencies, state.volume);
                                 state.packet(kind, payload);
                                 if kind == 3
                                     && payload.len() == 11
-                                    && previous != (state.frequencies, state.volume)
+                                    && last_audio_packet.as_deref() != Some(payload)
                                 {
                                     let _ = tx.send(format!(
-                                        "Device audio: tones {:.1} / {:.1} Hz, buzzer {:.1} Hz, volume {:.0}%, playback {}",
+                                        "Device audio: tones {:.1} / {:.1} Hz, buzzer {:.1} Hz, phone gain {:.0}%, output volume {:.0}%, playback {}",
                                         state.frequencies[0], state.frequencies[1], state.frequencies[2],
-                                        state.volume * 100., if state.enabled { "enabled" } else { "muted" }
+                                        state.buzzer_volume * 100., state.volume * 100., if state.enabled { "enabled" } else { "muted" }
                                     ));
+                                    last_audio_packet = Some(payload.to_vec());
                                 }
                             }
                         }) {
