@@ -2,6 +2,12 @@
 
 ## October 28, 2026 — SIM recheck and DSP message pulse
 
+- Network grant/search delay counters are sized for their configured reloads.
+  DSP access, network delivery, dedicated-channel and CC tests pass; the Tang
+  clock test additionally verifies reload preservation, decrement and terminal
+  scheduling. The new netlist packs to 19,461 LUT sites; heap/seed-1 placement
+  is running. A separate 820M-cycle original-ROM outgoing-call regression
+  has started for the current cursor/timer changes. Neither result is complete.
 - A separate simulated-annealing/seed-1 placement is running on the exact
   19,486-site combined-cursor netlist, after its heap placement failed. The
   snapshot is isolated under `build/network-both-cursors-sa`. The process
