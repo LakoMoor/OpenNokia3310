@@ -32,6 +32,8 @@ the palette reported by the board and the slider tracks reported volume. On
 Windows, `--probe-palette COM6` switched the connected Tang palette and verified
 the changed N4 status, then restored and verified the original setting. Physical
 display color, menu and volume controls still need separate hardware checks.
+The new menu probe could open COM6 but received no N4 status; an independent
+reader also received no status. Its hardware result is therefore inconclusive.
 
 ## Android (USB-C OTG)
 

@@ -2,6 +2,14 @@
 
 ## October 28, 2026 — SIM recheck and DSP message pulse
 
+- The experimental heartbeat placement and reduced-width SIM ROM simulation
+  were interrupted: their process handles disappeared, no corresponding OS
+  processes remained, and neither log contained a terminal result. Do not
+  infer success or failure from those partial logs. A fresh original-ROM call
+  run has started against the current source after both changes were reverted.
+- A Rust menu-status probe could open COM6 but received no N3/N4 status; an
+  independent Python status read also received none. The present FPGA state
+  and whether any menu toggle took effect are unknown. No flash was written.
 - Replacing the DSP heartbeat less-than test with equality passed transport,
   MM and CC tests, including a new blocked-ring saturation and release test.
   Its netlist packed to 19,525 LUT sites versus 19,494 before; placement is

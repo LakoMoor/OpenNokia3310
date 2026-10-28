@@ -677,6 +677,13 @@ fn main() -> eframe::Result {
         }
         return Ok(());
     }
+    if args.len() == 3 && args[1] == "--probe-menu" {
+        if let Err(error) = probe_menu(&args[2]) {
+            eprintln!("Menu probe failed: {error}");
+            std::process::exit(1);
+        }
+        return Ok(());
+    }
     if args.len() == 2 && args[1] == "--list-tang" {
         match serialport::available_ports() {
             Ok(ports) => {
@@ -720,8 +727,9 @@ fn main() -> eframe::Result {
     )
 }
 
-fn read_palette(
+fn read_status_flag(
     port: &mut dyn serialport::SerialPort,
+    mask: u8,
     wanted: Option<bool>,
     timeout: Duration,
 ) -> Result<bool, String> {
@@ -736,7 +744,7 @@ fn read_palette(
                 let mut palette = None;
                 decode_with(&mut buf, &mut lcd, |kind, body| {
                     if kind == 2 && body.len() >= 10 {
-                        palette = Some(body[8] & 2 != 0);
+                        palette = Some(body[8] & mask != 0);
                     }
                 });
                 if let Some(value) = palette {
@@ -749,25 +757,46 @@ fn read_palette(
             Err(e) => return Err(e.to_string()),
         }
     }
-    Err("No matching N4 palette status received".into())
+    Err("No matching N4 status received".into())
 }
 fn probe_palette(name: &str) -> Result<(), String> {
     let mut port = serialport::new(name, 115200)
         .timeout(Duration::from_millis(100))
         .open()
         .map_err(|e| e.to_string())?;
-    let original = read_palette(&mut *port, None, Duration::from_secs(4))?;
+    let original = read_status_flag(&mut *port, 2, None, Duration::from_secs(4))?;
     port.write_all(&packet(7, u8::from(!original)))
         .map_err(|e| e.to_string())?;
-    let observed = read_palette(&mut *port, Some(!original), Duration::from_secs(4));
+    let observed = read_status_flag(&mut *port, 2, Some(!original), Duration::from_secs(4));
     let restore_write = port
         .write_all(&packet(7, u8::from(original)))
         .map_err(|e| e.to_string());
-    let restore = restore_write
-        .and_then(|_| read_palette(&mut *port, Some(original), Duration::from_secs(4)).map(|_| ()));
+    let restore = restore_write.and_then(|_| {
+        read_status_flag(&mut *port, 2, Some(original), Duration::from_secs(4)).map(|_| ())
+    });
     restore.map_err(|e| format!("Could not confirm restoring original palette: {e}"))?;
     observed?;
     println!("Tang palette switched and original palette was restored and confirmed on {name}.");
+    Ok(())
+}
+
+fn probe_menu(name: &str) -> Result<(), String> {
+    let mut port = serialport::new(name, 115200)
+        .timeout(Duration::from_millis(100))
+        .open()
+        .map_err(|e| e.to_string())?;
+    let original = read_status_flag(&mut *port, 1, None, Duration::from_secs(4))?;
+    port.write_all(&packet(5, 3)).map_err(|e| e.to_string())?;
+    let observed = read_status_flag(&mut *port, 1, Some(!original), Duration::from_secs(4));
+    // Only issue the second toggle if the first was confirmed; otherwise the
+    // resulting state is unknown and a blind toggle could change it again.
+    observed?;
+    port.write_all(&packet(5, 3))
+        .map_err(|e| format!("Could not restore menu: {e}"))?;
+    read_status_flag(&mut *port, 1, Some(original), Duration::from_secs(4))
+        .map_err(|e| format!("Could not confirm restoring menu: {e}"))?;
+    port.write_all(&packet(5, 0)).map_err(|e| e.to_string())?;
+    println!("Tang menu toggled and original menu state restored on {name}.");
     Ok(())
 }
 
