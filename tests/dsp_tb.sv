@@ -49,10 +49,19 @@ module dsp_tb;
     initial begin
         for(integer i=0;i<128;i=i+1) memory[i]=0;
         // Start at the last D2M slot: the two-word response must wrap.
-        memory['h1c8/4]=32'h00e300e3;
+        memory['h1c8/4]=32'h01e301e3;
         memory[0]=32'h02700d00; // len=2, local command 0D self-test
         repeat(4) @(negedge clk);reset=0;
-        doorbell('h100a4,2);
+        fork
+            doorbell('h100a4,2);
+            begin
+                wait(dut.state==dut.RING_ISSUE);
+                repeat(40) @(negedge clk);
+                if(memory['h1c8/4]!==32'h01e301e3 || interrupts!=0 || memory['h1c4/4]!=0)
+                    $fatal(1,"out-of-range producer was truncated into a valid ring slot");
+                memory['h1c8/4]=32'h00e300e3;
+            end
+        join
         if(messages!=1 || last_opcode!='h70 || last_sub!='h0d)
             $fatal(1,"M2D descriptor parsing");
         if(memory['h1c4/4][15:0]!==16'h0274 || memory['h100/4][31:16]!==16'h0d00)
