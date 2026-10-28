@@ -46,6 +46,7 @@ int main(int argc,char **argv) {
     bool memory_pending=false;
     const bool cpu_trace=std::getenv("NOKIA_CPU_TRACE")!=nullptr;
     const bool queue_trace=std::getenv("NOKIA_QUEUE_TRACE")!=nullptr;
+    const bool audio_trace=std::getenv("NOKIA_AUDIO_TRACE")!=nullptr;
     const bool io_trace=std::getenv("NOKIA_IO_TRACE")!=nullptr;
     auto save_frame=[&](const std::string &name) {
         std::ofstream image(name);
@@ -119,6 +120,18 @@ int main(int argc,char **argv) {
             }
         }
         cpu->eval();
+        if(audio_trace && cpu->trace_valid && cpu->trace_ready && cpu->trace_write) {
+            const uint32_t base=cpu->trace_address & ~3u;
+            for(unsigned lane=0;lane<4;++lane) if(cpu->trace_be & (8u>>lane)) {
+                const uint32_t address=base+lane;
+                if((address>=0x100ae && address<=0x100b7) ||
+                   (address>=0x20014 && address<=0x2001f)) {
+                    std::cout<<"AUDIO-W pc="<<std::hex<<cpu->trace_pc<<" addr="<<address
+                        <<" byte="<<((cpu->trace_wdata>>(24-lane*8))&255u)
+                        <<std::dec<<" cycle="<<cycle<<"\n";
+                }
+            }
+        }
         if(io_trace && cpu->trace_valid && cpu->trace_ready && cpu->trace_address>=0x20000 && cpu->trace_address<0x20100 && cycle<150000) {
             std::cout<<"IO pc="<<std::hex<<cpu->trace_pc<<" addr="<<cpu->trace_address<<" wr="<<unsigned(cpu->trace_write)
                 <<" data="<<cpu->trace_wdata<<" be="<<unsigned(cpu->trace_be)<<std::dec<<"\n";

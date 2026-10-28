@@ -6,6 +6,7 @@ use std::time::{Duration, Instant};
 pub struct State {
     pub frequencies: [f32; 3],
     pub volume: f32,
+    pub buzzer_volume: f32,
     pub last_packet: Instant,
     pub enabled: bool,
 }
@@ -14,6 +15,7 @@ impl Default for State {
         Self {
             frequencies: [0.; 3],
             volume: 0.,
+            buzzer_volume: 0.,
             last_packet: Instant::now() - Duration::from_secs(2),
             enabled: true,
         }
@@ -46,6 +48,7 @@ impl State {
             },
         ];
         self.volume = body[10].min(10) as f32 / 10.;
+        self.buzzer_volume = body[9] as f32 / 255.;
     }
 }
 fn synth(state: &State, phase: &mut [f32; 3], rate: f32) -> f32 {
@@ -56,7 +59,11 @@ fn synth(state: &State, phase: &mut [f32; 3], rate: f32) -> f32 {
     for (i, hz) in state.frequencies.iter().copied().enumerate() {
         if (20. ..=11000.).contains(&hz) && hz < rate / 2. {
             phase[i] = (phase[i] + hz / rate).fract();
-            value += (phase[i] * std::f32::consts::TAU).sin() * 0.067;
+            value += if i == 2 {
+                (if phase[i] < 0.5 { 1. } else { -1. }) * 0.067 * state.buzzer_volume
+            } else {
+                (phase[i] * std::f32::consts::TAU).sin() * 0.067
+            };
         }
     }
     (value * state.volume).clamp(-1., 1.)
@@ -118,6 +125,29 @@ pub fn start(state: Arc<Mutex<State>>) -> Result<cpal::Stream, String> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn ringtone_buzzer_obeys_phone_volume_and_enable() {
+        let mut s = State::default();
+        // No DSP tones; 13MHz / 13000 gives a 1kHz ringtone oscillator.
+        let mut body = [0, 0, 0, 0, 0, 0, 0x32, 0xc8, 1, 255, 10];
+        s.packet(3, &body);
+        let mut phase = [0.; 3];
+        let samples: Vec<f32> = (0..4800).map(|_| synth(&s, &mut phase, 48000.)).collect();
+        let rises = samples
+            .windows(2)
+            .filter(|w| w[0] < 0. && w[1] > 0.)
+            .count();
+        assert!((99..=101).contains(&rises));
+        assert!(samples.iter().any(|v| *v > 0.06));
+        assert!(samples.iter().any(|v| *v < -0.06));
+        body[9] = 0;
+        s.packet(3, &body);
+        assert_eq!(synth(&s, &mut phase, 48000.), 0.);
+        body[9] = 255;
+        body[8] = 0;
+        s.packet(3, &body);
+        assert_eq!(synth(&s, &mut phase, 48000.), 0.);
+    }
     #[test]
     fn audio_uses_device_state_and_silences_on_timeout() {
         let mut s = State::default();

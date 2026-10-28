@@ -6,13 +6,14 @@ import time
 class Synth:
     rate=24000
     def __init__(self):
-        self.tone=(0,0,0,0,0);self.phase=[0.,0.,0.];self.last_rx=0.
+        self.tone=(0,0,0,0,0);self.phase=[0.,0.,0.];self.last_rx=0.;self.buzzer_volume=0.
 
     def update(self,body):
         if len(body)!=11:return
         u16=lambda i:int.from_bytes(body[i:i+2],'big')
         divider=u16(6)
         self.tone=(u16(0)/4,u16(2)/4,u16(4),13000000/divider if body[8] and divider else 0,min(body[10],10))
+        self.buzzer_volume=body[9]/255
         self.heartbeat()
 
     def heartbeat(self):self.last_rx=time.monotonic()
@@ -30,7 +31,7 @@ class Synth:
             for j,hz in enumerate(frequencies):
                 if 20<=hz<=11000:
                     self.phase[j]=(self.phase[j]+hz/self.rate)%1
-                    value+=math.sin(self.phase[j]*math.tau)*2200
+                    value+=((1 if self.phase[j]<.5 else -1)*self.buzzer_volume if j==2 else math.sin(self.phase[j]*math.tau))*2200
             data.append(max(-32768,min(32767,round(value*volume/10))))
         return data.tobytes()
 

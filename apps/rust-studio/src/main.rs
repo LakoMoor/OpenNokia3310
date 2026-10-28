@@ -361,7 +361,11 @@ impl Studio {
             };
             tx.send(format!("Connected {name}")).ok();
             let _audio_stream = match audio::start(audio.clone()) {
-                Ok(stream) => Some(stream),
+                Ok(stream) => {
+                    let _ =
+                        tx.send("PC audio output started on the default playback device.".into());
+                    Some(stream)
+                }
                 Err(error) => {
                     let _ = tx.send(format!("Audio unavailable: {error}"));
                     None
@@ -407,7 +411,18 @@ impl Studio {
                                 board_volume = Some(payload[7].min(10));
                             }
                             if let Ok(mut state) = audio.lock() {
+                                let previous = (state.frequencies, state.volume);
                                 state.packet(kind, payload);
+                                if kind == 3
+                                    && payload.len() == 11
+                                    && previous != (state.frequencies, state.volume)
+                                {
+                                    let _ = tx.send(format!(
+                                        "Device audio: tones {:.1} / {:.1} Hz, buzzer {:.1} Hz, volume {:.0}%, playback {}",
+                                        state.frequencies[0], state.frequencies[1], state.frequencies[2],
+                                        state.volume * 100., if state.enabled { "enabled" } else { "muted" }
+                                    ));
+                                }
                             }
                         }) {
                             let _ = frame_tx.try_send((lcd.to_vec(), gray, board_volume));

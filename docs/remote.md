@@ -56,3 +56,18 @@ The explicit output test is marked by a 1000Hz / amplitude=1 tone state.
 Legacy N3: `4E 33 flags address_BE32 lcd_count_BE16 xor`.
 `nokia_io_top` uses a different N3 payload interpretation; use `read_pad.py`
 only with that diagnostic target.
+
+### Ringtone debugging
+
+Set `NOKIA_AUDIO_TRACE=1` when running `tools/trace_firmware.py` to log
+accepted writes to DSP tone registers and the PUP buzzer region as `AUDIO-W`.
+Each record includes PC, byte address, byte value and cycle. This is opt-in
+and does not change the FPGA design. A one-million-cycle compile/run smoke
+check completed; it does not demonstrate a ringtone.
+
+Rust Studio Activity logs decoded tone frequencies and host output startup.
+Its buzzer oscillator uses a square wave and applies the phone volume byte
+(payload byte 9) as well as the host volume (byte 10). A synthetic 1kHz test
+checks pitch, waveform polarity, zero phone volume and disable. Actual
+original-ROM ringtone audibility remains unverified. The register interpretation
+is consistent with [the reference buzzer model](https://github.com/bialasik/nokia-3310-emulator/blob/main/crates/emucore/src/buzzer.rs).
