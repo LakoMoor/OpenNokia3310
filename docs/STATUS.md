@@ -2,6 +2,13 @@
 
 ## October 28, 2026 — SIM recheck and DSP message pulse
 
+- A single-open 60-second UART observation completed successfully on the
+  combined USB-fix SRAM image; the last logged LCD count was 60,128, with no
+  reported memory/bus error. Reopening COM6 then received no status within
+  five seconds. A further open with DTR/RTS disabled blocked and interruption
+  was requested. This narrows the observed failure to reconnection/driver or
+  associated board state, rather than proving an uninterrupted UART stream
+  stops on its own. The root cause remains unresolved.
 - A later SIM-status read on the combined USB-fix SRAM image blocked without
   output; interruption was requested for that diagnostic process. HDMI capture
   at that point showed a blank green LCD area. The successful initial USB
