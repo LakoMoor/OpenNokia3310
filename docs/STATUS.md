@@ -2,6 +2,17 @@
 
 ## October 28, 2026 — SIM recheck and DSP message pulse
 
+- The fairness-fix board build completed routing and timing: system Fmax
+  41.22 MHz (required 16.875 MHz), pixel Fmax 140.21 MHz (required 27 MHz).
+  Bitstream SHA256 is
+  `c77402fcd740becde78c1075f7cabf9e46f9003d4fde4345e5460e7906c446ac`.
+  This image predates the later audio-reconnect fix. SRAM loading failed at
+  JTAG initialization (`ftdi_usb_reset failed`); no write was performed and
+  hardware behavior of the fairness change remains unverified.
+- The current-RTL 820M-cycle original-ROM simulation completed and reproduced
+  CONNECT ACK at 656,617,583, RELEASE COMPLETE at 775,784,675 and DISC at
+  787,697,511. This verifies the simulated outgoing signalling sequence;
+  it does not establish voice, SMS or network operation on the board.
 - A host reconnect could miss unchanged audio state: the previous RTL timed out
   in a reconnect regression, while the new RTL sends the current oscillator
   state after streaming is enabled and passes that test, the packet-framing
