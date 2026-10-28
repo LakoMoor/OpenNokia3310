@@ -24,6 +24,7 @@ module nokia_link #(parameter CLK_HZ=16_875_000,BAUD=115200) (
     logic [7:0] mirror_q,snapshot_q;
     logic [25:0] frame_timer,status_timer;
     logic frame_due,status_due;
+    logic audio_credit;
     logic [72:0] audio_previous,audio_latch;
     logic [3:0] volume_previous,volume_latch;
     logic [79:0] status_latch;
@@ -107,18 +108,26 @@ module nokia_link #(parameter CLK_HZ=16_875_000,BAUD=115200) (
         case(state)
             IDLE:begin
                 tx_index<=0;checksum<=0;
-                if(stream_enabled && (audio_control!=audio_previous || volume!=volume_previous))begin
-                    audio_latch<=audio_control;volume_latch<=volume;audio_previous<=audio_control;volume_previous<=volume;
-                    kind<=3;length<=11;state<=LOAD;
-                end else if(status_due)begin
+                // Periodic status and screen frames must make progress even
+                // when firmware updates sound registers continuously. Audio
+                // changes are coalesced and sent when neither is due.
+                if(status_due)begin
                     status_latch<={flags,address,lcd_count,4'b0,volume,6'b0,gray,menu_open,8'd1};
                     status_due<=0;kind<=2;length<=10;state<=LOAD;
+                end
+                else if(audio_credit && stream_enabled && (audio_control!=audio_previous || volume!=volume_previous))begin
+                    audio_latch<=audio_control;volume_latch<=volume;audio_previous<=audio_control;volume_previous<=volume;
+                    audio_credit<=0;kind<=3;length<=11;state<=LOAD;
                 end
                 else if(frame_due && stream_enabled && mirror_ready)begin
                     frame_due<=0;copy_addr<=0;pixel_bit<=0;copying_menu<=menu_open;row_latch<=menu_row;
                     copy_column<=0;copy_bank<=0;
-                    gray_latch<=gray;volume_latch<=volume;kind<=1;length<=504;state<=COPY_WAIT;
+                    gray_latch<=gray;volume_latch<=volume;audio_credit<=1;kind<=1;length<=504;state<=COPY_WAIT;
                     capture_mode<=powerdown ? 2'd0 : mode;
+                end
+                else if(stream_enabled && (audio_control!=audio_previous || volume!=volume_previous))begin
+                    audio_latch<=audio_control;volume_latch<=volume;audio_previous<=audio_control;volume_previous<=volume;
+                    audio_credit<=0;kind<=3;length<=11;state<=LOAD;
                 end
             end
             COPY_WAIT:state<=copying_menu ? COPY_PIXEL : COPY_BYTE;
@@ -144,7 +153,7 @@ module nokia_link #(parameter CLK_HZ=16_875_000,BAUD=115200) (
         endcase
         if(reset)begin
             state<=IDLE;column<=0;bank<=0;extended<=0;vertical<=0;mirror_ready<=0;clear_addr<=0;copy_addr<=0;
-            frame_timer<=0;status_timer<=0;frame_due<=0;status_due<=0;audio_previous<=0;audio_latch<=0;
+            frame_timer<=0;status_timer<=0;frame_due<=0;status_due<=0;audio_credit<=0;audio_previous<=0;audio_latch<=0;
             volume_previous<=0;volume_latch<=0;status_latch<=0;kind<=0;length<=0;tx_index<=0;checksum<=0;
             byte_data<=0;start_byte<=0;pixel_bit<=0;pixel_byte<=0;copying_menu<=0;row_latch<=0;gray_latch<=0;
             powerdown<=1;mode<=0;capture_mode<=0;

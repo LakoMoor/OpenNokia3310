@@ -2,6 +2,16 @@
 
 ## October 28, 2026 — SIM recheck and DSP message pulse
 
+- A later HDMI capture on the diagnostic board showed the original firmware's
+  `Insert SIM card` screen; COM6 opened but delivered no N4 status in two
+  reads. This remains an unresolved SIM/USB issue: the screen alone does not
+  establish why the SIM was rejected, and the following RTL change has not yet
+  been tested on the board. A separate stress test found that continuous audio
+  changes starved both screen and status packets (170 audio packets, zero of
+  each other type on the previous RTL). The scheduler now gives status and
+  screen opportunities and reserves an audio opportunity after a screen.
+  The same stress test, existing framing test and full RTL regression pass on
+  the changed RTL; a full FPGA build is running.
 - JTAG and COM6 were available again. The existing timing-qualified diagnostic
   image was loaded into SRAM; flash was untouched. The Rust menu probe observed
   a system-menu status toggle and verified restoration. HDMI captures then
