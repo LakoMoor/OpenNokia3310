@@ -22,6 +22,19 @@ module dsp_tang_phase_tb;
                 $fatal(1,"Tang timer mismatch at cycle %0d",i);
         end
         if(reference_frames<2)$fatal(1,"test did not cross frame boundaries");
+        @(negedge clk);
+        dut.network.grant_delay=1687500;
+        dut.network.delay_count=4218750;
+        #1;
+        if(dut.network.grant_delay!==1687500 || dut.network.delay_count!==4218750)
+            $fatal(1,"Tang delay reload was truncated");
+        @(negedge clk);
+        if(dut.network.grant_delay!==1687499 || dut.network.delay_count!==4218749)
+            $fatal(1,"Tang delay countdown mismatch");
+        dut.network.grant_delay=1;dut.network.delay_count=1;
+        @(negedge clk);
+        if(dut.network.grant_delay!==0 || dut.network.delay_count!==0 || !dut.network.grant_pending || !dut.network.pending)
+            $fatal(1,"Tang delay completion did not schedule pending traffic");
         $display("PASS Tang GSM phase: 200000 clocks against independent 64-bit reference");$finish;
     end
     initial begin #3000000;$fatal(1,"Tang phase timeout");end
