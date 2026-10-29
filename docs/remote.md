@@ -131,3 +131,22 @@ and restores normal status reporting after three seconds or at disconnect.
 Palette selection is preserved. Rust build and six existing tests pass; this
 new button is not yet hardware-qualified. A separate three-second COM6 attempt
 returned no N4 status packets, so no physical SIM command count was established.
+
+#### Current ROM and SIM receive FIFO investigation
+
+A fresh JTAG flash read returned exactly 2,097,152 bytes at offset 0x200000.
+SHA256 `5cd18ff08b40f44c9dbe155bc09efbcea15b5037234fa9d54b3e43bac8fcc8a2`
+matches the simulation ROM byte-for-byte, including EEPROM. SRAM restoration
+succeeded afterwards. A SIM status sample then observed counts 123 and 124,
+last instruction B2, with SDRAM ready and no reported memory error, overflow
+or bus fault. A mirror capture showed the stock Time prompt. Three C presses
+then produced Insert SIM card on the physical board.
+
+The receive model had released the next UART byte only after the MCU read the
+previous byte. A new Tang-clock regression fails on that behavior: queued UART
+bytes must become visible at their paced arrival times even while the MCU is
+not reading. The source now permits that buffering, prefetches the next FIFO
+byte on a read, and preserves RX interrupt state when arrival coincides with
+consumption of the previous last byte. SIM, SIM pace and MAD2 regressions pass.
+An original-ROM run and FPGA build are pending. This is a timing-model correction;
+it is not yet evidence that physical Insert SIM card has been fixed.

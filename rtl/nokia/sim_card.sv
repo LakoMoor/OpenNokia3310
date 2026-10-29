@@ -89,10 +89,12 @@ module sim_card #(parameter CLK_HZ=27_000_000) (
         end
     endfunction
     logic [7:0] file_q;
+    wire rx_pop=valid && !write && address==8'h37 && visible_count!=0;
+    wire rx_visible_due=pace==0 && visible_ptr!=wr_ptr;
     always_ff @(posedge clk) begin
         file_q<=files[ef_base(selected)+12'(offset+index)];
         payload_q<=payload[index[7:0]];
-        rx_q<=rx[read_ptr[8:0]];
+        rx_q<=rx[read_ptr[8:0]+9'(rx_pop)];
     end
     wire [7:0] data_byte=data_kind==0 ? fcp_byte(fcp_fid,fcp_directory,index) :
         offset+index<ef_size(selected) ? file_q : 8'hff;
@@ -125,12 +127,12 @@ module sim_card #(parameter CLK_HZ=27_000_000) (
         chv_start<=0;
         if(rx_emit) wr_ptr<=wr_ptr+1'b1;
         if(pace!=0) pace<=pace-1'b1;
-        else if(visible_ptr!=wr_ptr && visible_ptr==read_ptr) begin
+        else if(visible_ptr!=wr_ptr) begin
             visible_ptr<=visible_ptr+1'b1;interrupts[6]<=1;pace<=CLK_HZ/960-1;
         end
-        if(valid && !write && address==8'h37 && visible_count!=0) begin
+        if(rx_pop) begin
             read_ptr<=read_ptr+1'b1;
-            if(visible_count==1) interrupts[6]<=0;
+            if(visible_count==1 && !rx_visible_due) interrupts[6]<=0;
         end
         if(valid && write) case(address)
             8'h36:if(count<261) begin
