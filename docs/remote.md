@@ -167,3 +167,10 @@ During the pending original-ROM UART-buffer regression, the first 116 completed
 SIM responses exactly matched the prior hardware-power simulation in instruction,
 file, status, length, offset and P1/P2/P3. This is a prefix comparison only;
 completion, post-Time UI and physical acceptance remain pending.
+
+The UART-buffer original-ROM regression completed 450,000,000 cycles with
+unchanged key-script hashes. All 127 SIM completions match the earlier run;
+the 400M framebuffer is byte-identical and the final 450M frame remains the
+NetMonitor 03 page with Menu. This preserves the simulated behavior but does
+not resolve the physical board's Insert SIM card discrepancy. FPGA routing
+and a physical run of the updated image are still pending.
