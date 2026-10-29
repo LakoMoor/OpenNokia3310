@@ -156,3 +156,9 @@ last visible byte on the exact next byte-arrival edge. It verifies that one
 byte remains visible, RX interrupt/FIQ stays asserted, and the next ATR byte
 is readable. This collision check passes along with paced backlog and
 back-to-back FIFO reads.
+
+A separate full-core `core_sim` test now runs ARM instructions that activate
+SIMI, poll until four ATR bytes accumulate, read them through the CPU/MMIO bus,
+and store the expected 3B 60 00 00 values to external RAM with wait states.
+It passes at the Tang device clock. The general ARM/MAD2 smoke test also passes.
+Neither test establishes that the original firmware accepts the SIM.
