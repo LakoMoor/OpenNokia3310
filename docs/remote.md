@@ -174,3 +174,27 @@ the 400M framebuffer is byte-identical and the final 450M frame remains the
 NetMonitor 03 page with Menu. This preserves the simulated behavior but does
 not resolve the physical board's Insert SIM card discrepancy. FPGA routing
 and a physical run of the updated image are still pending.
+
+#### Physical SIM FIFO result
+
+The updated non-network bitstream completed routing: final maxima 34.58MHz
+system and 170.15MHz pixel, required 16.875MHz/27MHz. SHA256
+`78fa892db710ea024556315b479b7f0561eb68fdce8d719cce05c258cba9da19`.
+It was loaded into SRAM only; flash remained unchanged.
+
+A single-open 31.793-second UART run received 127 LCD frames. Before C presses,
+the original Time prompt was visible. After three 300ms C presses with 600ms
+release gaps, the physical framebuffer showed NetMonitor 03 / Menu, matching
+the simulation instead of the earlier Insert SIM card result. SIM diagnostics
+reported 127 commands, last B2, with no reported memory/bus/overflow errors.
+The link delivered 900Hz DSP key-tone state changes. A subsequent OK press
+opened the stock Phone book / Select menu, with 27 additional frames and SIM
+count 129, last F2. This supports that the new image passes this particular
+physical boot/menu scenario; sustained SIM operation is not yet established.
+
+![Tang USB LCD mirror: original Phone book menu](assets/hardware/sim-fifo-phonebook-20261029.png)
+
+This is a USB mirror capture, not an HDMI or small-panel photograph. Physical
+speaker audibility, original ringtone, controller navigation, both display
+outputs on this image and cold flash boot remain unverified. Previous flash
+configuration was not overwritten by this SRAM test.
