@@ -377,6 +377,8 @@ impl Studio {
             let mut gray = false;
             let mut board_volume = None;
             let mut last_audio_packet: Option<Vec<u8>> = None;
+            let mut sim_diagnostic: Option<std::time::Instant> = None;
+            let mut sim_previous: Option<[u8; 4]> = None;
             let mut last_lcd = std::time::Instant::now();
             let mut stream_request = std::time::Instant::now();
             let mut last = std::time::Instant::now() - Duration::from_secs(1);
@@ -391,11 +393,28 @@ impl Studio {
                     }
                     stream_request = std::time::Instant::now();
                 }
+                if sim_diagnostic.is_some_and(|since| since.elapsed() > Duration::from_secs(3)) {
+                    if let Err(error) = p.write_all(&packet(7, u8::from(gray))) {
+                        let _ = tx.send(format!("Diagnostic restore failed: {error}"));
+                        break;
+                    }
+                    sim_diagnostic = None;
+                    let _ = tx
+                        .send("SIM diagnostic finished; normal status reporting restored.".into());
+                }
                 while let Ok(command) = command_rx.try_recv() {
                     if let Err(error) = p.write_all(&command) {
                         let _ = tx.send(format!("Command failed: {error}"));
                         end.store(true, Ordering::Relaxed);
                         break;
+                    }
+                    if command[1] == 7 {
+                        sim_diagnostic = if command[2] & 0xc0 == 0x40 {
+                            sim_previous = None;
+                            Some(std::time::Instant::now())
+                        } else {
+                            None
+                        };
                     }
                 }
                 if audio_test.swap(false, Ordering::Relaxed) {
@@ -422,6 +441,18 @@ impl Studio {
                             if kind == 2 && payload.len() >= 10 {
                                 gray = payload[8] & 2 != 0;
                                 board_volume = Some(payload[7].min(10));
+                                if payload[0] & 2 != 0
+                                    && sim_diagnostic.is_some_and(|since| {
+                                        since.elapsed() > Duration::from_millis(500)
+                                    })
+                                {
+                                    let raw: [u8; 4] = payload[1..5].try_into().unwrap();
+                                    if sim_previous != Some(raw) {
+                                        sim_previous = Some(raw);
+                                        let value = u32::from_be_bytes(raw);
+                                        let _ = tx.send(format!("SIM diagnostics: commands {}, last instruction 0x{:02x}", value & 0xffffff, value >> 24));
+                                    }
+                                }
                             }
                             if let Ok(mut state) = audio.lock() {
                                 state.packet(kind, payload);
@@ -448,6 +479,9 @@ impl Studio {
                         break;
                     }
                 }
+            }
+            if sim_diagnostic.is_some() {
+                let _ = p.write_all(&packet(7, u8::from(gray)));
             }
             for i in 0..3 {
                 let _ = p.write_all(&packet(2 + i, 0));
@@ -765,6 +799,12 @@ impl eframe::App for Studio {
                 ui.label(egui::RichText::new("SESSION LOG").size(11.).color(Color32::from_gray(145)));
                 ui.heading("Activity");
                 ui.label(egui::RichText::new("Connection and installation messages appear here.").color(Color32::from_gray(165)));
+                if ui.add_enabled(self.serial_busy.load(Ordering::SeqCst), egui::Button::new("Read SIM diagnostics")).clicked() {
+                    if let Some(tx) = &self.commands {
+                        let _ = tx.send(packet(7, 0x40 | u8::from(self.gray)));
+                    }
+                }
+
                 ui.add_space(12.);
                 egui::ScrollArea::vertical()
                     .max_height(450.)

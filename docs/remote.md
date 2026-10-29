@@ -123,3 +123,11 @@ prove reliable reconnects or SIM acceptance. The app now retries the idempotent
 stream-enable command when LCD data is absent and labels its waiting state.
 The controls regression confirms repeated stream enables preserve menu state
 and do not reset the phone.
+
+Studio Activity now offers Read SIM diagnostics on the current UART connection.
+It selects the existing opcode-7 diagnostic address mode, waits 500ms before
+interpreting queued statuses, logs command count/last instruction after boot,
+and restores normal status reporting after three seconds or at disconnect.
+Palette selection is preserved. Rust build and six existing tests pass; this
+new button is not yet hardware-qualified. A separate three-second COM6 attempt
+returned no N4 status packets, so no physical SIM command count was established.
