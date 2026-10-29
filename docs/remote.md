@@ -221,3 +221,26 @@ Reference audio-register research was checked against
 [djr-747/nokia-dct3-emulator at 2b4c10f](https://github.com/djr-747/nokia-dct3-emulator/tree/2b4c10ffd6b22a2d021c7f515f27ceb2fb6c78cd/src/mad2):
 DSP HLE tone state and the PUP buzzer are separate voices. Emulator assumptions
 about analog gain are not physical Nokia measurements.
+
+#### Completed ringtone trace and independent reference checks
+
+The original-ROM RTL run completed 820M cycles with unchanged key-script hashes.
+It reached the ringtone selector, including the move to Ring ring. Audio writes
+still describe only short 900Hz keypad tones: no ringtone sequence was observed
+in PUP divider/volume writes or the extra DSP oscillator registers.
+
+The local reference WASM emulator (SHA256
+`367330ad23c73489b1c63546fbbc3a690a2582f47df806af758524da8e9fcdf9`)
+was run with the same v6.39 ROM, ROM6 DSP, SWSIM=0 and GSMBRIDGE=0. Its framebuffer
+also showed Ring ring selected. It generated nonzero keypad PCM but zero PCM
+through the preview interval. A follow-up confirmed the Level 5 volume dialog,
+verified Ringing volume / Level 5 on screen, and returned to Ring ring; that
+preview interval was silent too. This reference run is diagnostic evidence,
+not a golden physical-phone measurement or proof of FPGA correctness.
+
+`NOKIA_WATCH_PC` now accepts comma-separated hexadecimal PCs in the RTL harness;
+`NOKIA_WATCH_FROM` selects the first observed cycle. It logs CPSR and r0..r7 at
+up to 64 hits per address, without changing CPU execution. A one-million-cycle
+smoke run observed the original 0x200040 entry. A longer run is watching tone
+procedure checkpoints 0x295552, 0x295616 and 0x295628 to distinguish loading,
+queueing and early failure. Its result remains pending.

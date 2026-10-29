@@ -9,6 +9,7 @@
 #include <vector>
 #include <cstdint>
 #include <cstdlib>
+#include <sstream>
 
 int main(int argc,char **argv) {
     if(argc<2) return 2;
@@ -48,6 +49,15 @@ int main(int argc,char **argv) {
     const bool queue_trace=std::getenv("NOKIA_QUEUE_TRACE")!=nullptr;
     const bool audio_trace=std::getenv("NOKIA_AUDIO_TRACE")!=nullptr;
     const bool io_trace=std::getenv("NOKIA_IO_TRACE")!=nullptr;
+    std::vector<std::pair<uint32_t,unsigned>> rom_watches;
+    std::istringstream watch_spec(std::getenv("NOKIA_WATCH_PC") ? std::getenv("NOKIA_WATCH_PC") : "");
+    std::string watch_token;
+    while(std::getline(watch_spec,watch_token,',')) {
+        if(!watch_token.empty()) rom_watches.emplace_back(std::stoul(watch_token,nullptr,16),0);
+    }
+    const uint64_t watch_from=std::getenv("NOKIA_WATCH_FROM") ? std::stoull(std::getenv("NOKIA_WATCH_FROM")) : 0;
+    uint32_t previous_exec_pc=0xffffffffu;
+
     auto save_frame=[&](const std::string &name) {
         std::ofstream image(name);
         image<<"P2\n84 48\n255\n";
@@ -181,6 +191,17 @@ int main(int argc,char **argv) {
                 std::cout<<"unimplemented "<<(cpu->trace_write?"W":"R")<<" 0x"<<std::hex<<cpu->trace_address
                     <<" data=0x"<<cpu->trace_wdata<<" be="<<unsigned(cpu->trace_be)<<std::dec<<" cycle="<<cycle<<"\n";
             }
+        }
+        if(cpu->trace_exec) {
+            if(cycle>=watch_from && previous_exec_pc!=cpu->trace_pc) {
+                for(auto &watch:rom_watches) if(watch.first==cpu->trace_pc && watch.second<64) {
+                    ++watch.second;
+                    std::cout<<"ROM-WATCH pc="<<std::hex<<cpu->trace_pc<<" cpsr="<<cpu->trace_cpsr;
+                    for(unsigned reg=0;reg<8;++reg) std::cout<<" r"<<reg<<"="<<cpu->trace_regs[reg];
+                    std::cout<<std::dec<<" cycle="<<cycle<<"\n";
+                }
+            }
+            previous_exec_pc=cpu->trace_pc;
         }
         if(cpu_trace && cpu->trace_exception) std::cout<<"EXCEPTION pc="<<std::hex<<cpu->trace_pc<<" cpsr="<<cpu->trace_cpsr<<" mode="<<unsigned(cpu->trace_rf_mode)<<" user="<<unsigned(cpu->trace_user_bank)<<" we="<<unsigned(cpu->trace_rf_we)<<" reg="<<unsigned(cpu->trace_rf_addr)<<" value="<<cpu->trace_rf_data<<std::dec<<" cycle="<<cycle<<"\n";
         cpu->clk=1;cpu->eval();context->timeInc(1);
