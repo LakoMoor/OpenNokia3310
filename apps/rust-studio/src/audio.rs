@@ -68,13 +68,22 @@ fn synth(state: &State, phase: &mut [f32; 3], rate: f32) -> f32 {
     }
     (value * state.volume).clamp(-1., 1.)
 }
-pub fn start(state: Arc<Mutex<State>>) -> Result<cpal::Stream, String> {
+pub fn start(state: Arc<Mutex<State>>) -> Result<(cpal::Stream, String), String> {
     let device = cpal::default_host()
         .default_output_device()
         .ok_or("No default audio output")?;
     let supported = device.default_output_config().map_err(|e| e.to_string())?;
     let format = supported.sample_format();
     let config: cpal::StreamConfig = supported.into();
+    let output = format!(
+        "{} / {} Hz / {} channels / {:?}",
+        device
+            .name()
+            .unwrap_or_else(|_| "Default audio device".into()),
+        config.sample_rate.0,
+        config.channels,
+        format
+    );
     let channels = config.channels as usize;
     let rate = config.sample_rate.0 as f32;
     let mut phase = [0.; 3];
@@ -120,7 +129,7 @@ pub fn start(state: Arc<Mutex<State>>) -> Result<cpal::Stream, String> {
     }
     .map_err(|e| e.to_string())?;
     stream.play().map_err(|e| e.to_string())?;
-    Ok(stream)
+    Ok((stream, output))
 }
 #[cfg(test)]
 mod tests {

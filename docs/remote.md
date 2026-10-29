@@ -244,3 +244,26 @@ up to 64 hits per address, without changing CPU execution. A one-million-cycle
 smoke run observed the original 0x200040 entry. A longer run is watching tone
 procedure checkpoints 0x295552, 0x295616 and 0x295628 to distinguish loading,
 queueing and early failure. Its result remains pending.
+
+#### Preview prerequisite found in the software reference
+
+A diagnostic-only direct call to the ROM tone procedure at Thumb 0x295544
+(tone 0x46, mode 0xF2) produced nonzero PCM in the local reference. This test
+changes reference CPU control flow and is not a production fix or a hardware
+qualification. It established that this reference can load and synthesize a
+stored tone.
+
+A subsequent ordinary-menu run set Incoming call alert to Ringing after the
+confirmed Level 5 setting. Screenshots verified Incoming call alert / Ringing
+and Ring ring highlighted. In the next preview interval the reference produced
+105,024 nonzero PCM samples, peak 8000, and one observed ROM tone-procedure call.
+The same menu preview had been silent before that setting. A separate test
+using the reference's normal key API with longer release gaps stayed silent
+without the alert setting; short raw key pulses alone did not explain it.
+This provides a reproducible menu prerequisite for the next physical test,
+not proof that Tang ringtone playback is fixed. The stalled physical COM6
+operation still needs USB reconnection before testing in one UART session.
+
+Studio Activity now identifies the actual output device, sample rate, channel
+count and sample format when opening PC playback. Six Rust tests and the Windows
+build pass; the endpoint information is diagnostic, not an audibility check.

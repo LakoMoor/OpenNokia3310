@@ -361,9 +361,8 @@ impl Studio {
             };
             tx.send(format!("Connected {name}")).ok();
             let _audio_stream = match audio::start(audio.clone()) {
-                Ok(stream) => {
-                    let _ =
-                        tx.send("PC audio output started on the default playback device.".into());
+                Ok((stream, output)) => {
+                    let _ = tx.send(format!("PC audio output: {output}"));
                     Some(stream)
                 }
                 Err(error) => {
@@ -976,7 +975,8 @@ fn probe_menu(name: &str) -> Result<(), String> {
 
 fn probe_audio(name: &str) -> Result<(), String> {
     let audio = Arc::new(Mutex::new(audio::State::default()));
-    let _stream = audio::start(audio.clone())?;
+    let (_stream, output) = audio::start(audio.clone())?;
+    println!("PC audio output: {output}");
     let mut port = serialport::new(name, 115200)
         .timeout(Duration::from_millis(50))
         .open()
