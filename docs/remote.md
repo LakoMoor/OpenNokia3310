@@ -162,3 +162,8 @@ SIMI, poll until four ATR bytes accumulate, read them through the CPU/MMIO bus,
 and store the expected 3B 60 00 00 values to external RAM with wait states.
 It passes at the Tang device clock. The general ARM/MAD2 smoke test also passes.
 Neither test establishes that the original firmware accepts the SIM.
+
+During the pending original-ROM UART-buffer regression, the first 116 completed
+SIM responses exactly matched the prior hardware-power simulation in instruction,
+file, status, length, offset and P1/P2/P3. This is a prefix comparison only;
+completion, post-Time UI and physical acceptance remain pending.
