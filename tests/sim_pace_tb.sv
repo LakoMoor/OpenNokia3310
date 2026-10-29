@@ -29,6 +29,18 @@ module sim_pace_tb;
         address='h37;valid=1;#1;if(rdata!==8'h60)$fatal(1,"queued ATR byte two");
         @(negedge clk);#1;if(rdata!==0)$fatal(1,"back-to-back SIM FIFO read must prefetch next byte");
         @(negedge clk);valid=0;
+        // Restart and arrange a read on the exact next byte-arrival edge.
+        reset=1;repeat(3)@(negedge clk);reset=0;
+        valid=1;write=1;address='h39;wdata='hb2;
+        @(negedge clk);valid=0;write=0;
+        repeat(RELOAD+1)@(negedge clk);
+        if(dut.visible_count!==1)$fatal(1,"collision setup first byte");
+        repeat(RELOAD-1)@(negedge clk);
+        if(dut.pace!==0)$fatal(1,"collision setup pace");
+        valid=1;address='h37;
+        @(negedge clk);valid=0;#1;
+        if(dut.visible_count!==1 || !dut.interrupts[6] || !fiq)$fatal(1,"arrival/read collision must retain RX interrupt");
+        if(rdata!==8'h60)$fatal(1,"collision next byte must remain readable");
         $display("PASS SIM pace: exact activation and successive ATR byte intervals at Tang clock");$finish;
     end
     initial begin #1000000;$fatal(1,"SIM pace timeout");end

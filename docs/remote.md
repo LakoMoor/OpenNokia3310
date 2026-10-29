@@ -150,3 +150,9 @@ byte on a read, and preserves RX interrupt state when arrival coincides with
 consumption of the previous last byte. SIM, SIM pace and MAD2 regressions pass.
 An original-ROM run and FPGA build are pending. This is a timing-model correction;
 it is not yet evidence that physical Insert SIM card has been fixed.
+
+The Tang-clock SIM pace regression additionally schedules consumption of the
+last visible byte on the exact next byte-arrival edge. It verifies that one
+byte remains visible, RX interrupt/FIQ stays asserted, and the next ATR byte
+is readable. This collision check passes along with paced backlog and
+back-to-back FIFO reads.
