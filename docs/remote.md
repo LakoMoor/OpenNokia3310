@@ -198,3 +198,26 @@ This is a USB mirror capture, not an HDMI or small-panel photograph. Physical
 speaker audibility, original ringtone, controller navigation, both display
 outputs on this image and cold flash boot remain unverified. Previous flash
 configuration was not overwritten by this SRAM test.
+
+#### Original ringtone investigation
+
+After USB reconnection and SRAM reload, one continuous 46.246-second UART
+session traversed boot, Menu, Tones and the ringtone selector. It received
+185 LCD frames and 37 audio-state events. The visible list included Ring ring,
+Low and Mosquito. The recorded audio events contain the short 900Hz keypad
+tones, but no observed ringtone note sequence. A separate menu inspection
+showed Ringing volume / Level 1, not a silent level. A higher-volume-selection
+probe stalled before a result; no higher level has been established.
+
+![Original ringtone selector, Tang USB mirror](assets/hardware/ringtone-list-20261029.png)
+
+Static inspection of the local v6.39 image finds a TONE tag at flash address
+0x35BD24; the tone playback code loads the TONE identifier from 0x295928.
+This is evidence of the resource path, not proof of valid playback. The
+original-ROM simulation with ringtone navigation and AUDIO-W tracing is
+running separately. No ringtone audibility is claimed.
+
+Reference audio-register research was checked against
+[djr-747/nokia-dct3-emulator at 2b4c10f](https://github.com/djr-747/nokia-dct3-emulator/tree/2b4c10ffd6b22a2d021c7f515f27ceb2fb6c78cd/src/mad2):
+DSP HLE tone state and the PUP buzzer are separate voices. Emulator assumptions
+about analog gain are not physical Nokia measurements.
